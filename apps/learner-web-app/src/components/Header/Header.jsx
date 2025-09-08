@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Box, Select, MenuItem } from "@mui/material";
 import LanguageIcon from "@mui/icons-material/Language";
 import Image from "next/image";
-import appLogo from "../../../public/images/appLogo.svg";
+import appLogo from "../../../public/Tekdi_Logo.svg";
 import { useTranslation } from "@shared-lib";
 
 const Header = () => {
@@ -31,7 +31,7 @@ const Header = () => {
     >
       {/* Logo */}
       <Box display="flex" alignItems="center" gap={2}>
-        <Image src={appLogo} alt="Pratham Logo" width={200} height={40} />
+        <Image src={appLogo} alt="Shiksha" width={200} height={40} />
       </Box>
 
       {/* Language Selector */}

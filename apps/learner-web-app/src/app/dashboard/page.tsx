@@ -203,9 +203,12 @@ const DashboardPage = () => {
                     "se_subDomains",
                     "se_subjects",
                   ],
-                  ...(Array.isArray(storedConfig.showContent) &&
-                    storedConfig.showContent.length === 2 &&
-                    storedConfig.showContent.includes("courses")),
+                  // Fix: Only spread if showContent exists and is an array
+                  ...(Array.isArray((storedConfig as any).showContent) &&
+                    (storedConfig as any).showContent.length === 2 &&
+                    (storedConfig as any).showContent.includes("courses")
+                    ? {}
+                    : {}),
                   //   contentTabs:
                   //     activeTab === "courses"
                   //       ? ["Course"]

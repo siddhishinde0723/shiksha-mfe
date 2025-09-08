@@ -1,12 +1,8 @@
-<<<<<<< HEAD
-import React, { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
-import { useParams } from 'next/navigation';
-=======
+
 import React, { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
->>>>>>> 1ad3d05f78e1c5100c5f61904bc066d2936fbae7
+
 import {
   fetchContent,
   getHierarchy,
@@ -37,11 +33,9 @@ const Players: React.FC<SunbirdPlayerProps> = ({
   playerConfig: propPlayerConfig,
 }) => {
   const params = useParams();
-<<<<<<< HEAD
-=======
+
   const router = useRouter();
 
->>>>>>> 1ad3d05f78e1c5100c5f61904bc066d2936fbae7
   const queryIdentifier = params?.identifier; // string | string[] | undefined
   const identifier = propIdentifier || queryIdentifier; // Prefer prop over query
   const [playerConfig, setPlayerConfig] = useState<PlayerConfig | undefined>(
@@ -82,12 +76,11 @@ const Players: React.FC<SunbirdPlayerProps> = ({
           const metadata = { ...Q1?.questionset, ...Q2?.questionset };
           config.metadata = metadata;
         } else if (MIME_TYPE.INTERACTIVE_MIME_TYPE.includes(data?.mimeType)) {
-<<<<<<< HEAD
-=======
+
           // router.push(
           //   `${process.env.NEXT_PUBLIC_ECML_PLAYER_URL}?identifier=${identifier}`
           // );
->>>>>>> 1ad3d05f78e1c5100c5f61904bc066d2936fbae7
+
           config = { ...V1PlayerConfig, metadata: data, data: data.body || {} };
           //@ts-ignore
           config.context["contentId"] = identifier;

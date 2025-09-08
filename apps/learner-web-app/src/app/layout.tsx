@@ -1,21 +1,21 @@
 // app/layout.tsx
-import './global.css';
-import 'react-toastify/dist/ReactToastify.css';
-import { ToastContainer } from 'react-toastify';
+import "./global.css";
+import "react-toastify/dist/ReactToastify.css";
+import { ToastContainer } from "react-toastify";
 import MuiThemeProvider, {
   MuiThemeProviderWithLanguage,
-} from '@learner/assets/theme/MuiThemeProvider';
-import ClientLayout from './ClientLayout';
-import GoogleAnalyticsTracker from '@learner/components/GoogleAnalyticsTracker/GoogleAnalyticsTracker';
+} from "@learner/assets/theme/MuiThemeProvider";
+import ClientLayout from "./ClientLayout";
+import GoogleAnalyticsTracker from "@learner/components/GoogleAnalyticsTracker/GoogleAnalyticsTracker";
 
 export const metadata = {
-  title: 'Welcome to learner-web-app',
+  title: "Welcome to shiksha-app",
   description:
-    'Learner web app is a platform for users to learn and grow by consuming educational content',
+    "Shiksha-app is a platform for users to learn and grow by consuming educational content",
   openGraph: {
-    title: 'Welcome to learner-web-app',
+    title: "Welcome to shiksha-app",
     description:
-      'Learner web app is a platform for users to learn and grow by consuming educational content',
+      "Shiksha-app is a platform for users to learn and grow by consuming educational content",
     images: [
       {
         url: `/logo.png`,
@@ -23,7 +23,7 @@ export const metadata = {
         height: 600,
       },
     ],
-    type: 'website',
+    type: "website",
   },
 };
 
@@ -35,6 +35,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#1976d2" />
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         <link
           href="https://fonts.googleapis.com/icon?family=Material+Icons"
           rel="stylesheet"
@@ -73,16 +77,14 @@ export default function RootLayout({
         />
       </head>
       <body>
-          <ClientLayout>
-            
+        <ClientLayout>
           <MuiThemeProviderWithLanguage>
-                    <GoogleAnalyticsTracker />
+            <GoogleAnalyticsTracker />
 
             <MuiThemeProvider>{children}</MuiThemeProvider>
           </MuiThemeProviderWithLanguage>
           <ToastContainer />
         </ClientLayout>
-        
       </body>
     </html>
   );

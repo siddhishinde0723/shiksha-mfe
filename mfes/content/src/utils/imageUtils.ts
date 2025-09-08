@@ -62,7 +62,12 @@ export const getBestImageUrl = (item?: any, baseUrl?: string): string => {
       return processedUrl;
     }
   }
-
+  if (item.appicon) {
+    const processedUrl = processImageUrl(item.appicon, baseUrl);
+    if (processedUrl) {
+      return processedUrl;
+    }
+  }
   // Return empty string if no image found
   return "";
 };

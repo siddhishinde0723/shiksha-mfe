@@ -1,40 +1,21 @@
-<<<<<<< HEAD
-import React, { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
-import { useRouter } from 'next/router';
-=======
 import React, { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
->>>>>>> 1ad3d05f78e1c5100c5f61904bc066d2936fbae7
 import {
   fetchContent,
   getHierarchy,
   getQumlData,
-<<<<<<< HEAD
-} from '../services/PlayerService';
-import { Box, Typography } from '@mui/material';
-import { MIME_TYPE } from '../utils/url.config';
-=======
 } from "../services/PlayerService";
 import { Box, Typography } from "@mui/material";
 import { MIME_TYPE } from "../utils/url.config";
->>>>>>> 1ad3d05f78e1c5100c5f61904bc066d2936fbae7
 import {
   PlayerConfig,
   V1PlayerConfig,
   V2PlayerConfig,
-<<<<<<< HEAD
-} from '../utils/url.config';
-import Loader from '../components/Loader';
-
-const SunbirdPlayers = dynamic(() => import('../components/players/Players'), {
-=======
 } from "../utils/url.config";
 import Loader from "../components/Loader";
 
 const SunbirdPlayers = dynamic(() => import("../components/players/Players"), {
->>>>>>> 1ad3d05f78e1c5100c5f61904bc066d2936fbae7
   ssr: false,
 });
 
@@ -48,16 +29,7 @@ const Players: React.FC<SunbirdPlayerProps> = ({
   playerConfig: propPlayerConfig,
 }) => {
   const router = useRouter();
-  const {
-    courseId,
-    unitId,
-<<<<<<< HEAD
-    userId,
-=======
-
->>>>>>> 1ad3d05f78e1c5100c5f61904bc066d2936fbae7
-    identifier: queryIdentifier,
-  } = router.query ?? {}; // Get identifier from the query
+  const { courseId, unitId, identifier: queryIdentifier } = router.query ?? {}; // Get identifier from the query
   const identifier = propIdentifier || queryIdentifier; // Prefer prop over query
   const [playerConfig, setPlayerConfig] = useState<PlayerConfig | undefined>(
     propPlayerConfig
@@ -65,9 +37,6 @@ const Players: React.FC<SunbirdPlayerProps> = ({
   const [loading, setLoading] = useState(!propPlayerConfig);
   const [isGenerateCertificate, setIsGenerateCertificate] = useState(true);
   const [trackable, setTrackable] = useState(true);
-<<<<<<< HEAD
-
-=======
   const [userId, setUserId] = useState("");
 
   // Get all query params once router is ready
@@ -84,7 +53,6 @@ const Players: React.FC<SunbirdPlayerProps> = ({
     }
   }, [router.isReady, router.query.userId]);
   console.log("userId====", userId);
->>>>>>> 1ad3d05f78e1c5100c5f61904bc066d2936fbae7
   useEffect(() => {
     if (playerConfig || !identifier) return;
 
@@ -107,28 +75,16 @@ const Players: React.FC<SunbirdPlayerProps> = ({
         } else if (MIME_TYPE.INTERACTIVE_MIME_TYPE.includes(data?.mimeType)) {
           config = { ...V1PlayerConfig, metadata: data, data: data.body || {} };
           //@ts-ignore
-<<<<<<< HEAD
-          config.context['contentId'] = identifier;
-        } else {
-          config = { ...V2PlayerConfig, metadata: data };
-          //@ts-ignore
-          config.context['contentId'] = identifier;
-=======
           config.context["contentId"] = identifier;
         } else {
           config = { ...V2PlayerConfig, metadata: data };
           //@ts-ignore
           config.context["contentId"] = identifier;
->>>>>>> 1ad3d05f78e1c5100c5f61904bc066d2936fbae7
         }
 
         setPlayerConfig(config);
       } catch (error) {
-<<<<<<< HEAD
-        console.error('Error loading content:', error);
-=======
         console.error("Error loading content:", error);
->>>>>>> 1ad3d05f78e1c5100c5f61904bc066d2936fbae7
       } finally {
         setLoading(false);
       }
@@ -162,11 +118,7 @@ const Players: React.FC<SunbirdPlayerProps> = ({
           <Loader showBackdrop={false} />
         </Box>
       ) : (
-<<<<<<< HEAD
-        <Box sx={{ height: 'calc(100vh - 16px)' }}>
-=======
         <Box sx={{ height: "calc(100vh - 16px)" }}>
->>>>>>> 1ad3d05f78e1c5100c5f61904bc066d2936fbae7
           {/* <Typography
             color="#024f9d"
             sx={{ padding: '0 0 4px 4px', fontWeight: 'bold' }}

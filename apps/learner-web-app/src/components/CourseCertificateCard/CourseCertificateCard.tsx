@@ -53,7 +53,7 @@ const CourseCertificateCard: React.FC<CertificateCardProps> = ({
           transform: "translateY(-4px)",
           boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
         },
-        border: "2px solid red", // Temporary border to make it visible
+        // border: "2px solid red", // Temporary border to make it visible
       }}
     >
       {/* Image with overlay bar */}

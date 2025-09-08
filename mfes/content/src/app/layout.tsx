@@ -1,16 +1,16 @@
 // app/layout.tsx
-import 'react-toastify/dist/ReactToastify.css';
-import { ToastContainer } from 'react-toastify';
-import MuiThemeProvider from '@content-mfes/assets/theme/MuiThemeProvider';
+import "react-toastify/dist/ReactToastify.css";
+import { ToastContainer } from "react-toastify";
+import MuiThemeProvider from "@content-mfes/assets/theme/MuiThemeProvider";
 
 export const metadata = {
-  title: 'Welcome to learner-web-app',
+  title: "Welcome to shiksha-app",
   description:
-    'Learner web app is a platform for users to learn and grow by consuming educational content',
+    "Shiksha-app is a platform for users to learn and grow by consuming educational content",
   openGraph: {
-    title: 'Welcome to learner-web-app',
+    title: "Welcome to shiksha-app",
     description:
-      'Learner web app is a platform for users to learn and grow by consuming educational content',
+      "Shiksha-app is a platform for users to learn and grow by consuming educational content",
     images: [
       {
         url: `/logo.png`,
@@ -18,7 +18,7 @@ export const metadata = {
         height: 600,
       },
     ],
-    type: 'website',
+    type: "website",
   },
 };
 
