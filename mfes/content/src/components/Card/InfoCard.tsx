@@ -14,6 +14,7 @@ import { ExpandableText, useTranslation } from "@shared-lib";
 import BreadCrumb from "../BreadCrumb";
 import SpeakableText from "@shared-lib-v2/lib/textToSpeech/SpeakableText";
 import LoginIcon from "@mui/icons-material/Login";
+import { transformImageUrl } from "../../utils/imageUtils";
 
 interface InfoCardProps {
   item: any;
@@ -38,18 +39,17 @@ const InfoCard: React.FC<InfoCardProps> = ({
   console.log("InfoCard - item.posterImage:", item?.posterImage);
   console.log("InfoCard - item.appIcon:", item?.appIcon);
   console.log("InfoCard - _infoCard.default_img:", _infoCard?.default_img);
-  console.log(
-    "InfoCard - final image URL:",
-    item?.posterImage || _infoCard?.default_img
-  );
 
-  // Process image URL to handle relative URLs
+  // Process image URL to handle relative URLs and transform Azure URLs to AWS S3
   const processImageUrl = (url?: string) => {
     if (!url) return "";
 
+    // First transform the URL if it's from Azure Blob Storage
+    const transformedUrl = transformImageUrl(url);
+
     // If it's already an absolute URL, return as is
-    if (url.startsWith("http://") || url.startsWith("https://")) {
-      return url;
+    if (transformedUrl.startsWith("http://") || transformedUrl.startsWith("https://")) {
+      return transformedUrl;
     }
 
     // If it's a relative URL, construct the full URL
@@ -57,13 +57,13 @@ const InfoCard: React.FC<InfoCardProps> = ({
       process.env.NEXT_PUBLIC_MIDDLEWARE_URL ||
       "https://interface.tekdinext.com";
     const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
-    const cleanImageUrl = url.startsWith("/") ? url.slice(1) : url;
+    const cleanImageUrl = transformedUrl.startsWith("/") ? transformedUrl.slice(1) : transformedUrl;
 
     return `${cleanBaseUrl}/${cleanImageUrl}`;
   };
 
   const finalImageUrl =
-    processImageUrl(item?.posterImage) || _infoCard?.default_img;
+    processImageUrl(item?.posterImage || item?.appIcon) || _infoCard?.default_img;
   console.log("InfoCard - processed final image URL:", finalImageUrl);
 
   return (

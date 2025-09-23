@@ -11,7 +11,7 @@ export default memo(function SearchComponent({
   onSearch: (value: string) => void;
 }) {
   const { t } = useTranslation();
-  const [searchValue, setSearchValue] = useState('');
+  const [searchValue, setSearchValue] = useState(value || '');
 
   // Debounced function (only called for non-empty values)
   const debouncedSearch = useMemo(
@@ -42,7 +42,7 @@ export default memo(function SearchComponent({
   }, [searchValue, debouncedSearch, onSearch]);
 
   useEffect(() => {
-    setSearchValue(value);
+    setSearchValue(value || '');
   }, [value]);
 
   const handleSearchChange = (value: string) => {

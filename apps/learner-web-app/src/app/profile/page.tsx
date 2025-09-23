@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Alert, Box, Typography, Container, Grid, Button } from "@mui/material";
+import { Alert, Box, Typography, Container, Grid, Button, Skeleton, Paper, Chip, Avatar, Divider } from "@mui/material";
 import Layout from "../../components/Layout";
 import UserProfileCard from "@learner/components/UserProfileCard/UserProfileCard";
 import CourseCertificateCard from "@learner/components/CourseCertificateCard/CourseCertificateCard";
@@ -11,10 +11,14 @@ import { useRouter } from "next/navigation";
 import { checkAuth } from "@shared-lib-v2/utils/AuthService";
 import InfoIcon from "@mui/icons-material/Info";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import SchoolIcon from "@mui/icons-material/School";
+import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 
 import { baseurl } from "@learner/utils/API/EndUrls";
 import { Info } from "@mui/icons-material";
 import { showToastMessage } from "@learner/components/ToastComponent/Toastify";
+import { transformImageUrl } from "@learner/utils/imageUtils";
 
 type FilterDetails = {
   status?: string[];
@@ -35,6 +39,9 @@ const ProfilePage = () => {
   const [certificateId, setCertificateId] = useState("");
   const [courseData, setCourseData] = useState<any>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Cache key for storing certificate data
+  const cacheKey = `profile-certificates-${filters.userId}-${filters.tenantId}`;
 
   const handlePreview = async (id: string) => {
     try {
@@ -55,12 +62,27 @@ const ProfilePage = () => {
     const prepareCertificateData = async () => {
       try {
         setLoading(true);
+        
+        // Check if data is cached and still valid (cache for 5 minutes)
+        const cachedData = localStorage.getItem(cacheKey);
+        const cacheTimestamp = localStorage.getItem(`${cacheKey}-timestamp`);
+        const now = Date.now();
+        const cacheExpiry = 5 * 60 * 1000; // 5 minutes
+        
+        if (cachedData && cacheTimestamp && (now - parseInt(cacheTimestamp)) < cacheExpiry) {
+          console.log("Using cached certificate data");
+          setCourseData(JSON.parse(cachedData));
+          setLoading(false);
+          return;
+        }
+        
         const finalArray = [];
 
         const response = await courseWiseLernerList({ filters });
         console.log("response", response.data);
 
-        for (const item of response.data) {
+        // Process certificates in parallel instead of sequential
+        const courseDetailsPromises = response.data.map(async (item: any) => {
           try {
             console.log(`Fetching details for courseId: ${item.courseId}`);
             const Details: any = await get(
@@ -107,11 +129,11 @@ const ProfilePage = () => {
               completedOn: item.issuedOn,
               description:
                 courseDetails.description || "Course completion certificate",
-              posterImage: courseDetails.posterImage || "/images/image_ver.png",
+              posterImage: transformImageUrl(courseDetails.posterImage) || "/images/image_ver.png",
               program: courseTitle,
             };
             console.log("Created certificate object:", obj);
-            finalArray.push(obj);
+            return obj;
           } catch (error) {
             console.error(
               `Failed to fetch course details for courseId: ${item.courseId}`,
@@ -129,9 +151,14 @@ const ProfilePage = () => {
               program: `Course ${item.courseId.slice(-8)}`,
             };
             console.log("Created fallback certificate object:", obj);
-            finalArray.push(obj);
+            return obj;
           }
-        }
+        });
+
+        // Wait for all course details to be fetched in parallel
+        const courseDetailsResults = await Promise.all(courseDetailsPromises);
+        finalArray.push(...courseDetailsResults);
+
         console.log("finalArray", finalArray);
 
         // Add a test certificate if no certificates were found
@@ -150,6 +177,12 @@ const ProfilePage = () => {
         }
 
         setCourseData(finalArray);
+        
+        // Cache the data
+        localStorage.setItem(cacheKey, JSON.stringify(finalArray));
+        localStorage.setItem(`${cacheKey}-timestamp`, now.toString());
+        console.log("Certificate data cached");
+        
       } catch (error) {
         console.error("Error fetching certificate data:", error);
         showToastMessage("Error loading certificates", "error");
@@ -183,28 +216,126 @@ const ProfilePage = () => {
 
   return (
     <Layout>
-      <Container maxWidth="xl" sx={{ py: 3 }}>
-        {/* Back Button */}
-        <Box sx={{ mb: 3 }}>
-          <Button
-            variant="outlined"
-            startIcon={<ArrowBackIcon />}
-            onClick={() => router.push("/dashboard")}
-            sx={{
-              color: "#78590C",
-              borderColor: "#78590C",
-              "&:hover": {
-                backgroundColor: "#78590C",
-                color: "white",
-                borderColor: "#78590C",
-              },
-            }}
-          >
-            Back to Dashboard
-          </Button>
-        </Box>
+      {/* Hero Section with Gradient Background */}
+      <Box
+        sx={{
+            background: '#F8EFDA',
+          py: 4,
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Background Pattern */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            opacity: 0.1,
+            backgroundImage: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.1"%3E%3Ccircle cx="30" cy="30" r="4"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+          }}
+        />
+        
+        <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 1 }}>
+          {/* Back Button */}
+          <Box sx={{ mb: 3 }}>
+            <Button
+              variant="outlined"
+              startIcon={<ArrowBackIcon />}
+              onClick={() => router.push("/dashboard")}
+              sx={{
+                color: "#1F1B13",
+                borderColor: "rgba(31,27,19,0.3)",
+                backgroundColor: "rgba(255,255,255,0.8)",
+                backdropFilter: "blur(10px)",
+                "&:hover": {
+                  backgroundColor: "rgba(255,255,255,0.9)",
+                  borderColor: "rgba(31,27,19,0.5)",
+                },
+              }}
+            >
+              Back to Dashboard
+            </Button>
+          </Box>
 
-        <Grid container spacing={3}>
+          {/* Profile Header */}
+          <Box sx={{ textAlign: 'center', color: '#1F1B13', mb: 4 }}>
+            <Typography
+              variant="h2"
+              fontWeight={700}
+              sx={{ 
+                mb: 2, 
+                textShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                fontSize: '24px'
+              }}
+            >
+              My Profile
+            </Typography>
+            <Typography
+              variant="h5"
+              sx={{ 
+                opacity: 0.8, 
+                fontWeight: 400,
+                fontSize: '16px'
+              }}
+            >
+              Track your learning journey and achievements
+            </Typography>
+          </Box>
+
+          {/* Stats Cards */}
+          <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid item xs={12} sm={6}>
+              <Paper
+                sx={{
+                  p: 3,
+                  textAlign: 'center',
+                  background: 'rgba(255,255,255,0.8)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(0,0,0,0.1)',
+                  borderRadius: 3,
+                  color: '#1F1B13',
+                }}
+              >
+                <SchoolIcon sx={{ fontSize: 32, mb: 1, opacity: 0.9 }} />
+                <Typography variant="h4" fontWeight={700} sx={{ mb: 0.5, fontSize: '24px' }}>
+                  {courseData.length}
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.8, fontSize: '14px' }}>
+                  Courses Completed
+                </Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Paper
+                sx={{
+                  p: 3,
+                  textAlign: 'center',
+                  background: 'rgba(255,255,255,0.8)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(0,0,0,0.1)',
+                  borderRadius: 3,
+                  color: '#1F1B13',
+                }}
+              >
+                <EmojiEventsIcon sx={{ fontSize: 32, mb: 1, opacity: 0.9 }} />
+                <Typography variant="h4" fontWeight={700} sx={{ mb: 0.5, fontSize: '24px' }}>
+                  {courseData.length}
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.8, fontSize: '14px' }}>
+                  Certificates Earned
+                </Typography>
+              </Paper>
+            </Grid>
+          </Grid>
+        </Container>
+      </Box>
+
+      {/* Main Content */}
+      <Container maxWidth="xl" sx={{ py: 4 }}>
+        <Grid container spacing={4}>
           {/* User Profile Card */}
           <Grid item xs={12} md={shouldShowCertificates ? 4 : 12}>
             <UserProfileCard
@@ -215,104 +346,122 @@ const ProfilePage = () => {
           {/* Certificates Section */}
           {shouldShowCertificates && (
             <Grid item xs={12} md={8}>
-              <Box
+              <Paper
                 sx={{
-                  backgroundColor: "#fff",
-                  borderRadius: 2,
-                  p: 3,
-                  boxShadow: 1,
-                  minHeight: "400px",
+                  borderRadius: 4,
+                  overflow: 'hidden',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                  border: '1px solid rgba(0,0,0,0.05)',
                 }}
               >
-                <Typography
-                  variant="h5"
-                  color="#78590C"
-                  fontWeight={600}
-                  sx={{ mb: 1 }}
+                {/* Section Header */}
+                <Box
+                  sx={{
+                    background: '#F8EFDA',
+                    p: 3,
+                    color: '#1F1B13',
+                  }}
                 >
-                  {isYouthNet ? "YouthNet" : "My Certificates"}
-                </Typography>
-
-                <Typography
-                  variant="h6"
-                  color="#78590C"
-                  fontWeight={500}
-                  sx={{ mb: 3 }}
-                >
-                  Completed Courses & Certificates
-                </Typography>
-
-                {loading ? (
-                  <Box
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                    p={4}
-                  >
-                    <Typography>Loading certificates...</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <EmojiEventsIcon sx={{ fontSize: 32, mr: 2 }} />
+                    <Box>
+                      <Typography variant="h4" fontWeight={700}>
+                        {isYouthNet ? "YouthNet Achievements" : "My Certificates"}
+                      </Typography>
+                      <Typography variant="body1" sx={{ opacity: 0.9 }}>
+                        Your completed courses and earned certificates
+                      </Typography>
+                    </Box>
                   </Box>
-                ) : courseData.length === 0 ? (
-                  <Box
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    p={4}
+                  
+                  <Chip
+                    label={`${courseData.length} Certificate${courseData.length !== 1 ? 's' : ''}`}
                     sx={{
-                      backgroundColor: "#fff9f0",
-                      borderRadius: 2,
-                      border: "1px solid #fdbd16",
+                      backgroundColor: 'rgba(31,27,19,0.1)',
+                      color: '#1F1B13',
+                      fontWeight: 600,
                     }}
-                  >
-                    <InfoIcon sx={{ color: "#FDBE16", mr: 2, fontSize: 32 }} />
-                    <Typography variant="body1" color="text.secondary">
-                      No certificates completed yet. Complete courses to earn
-                      certificates.
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Grid container spacing={2}>
-                    {/* Test div to see if grid is working */}
-                    <Grid item xs={12}>
-                      <Box
+                  />
+                </Box>
+
+                {/* Content */}
+                <Box sx={{ p: 3 }}>
+                  {loading ? (
+                    <Grid container spacing={3}>
+                      {[1, 2, 3, 4].map((index) => (
+                        <Grid item xs={12} sm={6} lg={4} xl={3} key={index}>
+                          <Box sx={{ p: 1 }}>
+                            <Skeleton 
+                              variant="rectangular" 
+                              height={280} 
+                              sx={{ borderRadius: 3, mb: 2 }} 
+                            />
+                            <Skeleton variant="text" width="80%" height={24} sx={{ mb: 1 }} />
+                            <Skeleton variant="text" width="60%" height={20} />
+                          </Box>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  ) : courseData.length === 0 ? (
+                    <Box
+                      display="flex"
+                      flexDirection="column"
+                      alignItems="center"
+                      justifyContent="center"
+                      p={6}
+                      sx={{
+                        backgroundColor: "#fff9f0",
+                        borderRadius: 3,
+                        border: "2px dashed #fdbd16",
+                        textAlign: 'center',
+                      }}
+                    >
+                      <EmojiEventsIcon sx={{ color: "#FDBE16", fontSize: 64, mb: 2 }} />
+                      <Typography variant="h5" fontWeight={600} color="#78590C" sx={{ mb: 1 }}>
+                        No Certificates Yet
+                      </Typography>
+                      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                        Complete courses to earn your first certificate and showcase your achievements!
+                      </Typography>
+                      <Button
+                        variant="contained"
+                        onClick={() => router.push("/courses-contents")}
                         sx={{
-                          p: 2,
-                          backgroundColor: "lightblue",
-                          borderRadius: 1,
-                          mb: 2,
+                          backgroundColor: "#78590C",
+                          "&:hover": { backgroundColor: "#B8860B" },
                         }}
                       >
-                        <Typography variant="h6">
-                          Test: Grid is working! Found {courseData.length}{" "}
-                          certificates
-                        </Typography>
-                      </Box>
+                        Explore Courses
+                      </Button>
+                    </Box>
+                  ) : (
+                    <Grid container spacing={3}>
+                      {courseData.map((cert: any, index: number) => {
+                        console.log(`Rendering certificate ${index}:`, cert);
+                        return (
+                          <Grid item xs={12} sm={6} lg={4} xl={3} key={index}>
+                            <CourseCertificateCard
+                              title={cert.program || "Untitled Course"}
+                              description={
+                                cert.description || "No description available"
+                              }
+                              imageUrl={
+                                cert.posterImage || "/images/image_ver.png"
+                              }
+                              completionDate={
+                                cert.completedOn || new Date().toISOString()
+                              }
+                              onPreviewCertificate={() =>
+                                handlePreview(cert.certificateId)
+                              }
+                            />
+                          </Grid>
+                        );
+                      })}
                     </Grid>
-
-                    {courseData.map((cert: any, index: number) => {
-                      console.log(`Rendering certificate ${index}:`, cert);
-                      return (
-                        <Grid item xs={12} sm={6} lg={4} xl={3} key={index}>
-                          <CourseCertificateCard
-                            title={cert.program || "Untitled Course"}
-                            description={
-                              cert.description || "No description available"
-                            }
-                            imageUrl={
-                              cert.posterImage || "/images/image_ver.png"
-                            }
-                            completionDate={
-                              cert.completedOn || new Date().toISOString()
-                            }
-                            onPreviewCertificate={() =>
-                              handlePreview(cert.certificateId)
-                            }
-                          />
-                        </Grid>
-                      );
-                    })}
-                  </Grid>
-                )}
-              </Box>
+                  )}
+                </Box>
+              </Paper>
             </Grid>
           )}
         </Grid>

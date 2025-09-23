@@ -19,6 +19,63 @@ import PanoramaFishEyeIcon from "@mui/icons-material/PanoramaFishEye";
 import AdjustIcon from "@mui/icons-material/Adjust";
 import { useTranslation } from "../context/LanguageContext";
 
+/**
+ * Transforms image URLs from Azure Blob Storage to AWS S3 URLs
+ * @param imageUrl - The image URL to transform
+ * @returns Transformed image URL or fallback to logo.png
+ */
+const transformImageUrl = (imageUrl: string): string => {
+  if (!imageUrl) return '/logo.png';
+
+  if (imageUrl.includes('https://sunbirdsaaspublic.blob.core.windows.net')) {
+    // Handle double domain pattern
+    if (
+      imageUrl.includes(
+        'https://sunbirdsaaspublic.blob.core.windows.net/https://sunbirdsaaspublic.blob.core.windows.net'
+      )
+    ) {
+      // Extract everything after the second domain
+      const urlParts = imageUrl.split(
+        'https://sunbirdsaaspublic.blob.core.windows.net/https://sunbirdsaaspublic.blob.core.windows.net/'
+      );
+      if (urlParts.length > 1) {
+        const pathAfterSecondDomain = urlParts[1];
+        // Remove any existing content/content prefix to avoid duplication
+        let cleanPath = pathAfterSecondDomain.replace(
+          /^content\/content\//,
+          ''
+        );
+        // Remove sunbird-content-prod/schemas/content/ if present
+        cleanPath = cleanPath.replace(
+          /^sunbird-content-prod\/schemas\/content\//,
+          ''
+        );
+        // Transform to AWS S3 URL with the new pattern
+        return `https://s3.ap-south-1.amazonaws.com/saas-prod/content/${cleanPath}`;
+      }
+    } else {
+      // Handle single domain pattern
+      const urlParts = imageUrl.split(
+        'https://sunbirdsaaspublic.blob.core.windows.net/'
+      );
+      if (urlParts.length > 1) {
+        const pathAfterDomain = urlParts[1];
+        // Remove any existing content/content prefix to avoid duplication
+        let cleanPath = pathAfterDomain.replace(/^content\/content\//, '');
+        // Remove sunbird-content-prod/schemas/content/ if present
+        cleanPath = cleanPath.replace(
+          /^sunbird-content-prod\/schemas\/content\//,
+          ''
+        );
+        // Transform to AWS S3 URL with the new pattern
+        return `https://s3.ap-south-1.amazonaws.com/saas-prod/content/${cleanPath}`;
+      }
+    }
+  }
+
+  return imageUrl;
+};
+
 export interface ContentItem {
   name: string;
   gradeLevel: string[];
@@ -157,23 +214,27 @@ export const CommonCard: React.FC<CommonCardProps> = ({
     >
       {/* Image and Progress Overlay */}
       <Box sx={{ position: "relative", width: "100%" }}>
-        {image && (
-          <CardMedia
-            title={title}
-            component="img"
-            image={image || "/assets/images/default.png"}
-            alt={imageAlt || "Image"}
-            sx={{
-              width: "100%",
-              height: orientation === "horizontal" ? "140px" : "auto",
-              objectFit: "cover", //set contain
-              "@media (max-width: 600px)": {
-                height: "140px",
-              },
-              ..._card?._cardMedia?.sx,
-            }}
-          />
-        )}
+        <CardMedia
+          title={title}
+          component="img"
+          image={transformImageUrl(image || '')}
+          alt={imageAlt || "Image"}
+          sx={{
+            width: "100%",
+            height: orientation === "horizontal" ? "150px" : "auto",
+            objectFit: "contain", // Changed from cover to contain to prevent cropping
+            padding: "10px", // Added padding to prevent cropping
+            backgroundColor: "#f5f5f5", // Added background color for better visibility
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            "@media (max-width: 600px)": {
+              height: "150px",
+              padding: "8px", // Smaller padding on mobile
+            },
+            ..._card?._cardMedia?.sx,
+          }}
+        />
 
         {/* Progress Bar Overlay */}
         {/* Progress Bar Overlay */}
@@ -237,6 +298,10 @@ export const CommonCard: React.FC<CommonCardProps> = ({
             sx={{
               pt: 0.5,
               pb: "0 !important",
+              px: 0,
+              "&:last-child": {
+                paddingBottom: 0,
+              },
             }}
           >
             <Typography
@@ -293,6 +358,7 @@ export const StatusBar: React.FC<StatuPorps> = ({
         width: "100%",
         display: "flex",
         alignItems: "center",
+        justifyContent: "center", // Center the progress horizontally
         background: "rgba(0, 0, 0, 0.5)",
       }}
     >
@@ -312,6 +378,7 @@ export const StatusBar: React.FC<StatuPorps> = ({
             : "white",
           display: "flex",
           alignItems: "center",
+          justifyContent: "center", // Center the content
           gap: "8px",
         }}
       >
@@ -346,21 +413,30 @@ export const StatusBar: React.FC<StatuPorps> = ({
             />
           )
         ) : (
-          <LinearProgress
-            sx={{
-              width: "100%",
+          <CircularProgressWithLabel
+            value={trackProgress !== undefined ? trackProgress : 100}
+            _text={{
+              sx: {
+                color: [
+                  "completed",
+                  "In Progress",
+                  "Enrolled, not started",
+                ].includes(status ?? "")
+                  ? theme.palette.success.main
+                  : "white",
+                fontSize: "10px",
+                ...(trackProgress === undefined ? { display: "none" } : {}),
+              },
             }}
-            variant="determinate"
-            color="error"
-            value={
-              typeof trackProgress === "number"
-                ? trackProgress
-                : status?.toLowerCase() === "completed"
-                ? 100
-                : status?.toLowerCase() === "in progress"
-                ? 50
-                : 0
+            color={
+              ["Completed", "In Progress", "Enrolled, not started"].includes(
+                status ?? ""
+              )
+                ? theme.palette.success.main
+                : "white"
             }
+            size={trackProgress !== undefined ? 35 : 16}
+            thickness={trackProgress !== undefined ? 2 : 4}
           />
         )}
         <Typography

@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 "use client";
 
 import React, { Suspense, useEffect, useState } from "react";
@@ -425,10 +426,10 @@ const handleSuccessfulLogin = async (
     const userResponse = await getUserId();
 
     if (userResponse) {
-      if (
-        userResponse?.tenantData?.[0]?.roleName === "Learner"
-        // userResponse?.tenantData?.[0]?.tenantName === 'YouthNet'
-      ) {
+      const userRole = userResponse?.tenantData?.[0]?.roleName;
+      
+      // Handle Learner role - redirect to learner dashboard
+      if (userRole === "Learner") {
         localStorage.setItem("userId", userResponse?.userId);
         localStorage.setItem(
           "templtateId",
@@ -484,26 +485,73 @@ const handleSuccessfulLogin = async (
           category: "Login Page",
           label: "Login Button Clicked",
         });
-        if (true) {
-          router.push("/dashboard");
-        }
-        // if (tenantName === "YouthNet") {
-        //   router.push("/content");
-        // }
-        // else if (tenantName==="Camp to Club")
-        // {
-        //   router.push('/courses-contents');
-        // }
-        // else if(tenantName==="Pragyanpath")
-        // {
-        //   router.push('/courses-contents');
-        // }
-      } else {
-        showToastMessage("Username or password not correct", "error");
+        
+        // Redirect to learner dashboard with tab=1
+        window.location.href = "http://localhost:3003/dashboard?tab=1";
+        return;
+      }
+      
+      // Handle Creator, Reviewer, Admin roles - redirect to admin portal with SSO
+      else if (userRole === "Creator" || userRole === "Reviewer" || userRole === "Admin") {
+        // Store user data for SSO
+        localStorage.setItem("userId", userResponse?.userId);
+        localStorage.setItem("userIdName", userResponse?.username);
+        localStorage.setItem("firstName", userResponse?.firstName || "");
+        localStorage.setItem("userRole", userRole);
+        
+        const tenantId = userResponse?.tenantData?.[0]?.tenantId;
+        const tenantName = userResponse?.tenantData?.[0]?.tenantName;
+        localStorage.setItem("tenantId", tenantId);
+        localStorage.setItem("userProgram", tenantName);
+        
+        // Create SSO token for admin portal
+        const ssoData = {
+          token: token,
+          userId: userResponse?.userId,
+          username: userResponse?.username,
+          firstName: userResponse?.firstName,
+          role: userRole,
+          tenantId: tenantId,
+          tenantName: tenantName,
+          timestamp: Date.now()
+        };
+        
+        // Store SSO data in localStorage for cross-domain access
+        localStorage.setItem("ssoData", JSON.stringify(ssoData));
+        
+        // Set cookie for admin portal
+        document.cookie = `sso_token=${token}; path=/; domain=localhost; secure; SameSite=Lax`;
+        document.cookie = `user_data=${JSON.stringify(ssoData)}; path=/; domain=localhost; secure; SameSite=Lax`;
+        
         const telemetryInteract = {
           context: { env: "sign-in", cdata: [] },
           edata: {
-            id: "login-failed",
+            id: "login-success-admin",
+            type: "CLICK",
+            pageid: "sign-in",
+            uid: userResponse?.userId || "Anonymous",
+          },
+        };
+        telemetryFactory.interact(telemetryInteract);
+        
+        logEvent({
+          action: "successfully-login-admin-redirect",
+          category: "Login Page",
+          label: "Admin Login Redirect",
+        });
+        
+        // Redirect to admin portal with SSO
+        window.location.href = "http://localhost:3002/login";
+        return;
+      }
+      
+      // Handle unknown roles
+      else {
+        showToastMessage("User role not recognized. Please contact administrator.", "error");
+        const telemetryInteract = {
+          context: { env: "sign-in", cdata: [] },
+          edata: {
+            id: "login-failed-unknown-role",
             type: "CLICK",
             pageid: "sign-in",
           },

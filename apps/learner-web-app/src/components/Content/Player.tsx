@@ -1,7 +1,7 @@
 // pages/content-details/[identifier].tsx
 
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import dynamic from "next/dynamic";
 import { Avatar, Box, Button, IconButton, Typography } from "@mui/material";
 import { useParams, useRouter } from "next/navigation";
@@ -16,6 +16,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { fetchContent } from "@learner/utils/API/contentService";
 import BreadCrumb from "@content-mfes/components/BreadCrumb";
 import { hierarchyAPI } from "@content-mfes/services/Hierarchy";
+import { transformImageUrl } from "@learner/utils/imageUtils";
 
 const CourseUnitDetails = dynamic(() => import("@CourseUnitDetails"), {
   ssr: false,
@@ -33,10 +34,9 @@ const App = ({
   const router = useRouter();
   const params = useParams();
   const { identifier, courseId, unitId } = params || {}; // string | string[] | undefined
-  const [item, setItem] = useState<{ [key: string]: any }>({});
+  const [item, setItem] = useState<{ content?: any; [key: string]: any }>({});
   const [breadCrumbs, setBreadCrumbs] = useState<any>();
   const [isShowMoreContent, setIsShowMoreContent] = useState(false);
-  console.log("_config", _config);
   let activeLink = null;
   if (typeof window !== "undefined") {
     const searchParams = new URLSearchParams(window.location.search);
@@ -45,11 +45,9 @@ const App = ({
   useEffect(() => {
     const fetch = async () => {
       const response = await fetchContent(identifier);
-      console.log("response", response);
       setItem({ content: response });
       if (unitId) {
         const course = await hierarchyAPI(courseId as string);
-        console.log("course", course);
         const breadcrum = findCourseUnitPath({
           contentBaseUrl: contentBaseUrl,
           node: course,
@@ -73,7 +71,7 @@ const App = ({
       }
     };
     fetch();
-  }, [identifier, unitId, courseId, activeLink, contentBaseUrl]);
+  }, [identifier, unitId, courseId, activeLink, contentBaseUrl, userIdLocalstorageName]);
 
   if (!identifier) {
     return <div>Loading...</div>;
@@ -86,7 +84,16 @@ const App = ({
     } else if (contentBaseUrl) {
       router.back();
     } else {
-      router.push(`${activeLink ? activeLink : "/content"}`);
+      // Handle tab parameter when going back
+      let backUrl = activeLink ? activeLink : "/content";
+      if (typeof window !== "undefined") {
+        const searchParams = new URLSearchParams(window.location.search);
+        const tabParam = searchParams.get("tab");
+        if (tabParam) {
+          backUrl += `?tab=${tabParam}`;
+        }
+      }
+      router.push(backUrl);
     }
   };
   console.log("content", item);
@@ -200,8 +207,8 @@ const App = ({
             ...(_config?.courseUnitDetails || {}),
             getContentData: (item: any) => {
               setIsShowMoreContent(
-                item.children.filter(
-                  (item: any) => item.identifier !== identifier
+                (item?.children || []).filter(
+                  (child: any) => child.identifier !== identifier
                 )?.length > 0
               );
             },
@@ -230,10 +237,20 @@ const PlayerBox = ({
   isGenerateCertificate,
   trackable,
   isShowMoreContent,
-}: any) => {
+}: {
+  item: any;
+  identifier: string | string[] | undefined;
+  courseId: string | string[] | undefined;
+  unitId: string | string[] | undefined;
+  userIdLocalstorageName?: string;
+  isGenerateCertificate?: boolean;
+  trackable?: boolean;
+  isShowMoreContent: boolean;
+}) => {
   const router = useRouter();
   const { t } = useTranslation();
   const [play, setPlay] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => {
     if (checkAuth() || userIdLocalstorageName) {
@@ -252,13 +269,80 @@ const PlayerBox = ({
       );
     }
   };
-  console.log("SunbirdPlayers playerConfig", item);
+  // Create proper player configuration
+  const playerConfig = item?.content ? {
+    context: {
+      contentId: identifier,
+      mode: "play",
+      pdata: {
+        id: "learner-web-app",
+        ver: "1.0.0",
+        pid: "learner-app"
+      },
+      uid: userIdLocalstorageName ? localStorage.getItem(userIdLocalstorageName) : "guest",
+      channel: "learner-channel",
+      sid: "",
+      did: "",
+      timeDiff: 0,
+      host: "",
+      endpoint: "/v1/telemetry",
+      tags: [],
+      partner: [],
+      userData: {
+        firstName: "Guest",
+        lastName: ""
+      },
+      userName: "",
+      accToken: "",
+      tenantCode: "",
+      tenantId: "",
+      contextRollup: { l1: '' },
+      objectRollup: {}
+    },
+    config: {
+      showEndPage: false,
+      endPage: [],
+      showStartPage: true,
+      host: "",
+      overlay: {
+        showUser: false,
+        showOverlay: false
+      },
+      plugins: [],
+      sideMenu: {
+        showShare: false,
+        showDownload: false,
+        showReplay: false,
+        showExit: false
+      }
+    },
+    data: {},
+    metadata: item.content
+  } : null;
+
+  console.log("SunbirdPlayers playerConfig", playerConfig);
   console.log("course id", courseId);
   console.log("unit id", unitId);
   console.log(
     "userIdLocalstorageName",
-    localStorage.getItem(userIdLocalstorageName)
+    userIdLocalstorageName ? localStorage.getItem(userIdLocalstorageName) : "not set"
   );
+  console.log("🎯🎯🎯 LEARNER WEB APP PLAYER COMPONENT LOADED - NEW VERSION 🎯🎯🎯");
+  console.log("🎯🎯🎯 IF YOU SEE THIS, THE NEW CODE IS WORKING 🎯🎯🎯");
+  
+  // Debug the iframe URL construction
+  const iframeUrl = `${
+    process.env.NEXT_PUBLIC_LEARNER_SBPLAYER || "http://localhost:4108"
+  }?identifier=${identifier}${
+    courseId && unitId ? `&courseId=${courseId}&unitId=${unitId}` : ""
+  }${
+    userIdLocalstorageName
+      ? `&userId=${localStorage.getItem("userId")}`
+      : ""
+  }&player-config=${encodeURIComponent(JSON.stringify(playerConfig))}&_t=${Date.now()}&_v=${Math.random()}&_cache=${Math.random()}&_force=${Math.random()}&_reload=${Math.random()}`;
+  
+  console.log("🎯🎯🎯 CONSTRUCTED IFRAME URL:", iframeUrl);
+  console.log("🎯🎯🎯 NEXT_PUBLIC_LEARNER_SBPLAYER:", process.env.NEXT_PUBLIC_LEARNER_SBPLAYER);
 
   return (
     <Box
@@ -279,7 +363,7 @@ const PlayerBox = ({
           }}
         >
           <Avatar
-            src={item?.posterImage ?? `/images/image_ver.png`}
+            src={transformImageUrl(item?.posterImage || item?.appIcon) || `/images/image_ver.png`}
             alt={item?.identifier}
             style={{
               height: "calc(100vh - 235px)",
@@ -312,19 +396,12 @@ const PlayerBox = ({
           }}
         >
           <iframe
+            ref={iframeRef}
             name={JSON.stringify({
               isGenerateCertificate: isGenerateCertificate,
               trackable: trackable,
             })}
-            src={`${
-              process.env.NEXT_PUBLIC_LEARNER_SBPLAYER
-            }?identifier=${identifier}${
-              courseId && unitId ? `&courseId=${courseId}&unitId=${unitId}` : ""
-            }${
-              userIdLocalstorageName
-                ? `&userId=${localStorage.getItem("userId")}`
-                : ""
-            }`}
+            src={iframeUrl}
             style={{
               border: "none",
               objectFit: "contain",
@@ -333,11 +410,24 @@ const PlayerBox = ({
             allowFullScreen
             width="100%"
             height="100%"
-            title="Embedded Localhost"
-            allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+            title="Sunbird Content Player"
+            allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
             frameBorder="0"
             scrolling="no"
-            sandbox="allow-forms allow-scripts allow-same-origin allow-top-navigation"
+            sandbox="allow-forms allow-scripts allow-same-origin allow-top-navigation allow-popups"
+            onError={(e) => {
+              console.error("Player iframe error:", e);
+            }}
+            onLoad={() => {
+              console.log("Player iframe loaded successfully");
+              console.log("Player config passed to iframe:", playerConfig);
+              console.log("🎯🎯🎯 LEARNER WEB APP PLAYER LOADED - NEW VERSION 🎯🎯🎯");
+              console.log("🎯🎯🎯 IF YOU SEE THIS, THE NEW CODE IS WORKING 🎯🎯🎯");
+              console.log("🎯🎯🎯 USING PLAYERS MFE ON PORT 4108 🎯🎯🎯");
+              console.log("🎯🎯🎯 NOT USING WORKSPACE PLAYER 🎯🎯🎯");
+              console.log("🎯🎯🎯 IFRAME SRC URL:", iframeRef.current?.src);
+              console.log("🎯🎯🎯 IFRAME SRC SHOULD BE: http://localhost:4108");
+            }}
           />
         </Box>
       )}

@@ -115,15 +115,21 @@ const ContentCardCarousel = ({
         ))}
       </Swiper>
 
-      <Box sx={{ textAlign: "center", mt: 4 }}>
+      <Box sx={{ textAlign: "center", mt: 2 }}>
         {hasMoreData && (
           <Button
-            variant="contained"
+            variant="outlined"
             onClick={handleLoadMore}
             disabled={isLoadingMoreData}
+            sx={{ 
+              opacity: 0.7,
+              fontSize: "12px",
+              py: 1,
+              px: 2
+            }}
           >
             {isLoadingMoreData ? (
-              <CircularProgress size={20} />
+              <CircularProgress size={16} />
             ) : (
               t("LEARNER_APP.CONTENT_TABS.LOAD_MORE")
             )}

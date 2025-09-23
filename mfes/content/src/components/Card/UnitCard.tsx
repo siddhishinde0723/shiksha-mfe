@@ -4,6 +4,7 @@ import AppConst from "../../utils/AppConst/AppConst";
 import Description from "./Description";
 import { StatusIcon } from "../CommonCollapse";
 import { CardWrap } from "./ContentCard";
+import { transformImageUrl } from "../../utils/imageUtils";
 
 const UnitCard = ({
   item,
@@ -40,18 +41,17 @@ const UnitCard = ({
         minheight="100%"
         title={(item?.name || "").trim()}
         image={
-          item?.posterImage
-            ? item?.posterImage
-            : default_img ?? `${AppConst.BASEPATH}/assests/images/image_ver.png`
+          transformImageUrl(item?.posterImage || item?.appIcon) ||
+          (default_img ?? `${AppConst.BASEPATH}/assests/images/image_ver.png`)
         }
-        content={item?.description ? item?.description : <Description />}
+        content={null}
         orientation="horizontal"
         item={item}
         TrackData={trackData}
         type={type}
         onClick={() => handleCardClick(item)}
         _card={{
-          _contentParentText: { sx: { height: "156px" } },
+          _contentParentText: { sx: { height: "50px" } },
           _cardMedia: { sx: { maxHeight: "132px" } },
           ..._card,
         }}

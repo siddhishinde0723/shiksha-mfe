@@ -28,6 +28,8 @@ export const UnitGrid: React.FC<CommonAccordionProps> = ({
     children: item?.children,
     fullItem: item,
   });
+  console.log("UnitGrid - item type:", typeof item);
+  console.log("UnitGrid - item keys:", item ? Object.keys(item) : "item is null/undefined");
 
   const { default_img, _grid, _parentGrid, _card, _containerGrid } =
     _config || {};

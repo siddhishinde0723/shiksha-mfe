@@ -158,8 +158,8 @@ const DesktopBar = ({
               onClick={
                 typeof link.to === 'string'
                   ? undefined
-                  : (link.to as (
-                      event: React.MouseEvent<HTMLAnchorElement>
+                  : (link.to as unknown as (
+                      event: React.MouseEvent<HTMLButtonElement>
                     ) => void)
               }
             >

@@ -48,7 +48,7 @@ const DEFAULT_TABS = [
   { label: "Content", type: "Learning Resource" },
 ];
 
-const LIMIT = 5;
+const LIMIT = 10;
 const DEFAULT_FILTERS = {
   limit: LIMIT,
   offset: 0,
@@ -64,6 +64,7 @@ export interface ContentProps {
   _config?: any;
   filters?: object;
   contentTabs?: string[];
+  activeTab?: string;
   pageName?: string;
   handleCardClick?: (content: ContentItem) => void | undefined;
   showFilter?: boolean;
@@ -72,6 +73,8 @@ export interface ContentProps {
   showHelpDesk?: boolean;
   isShowLayout?: boolean;
   hasMoreData?: boolean;
+  filterFramework?: any;
+  staticFilter?: any;
   onTotalCountChange?: (count: number) => void;
 }
 
@@ -88,6 +91,10 @@ export default function Content(props: Readonly<ContentProps>) {
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMoreData, setHasMoreData] = useState(false);
+  
+  // Stabilize loading state to prevent blinking
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
   const [localFilters, setLocalFilters] = useState<
     typeof DEFAULT_FILTERS & {
       type?: string;
@@ -100,14 +107,16 @@ export default function Content(props: Readonly<ContentProps>) {
   const [totalCount, setTotalCount] = useState<number>(0);
   const [filterShow, setFilterShow] = useState(false);
   const [propData, setPropData] = useState<ContentProps>();
+  const [filterFramework, setFilterFramework] = useState<any>(null);
+  const [staticFilter, setStaticFilter] = useState<any>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  console.log("props", props);
-  // Session keys
-  const sessionKeys = {
+  const hasInitialized = useRef(false);
+  // Session keys - memoized to prevent unnecessary re-renders
+  const sessionKeys = useMemo(() => ({
     filters: `${props?.pageName}_savedFilters`,
     search: `${props?.pageName}_searchValue`,
     scrollId: `${props?.pageName}_scrollToContentId`,
-  };
+  }), [props?.pageName]);
 
   // Save filters to session
   const persistFilters = useCallback(
@@ -117,17 +126,60 @@ export default function Content(props: Readonly<ContentProps>) {
 
   const handleSetFilters = useCallback(
     (updater: any) => {
-      const updated =
-        typeof updater === "function"
-          ? updater(localFilters)
-          : { ...localFilters, ...updater };
-      setLocalFilters({ ...updated, loadOld: false });
+      setLocalFilters(prev => {
+        const updated =
+          typeof updater === "function"
+            ? updater(prev)
+            : { ...prev, ...updater };
+        
+        // Only update if there's actually a change
+        if (JSON.stringify(prev) === JSON.stringify(updated)) {
+          return prev; // No change, return same object to prevent re-render
+        }
+        
+        return { ...updated, loadOld: false };
+      });
     },
-    [localFilters]
+    []
   );
+
+  // Sync tabValue with activeTab prop
+  useEffect(() => {
+    if (props.activeTab) {
+      const tabIndex = props.activeTab === "Course" ? 0 : 1;
+      setTabValue(tabIndex);
+      
+      // Update filters when activeTab changes
+      const tabType = props.activeTab === "Course" ? "Course" : "Learning Resource";
+      setLocalFilters(prev => ({
+        ...prev,
+        offset: 0,
+        type: tabType,
+        loadOld: false
+      }));
+    }
+  }, [props.activeTab]);
+
+  // Sync filters from props
+  useEffect(() => {
+    if (props.filters) {
+      setLocalFilters(prev => {
+        // Only update if filters actually changed to prevent unnecessary re-renders
+        const newFilters = { ...prev, ...props.filters, loadOld: false };
+        if (JSON.stringify(prev) === JSON.stringify(newFilters)) {
+          return prev; // No change, return same object to prevent re-render
+        }
+        return newFilters;
+      });
+    }
+  }, [props.filters]);
 
   // Restore saved state
   useEffect(() => {
+    // Prevent duplicate initialization in React StrictMode
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
+
     const init = async () => {
       const savedFilters = JSON.parse(
         sessionStorage.getItem(sessionKeys.filters) || "null"
@@ -141,9 +193,78 @@ export default function Content(props: Readonly<ContentProps>) {
       const config = props ?? (await getData("mfes_content_pages_content"));
       setPropData(config);
       setSearchValue(savedSearch);
+
+      // Fetch framework data for dynamic filters
+      try {
+        const collectionFramework = localStorage.getItem('collectionFramework');
+        const channelId = localStorage.getItem('channelId');
+        
+        if (collectionFramework) {
+          // Import filterContent dynamically to avoid SSR issues
+          const { filterContent, staticFilterContent } = await import('@shared-lib-v2/utils/AuthService');
+          
+          const [frameworkData, staticData] = await Promise.all([
+            filterContent({ instantId: collectionFramework }),
+            channelId ? staticFilterContent({ instantFramework: channelId }) : null
+          ]);
+          
+            // Filter out invalid terms with template placeholders
+            const cleanedFrameworkData = {
+              ...frameworkData,
+              framework: {
+                ...frameworkData?.framework,
+                categories: frameworkData?.framework?.categories?.map((category: any) => {
+                  const originalTerms = category.terms || [];
+                  const filteredTerms = originalTerms.filter((term: any) => {
+                    const hasTemplate = term.code?.includes('{{') || term.name?.includes('{{');
+                    const isLive = term.status === 'Live';
+                    const isValid = !hasTemplate && isLive;
+                    
+                    if (!isValid) {
+                      console.log(`🚫 Content MFE - Filtering out term: ${term.name} (${term.code}) - Template: ${hasTemplate}, Live: ${isLive}`);
+                    }
+                    
+                    return isValid;
+                  });
+                  
+                  console.log(`🔍 Content MFE - Category ${category.name}: ${originalTerms.length} original terms, ${filteredTerms.length} filtered terms`);
+                  
+                  return {
+                    ...category,
+                    terms: filteredTerms
+                  };
+                }) || []
+              }
+            };
+          
+          setFilterFramework(cleanedFrameworkData);
+          setStaticFilter(staticData);
+          
+          // Debug: Log framework data
+          console.log('🔍 Content MFE - Framework Data:', frameworkData);
+          console.log('🔍 Content MFE - Framework Categories:', frameworkData?.framework?.categories);
+          console.log('🔍 Content MFE - Framework Name:', (frameworkData?.framework as any)?.name);
+          console.log('🔍 Content MFE - Static Data:', staticData);
+          
+          // Log each category with its terms
+          if (frameworkData?.framework?.categories) {
+            frameworkData.framework.categories.forEach((category: any, index: number) => {
+              console.log(`🔍 Category ${index + 1}: ${category.name} (${category.code}) - ${category.terms?.length || 0} terms`);
+              if (category.terms) {
+                category.terms.forEach((term: any, termIndex: number) => {
+                  console.log(`  📝 Term ${termIndex + 1}: ${term.name} (${term.code})`);
+                });
+              }
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching framework data:', error);
+      }
       if (savedFilters) {
         setLocalFilters({
           ...(config?.filters ?? {}),
+          ...(props?.filters ?? {}), // Use filters from props
           type:
             props?.contentTabs?.length === 1
               ? props.contentTabs[savedTab]
@@ -155,6 +276,7 @@ export default function Content(props: Readonly<ContentProps>) {
         setLocalFilters((prev) => ({
           ...prev,
           ...(config?.filters ?? {}),
+          ...(props?.filters ?? {}), // Use filters from props
           type:
             props?.contentTabs?.length === 1
               ? props.contentTabs[savedTab]
@@ -191,13 +313,12 @@ export default function Content(props: Readonly<ContentProps>) {
         return { content, QuestionSet, count };
       }
 
-      if (abortControllerRef.current) abortControllerRef.current.abort();
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
       // Calculate adjusted limit if loadOld is true
       const adjustedLimit = filter.loadOld
-        ? filter.offset + filter.limit
+        ? Math.min(filter.offset + filter.limit, 10) // Cap at 10 to prevent large API calls
         : filter.limit;
       const adjustedOffset = filter.loadOld ? 0 : filter.offset;
 
@@ -205,11 +326,8 @@ export default function Content(props: Readonly<ContentProps>) {
         ...filter,
         offset: adjustedOffset,
         limit: adjustedLimit,
-        signal: controller.signal,
-        type: props.contentTabs,
+        type: filter.type, // Use the filter type instead of props.contentTabs
       });
-      console.log("resultResponse", resultResponse);
-      console.log("props?._config", props?._config);
       if (resultResponse?.result?.count) {
         setTotalCount(resultResponse?.result?.count);
       }
@@ -237,7 +355,9 @@ export default function Content(props: Readonly<ContentProps>) {
     async (
       resultData: ImportedContentSearchResponse[]
     ): Promise<TrackDataItem[]> => {
-      if (!resultData.length) return [];
+      if (!resultData.length) {
+        return [];
+      }
 
       try {
         const courseList = resultData
@@ -245,7 +365,9 @@ export default function Content(props: Readonly<ContentProps>) {
           .filter((id): id is string => id !== undefined);
         const userId = getUserId(props?._config?.userIdLocalstorageName);
 
-        if (!userId || !courseList.length) return [];
+        if (!userId || !courseList.length) {
+          return [];
+        }
         const userIdArray = userId.split(",").filter(Boolean);
         const [courseTrackData, certificates] = await Promise.all([
           trackingData(userIdArray, courseList),
@@ -300,7 +422,20 @@ export default function Content(props: Readonly<ContentProps>) {
       )
         return;
 
-      setIsLoading(true);
+      // Prevent duplicate API calls
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      // Only show loading spinner for initial load, not for search
+      if (localFilters.offset === 0 && !localFilters.query) {
+        setIsLoading(true);
+        setIsInitialLoad(true);
+      } else if (localFilters.query) {
+        // For search operations, use a different loading state
+        setIsSearching(true);
+      }
+      
       try {
         const response = await fetchAllContent(localFilters);
         if (!response || !isMounted) return;
@@ -308,29 +443,49 @@ export default function Content(props: Readonly<ContentProps>) {
           ...(response.content ?? []),
           ...(response?.QuestionSet ?? []),
         ];
-        console.log("newContentData", newContentData);
-        const userTrackData = await fetchDataTrack(newContentData);
-        if (!isMounted) return;
+        
+        // Set content data immediately
         if (localFilters.offset === 0) {
           setContentData(newContentData);
-          setTrackData(userTrackData);
         } else {
           setContentData((prev) => [...(prev ?? []), ...newContentData]);
-          setTrackData((prev) => [...prev, ...userTrackData]);
         }
+        
+        // Fetch track data in parallel (non-blocking)
+        fetchDataTrack(newContentData).then((userTrackData) => {
+          if (!isMounted) return;
+          if (localFilters.offset === 0) {
+            setTrackData(userTrackData);
+          } else {
+            setTrackData((prev) => [...prev, ...userTrackData]);
+          }
+        }).catch((error) => {
+          console.error("🔍 Error fetching track data:", error);
+        });
 
         setHasMoreData(
           propData?.hasMoreData === false
             ? false
             : response.count > localFilters.offset + newContentData.length
         );
+        
+        // Clear loading states
         setIsLoading(false);
+        setIsSearching(false);
+        if (localFilters.offset === 0) {
+          setIsInitialLoad(false);
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
         // Set empty arrays on error to maintain array type
         if (localFilters.offset === 0) {
           setContentData([]);
           setTrackData([]);
+        }
+        setIsLoading(false);
+        setIsSearching(false);
+        if (localFilters.offset === 0) {
+          setIsInitialLoad(false);
         }
       }
     };
@@ -342,10 +497,7 @@ export default function Content(props: Readonly<ContentProps>) {
     };
   }, [
     localFilters,
-    fetchAllContent,
-    fetchDataTrack,
-    propData?.hasMoreData,
-    propData?.filters,
+    propData,
   ]);
 
   // Scroll to saved card ID
@@ -389,6 +541,7 @@ export default function Content(props: Readonly<ContentProps>) {
 
   // UI Handlers
   const handleSearchClick = useCallback(() => {
+    console.log("🔍 Search clicked with value:", searchValue);
     sessionStorage.setItem(sessionKeys.search, searchValue);
     handleSetFilters((prev: any) => ({
       ...prev,
@@ -407,20 +560,25 @@ export default function Content(props: Readonly<ContentProps>) {
   const handleTabChange = (event: any, newValue: number) => {
     setTabValue(newValue);
 
-    // Update URL with new tab parameter
-    const url = new URL(window.location.href);
-    url.searchParams.set("tab", newValue.toString());
-    router.replace(url.pathname + url.search);
-
-    handleSetFilters({
-      offset: 0,
-      type: tabs[newValue].type,
-    });
+    // If there's a parent tabChange handler, use it instead of handling URL ourselves
+    if (propData?._config?.tabChange) {
+      propData._config.tabChange(tabs[newValue].label);
+      // Don't call handleSetFilters here - let the parent handle the data fetching
+    } else {
+      // Update URL with new tab parameter only if no parent handler
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", newValue.toString());
+      router.replace(url.pathname + url.search);
+      
+      // Only call handleSetFilters when there's no parent handler
+      handleSetFilters({
+        offset: 0,
+        type: tabs[newValue].type,
+      });
+    }
   };
-  console.log("tabValue", props?.pageName);
   const handleCardClickLocal = useCallback(
     async (content: ContentItem) => {
-      console.log("handleCardClickLocal", content);
 
       try {
         sessionStorage.setItem(sessionKeys.scrollId, content.identifier);
@@ -433,9 +591,16 @@ export default function Content(props: Readonly<ContentProps>) {
           const courseId = params?.courseId as string;
 
           // Build URL with unitId if available
+          let activeLinkUrl = window.location.pathname;
+          
+          // Include tab parameter in activeLink
+          if (tabValue !== undefined) {
+            activeLinkUrl += `?tab=${tabValue}`;
+          }
+          
           let playerUrl = `${props?._config?.contentBaseUrl ?? ""}/player/${
             content?.identifier
-          }?activeLink=${window.location.pathname}`;
+          }?activeLink=${encodeURIComponent(activeLinkUrl)}`;
 
           if (unitId) {
             playerUrl += `&unitId=${unitId}`;
@@ -449,13 +614,17 @@ export default function Content(props: Readonly<ContentProps>) {
           // Get unitId from URL params if available
           const unitId = params?.unitId as string;
           const courseId = params?.courseId as string;
-          console.log("content----", content);
           // Build URL with unitId if available
+          let activeLinkUrl = window.location.pathname;
+          
+          // Include tab parameter in activeLink
+          if (tabValue !== undefined) {
+            activeLinkUrl += `?tab=${tabValue}`;
+          }
+          
           let contentDetailsUrl = `${
             props?._config?.contentBaseUrl ?? ""
-          }/content-details/${content?.identifier}?activeLink=${
-            window.location.pathname
-          }`;
+          }/content-details/${content?.identifier}?activeLink=${encodeURIComponent(activeLinkUrl)}`;
 
           if (unitId) {
             contentDetailsUrl += `&unitId=${unitId}`;
@@ -526,15 +695,31 @@ export default function Content(props: Readonly<ContentProps>) {
           )}
           {propData?.showFilter && (
             <Box>
-              <Button variant="outlined" onClick={() => setFilterShow(true)}>
+              <Button variant="outlined" onClick={() => {
+                console.log('🔍 Filter button clicked!');
+                console.log('🔍 Current filterFramework:', filterFramework);
+                console.log('🔍 Current staticFilter:', staticFilter);
+                setFilterShow(true);
+              }}>
                 <FilterAltOutlinedIcon />
               </Button>
               <FilterDialog
                 open={filterShow}
                 onClose={() => setFilterShow(false)}
                 filterValues={localFilters}
+                filterFramework={filterFramework}
+                staticFilter={staticFilter}
                 onApply={handleApplyFilters}
               />
+              {/* Debug: Log when FilterDialog is rendered */}
+              {filterShow && (() => {
+                console.log('🔍 Content - Rendering FilterDialog with:', {
+                  filterFramework: filterFramework,
+                  categoriesCount: filterFramework?.framework?.categories?.length,
+                  staticFilter: staticFilter
+                });
+                return null;
+              })()}
             </Box>
           )}
         </Box>
@@ -558,9 +743,26 @@ export default function Content(props: Readonly<ContentProps>) {
     }
   }, [totalCount, props?.onTotalCountChange]);
 
+  // Infinite scroll implementation
+  useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + document.documentElement.scrollTop >=
+        document.documentElement.offsetHeight - 1000 &&
+        hasMoreData &&
+        !isLoading
+      ) {
+        handleLoadMore({} as React.MouseEvent);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [hasMoreData, isLoading, handleLoadMore]);
+
   return (
     <LayoutPage
-      isLoadingChildren={isPageLoading}
+      isLoadingChildren={isInitialLoad}
       isShow={propData?.isShowLayout}
     >
       {searchAndFilterSection}
@@ -576,7 +778,8 @@ export default function Content(props: Readonly<ContentProps>) {
         hasMoreData={hasMoreData}
         handleLoadMore={handleLoadMore}
         isLoadingMoreData={isLoading}
-        isPageLoading={isLoading && localFilters?.offset === 0}
+        isPageLoading={isInitialLoad}
+        isSearching={isSearching}
         tabs={tabs}
         isHideEmptyDataMessage={propData?.hasMoreData !== false}
       />

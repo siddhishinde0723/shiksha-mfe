@@ -131,6 +131,8 @@ export const ContentSearch = async ({
   limit?: number;
   offset?: number;
 }): Promise<ContentResponse> => {
+  // Cap the limit to prevent large API calls that could cause performance issues
+  const cappedLimit = Math.min(limit, 10);
   try {
     // Ensure the environment variable is defined
     const searchApiUrl = process.env.NEXT_PUBLIC_MIDDLEWARE_URL;
@@ -138,7 +140,6 @@ export const ContentSearch = async ({
       throw new Error("Search API URL environment variable is not configured");
     }
     // Axios request configuration
-    console.log("type===", type);
     const data = {
       request: {
         filters: {
@@ -148,7 +149,7 @@ export const ContentSearch = async ({
           // channel: '0135656861912678406',
           ...filters,
           status: ["live"],
-          primaryCategory: type,
+          primaryCategory: Array.isArray(type) ? type : [type],
           // primaryCategory:
           //   type?.toLowerCase() === "course"
           //     ? ["Course"]
@@ -169,8 +170,8 @@ export const ContentSearch = async ({
           "children",
           "leafNodes",
         ],
-        query,
-        limit,
+        query: query || undefined, // Only include query if it has a value
+        limit: cappedLimit,
         offset,
       },
     };

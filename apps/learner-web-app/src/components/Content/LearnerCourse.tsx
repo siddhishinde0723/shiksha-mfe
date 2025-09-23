@@ -1,6 +1,6 @@
 import dynamic from "next/dynamic";
 import React, { useState, useCallback, memo, useEffect } from "react";
-import { Box, Button, Chip, Drawer, Stack, Typography } from "@mui/material";
+import { Box, Button, Chip, Drawer, Stack, Typography, CircularProgress } from "@mui/material";
 import { useTranslation } from "@shared-lib";
 import {
   Close as CloseIcon,
@@ -15,31 +15,50 @@ import { logEvent } from "@learner/utils/googleAnalytics";
 
 interface LearnerCourseProps {
   title?: string;
+  activeTab?: string;
+  isLoading?: boolean;
   _content?: any;
 }
 
 const Content = dynamic(() => import("@Content"), {
   ssr: false,
+  loading: () => (
+    <Box sx={{ 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      minHeight: '200px',
+      flexDirection: 'column',
+      gap: 2
+    }}>
+      <CircularProgress />
+      <Typography variant="body2" color="text.secondary">
+        Loading content...
+      </Typography>
+    </Box>
+  ),
 });
 
 export default memo(function LearnerCourse({
   title,
+  activeTab,
+  isLoading,
   _content,
 }: LearnerCourseProps) {
   const [filterState, setFilterState] = useState<any>({ limit: 10 });
   const [isOpen, setIsOpen] = useState(false);
   const { t } = useTranslation();
   const { staticFilter, filterFramework } = _content ?? {};
-  console.log("LearnerCourse _content:", _content);
   useEffect(() => {
     setFilterState(_content?.filters ?? {});
   }, [_content?.filters, _content?.searchParams]);
 
   const handleTabChange = useCallback((tab: any) => {
+    const type = tab === "Course" ? "Course" : "Learning Resource";
     setFilterState((prevState: any) => ({
       ...prevState,
       query: "",
-      type: tab,
+      type,
     }));
   }, []);
   const handleSearchClick = useCallback(
@@ -55,23 +74,43 @@ export default memo(function LearnerCourse({
       }
       const type =
         _content?.tab === "Course"
-          ? ["Course"]
-          : ["Learning Resource", "Practice Question Set"];
-      setFilterState((prevState: any) => ({
-        ...prevState,
-        query: searchValue,
-        offset: 0,
-        type,
-      }));
+          ? "Course"
+          : "Learning Resource";
+      
+      // Use functional update to prevent race conditions
+      setFilterState((prevState: any) => {
+        const newState = {
+          ...prevState,
+          query: searchValue,
+          offset: 0,
+          type,
+        };
+        
+        // Only update if there's actually a change
+        if (JSON.stringify(prevState) === JSON.stringify(newState)) {
+          return prevState; // No change, return same object
+        }
+        
+        return newState;
+      });
     },
     [_content]
   );
 
   const handleFilterChange = (newFilterState: typeof filterState) => {
-    setFilterState((prevState: any) => ({
-      ...prevState,
-      filters: newFilterState,
-    }));
+    setFilterState((prevState: any) => {
+      const newState = {
+        ...prevState,
+        filters: newFilterState,
+      };
+      
+      // Only update if there's actually a change
+      if (JSON.stringify(prevState) === JSON.stringify(newState)) {
+        return prevState; // No change, return same object
+      }
+      
+      return newState;
+    });
   };
 
   return (
@@ -350,21 +389,26 @@ export default memo(function LearnerCourse({
             </Box>
           )}
           <Content
+            key="content-mfe" // Prevent re-mounting
             isShowLayout={false}
+            activeTab={activeTab}
             contentTabs={
               _content?.tab === "Course"
                 ? ["Course"]
-                : ["Learning Resource", "Practice Question Set"]
+                : ["Course", "Learning Resource"]
             }
-            showFilter={false}
+            showFilter={true}
             showSearch={false}
             showHelpDesk={false}
+            filterFramework={filterFramework}
+            staticFilter={staticFilter}
             {..._content}
             _config={{
               tabChange: handleTabChange,
               default_img: "/images/image_ver.png",
-              _card: { isHideProgress: true },
+              _card: {},
               _subBox: { sx: { px: 0.5 } },
+              userIdLocalstorageName: "userId",
               ..._content?._config,
             }}
             filters={{

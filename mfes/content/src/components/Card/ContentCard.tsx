@@ -5,6 +5,11 @@ import { getBestImageUrl } from "../../utils/imageUtils";
 import { StatusIcon } from "../CommonCollapse";
 import Description from "./Description";
 
+// Extended ContentItem interface to include lowercase appicon
+interface ExtendedContentItem extends ContentItem {
+  appicon?: string;
+}
+
 const ContentCard = ({
   item,
   type,
@@ -13,11 +18,11 @@ const ContentCard = ({
   handleCardClick,
   trackData,
 }: {
-  item: ContentItem;
+  item: ExtendedContentItem;
   type: any;
   default_img?: string;
   _card?: any;
-  handleCardClick: (content: ContentItem, e?: any) => void;
+  handleCardClick: (content: ExtendedContentItem, e?: any) => void;
   trackData?: [];
 }) => {
   const { isWrap } = _card ?? {};
@@ -36,34 +41,43 @@ const ContentCard = ({
       </CardWrap>
     );
   }
+  const finalImageUrl = (getBestImageUrl(item, process.env.NEXT_PUBLIC_MIDDLEWARE_URL) ||
+    default_img) ??
+    `${AppConst.BASEPATH}/assests/images/image_ver.png`;
+
+  console.log("📋 ContentCard - Item data:", {
+    name: item?.name,
+    posterImage: item?.posterImage,
+    appIcon: item?.appIcon,
+    appicon: item?.appicon,
+    type
+  });
+  console.log("📋 ContentCard - Final image URL:", finalImageUrl);
+  console.log("📋 ContentCard - Default image:", default_img);
+  console.log("📋 ContentCard - AppConst.BASEPATH:", AppConst.BASEPATH);
+
   return (
     <CardWrap isWrap={isWrap && type === "Course"} _card={_card}>
       <CommonCard
         title={(item?.name || "").trim()}
-        image={
-          (getBestImageUrl(item, process.env.NEXT_PUBLIC_MIDDLEWARE_URL) ||
-            default_img) ??
-          `${AppConst.BASEPATH}/assests/images/image_ver.png`
-        }
-        content={item?.description ? item?.description : <Description />}
+        image={finalImageUrl}
+        content={null}
         actions={
-          type !== "Course" && (
-            <StatusIcon
-              showMimeTypeIcon
-              mimeType={item?.mimeType}
-              _icon={{
-                isShowText: true,
-                _box: {
-                  py: "7px",
-                  px: "8px",
-                  borderRadius: "10px",
-                  borderWidth: "1px",
-                  borderStyle: "solid",
-                  borderColor: "#79747E",
-                },
-              }}
-            />
-          )
+          <StatusIcon
+            showMimeTypeIcon
+            mimeType={item?.mimeType}
+            _icon={{
+              isShowText: true,
+              _box: {
+                py: "7px",
+                px: "8px",
+                borderRadius: "10px",
+                borderWidth: "1px",
+                borderStyle: "solid",
+                borderColor: "#79747E",
+              },
+            }}
+          />
         }
         orientation="horizontal"
         item={item}
@@ -72,7 +86,7 @@ const ContentCard = ({
         onClick={(e: any) => handleCardClick(item, e)}
         _card={{
           _contentParentText: {
-            sx: { height: type !== "Course" ? "156px" : "172px" },
+            sx: { height: type !== "Course" ? "50px" : "60px" },
           },
           ..._card,
         }}

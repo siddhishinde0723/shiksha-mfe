@@ -1,5 +1,4 @@
-// import { get, post } from "./RestClient";
-import axios from 'axios';
+import { get } from '@shared-lib';
 
 export const getUserId = async (): Promise<any> => {
   const apiUrl = `${process.env.NEXT_PUBLIC_MIDDLEWARE_URL}/user/auth`;
@@ -10,10 +9,9 @@ export const getUserId = async (): Promise<any> => {
       throw new Error('Authorization token not found');
     }
 
-    const response = await axios.get(apiUrl, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+    const response = await get(apiUrl, {
+      tenantId: localStorage.getItem('tenantId') || '',
+      Authorization: `Bearer ${token}`,
     });
 
     return response?.data?.result;

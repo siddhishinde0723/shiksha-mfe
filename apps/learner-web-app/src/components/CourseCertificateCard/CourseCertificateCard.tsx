@@ -9,6 +9,7 @@ import {
 } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import { transformImageUrl } from "../../utils/imageUtils";
 
 interface CertificateCardProps {
   title: string;
@@ -36,7 +37,7 @@ const CourseCertificateCard: React.FC<CertificateCardProps> = ({
   // Ensure we have valid data
   const safeTitle = title || "Untitled Course";
   const safeDescription = description || "No description available";
-  const safeImageUrl = imageUrl || "/images/image_ver.png";
+  const safeImageUrl = transformImageUrl(imageUrl) || "/images/image_ver.png";
   const safeCompletionDate = completionDate || new Date().toISOString();
 
   return (
@@ -91,7 +92,7 @@ const CourseCertificateCard: React.FC<CertificateCardProps> = ({
             sx={{
               color: "#00C853",
               fontWeight: 600,
-              fontSize: "0.75rem",
+              fontSize: "12px",
               lineHeight: 1.2,
               display: "-webkit-box",
               WebkitLineClamp: 2,
@@ -125,7 +126,7 @@ const CourseCertificateCard: React.FC<CertificateCardProps> = ({
           fontWeight={700}
           sx={{
             mb: 1,
-            fontSize: "1rem",
+            fontSize: "18px",
             lineHeight: 1.3,
             display: "-webkit-box",
             WebkitLineClamp: 2,
@@ -150,6 +151,7 @@ const CourseCertificateCard: React.FC<CertificateCardProps> = ({
             lineHeight: 1.4,
             mb: 2,
             minHeight: "4.2em",
+            fontSize: "12px",
           }}
         >
           {safeDescription}
@@ -160,7 +162,7 @@ const CourseCertificateCard: React.FC<CertificateCardProps> = ({
           variant="text"
           onClick={onPreviewCertificate}
           sx={{
-            fontSize: "0.875rem",
+            fontSize: "12px",
             fontWeight: 600,
             textTransform: "none",
             color: "#1976D2",

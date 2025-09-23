@@ -24,9 +24,9 @@ const ContentCardGrid = memo((props: ContentCardGridProps) => {
   return (
     <Box {..._subBox} sx={{ ...(_subBox?.sx ?? {}) }}>
       <Grid container spacing={{ xs: 1, sm: 1, md: 2 }} {..._containerGrid}>
-        {props.contentData?.map((item: any) => (
+        {props.contentData?.map((item: any, index: number) => (
           <Grid
-            key={item?.identifier}
+            key={`${item?.identifier}-${index}`}
             id={item?.identifier}
             item
             xs={6}
@@ -47,15 +47,21 @@ const ContentCardGrid = memo((props: ContentCardGridProps) => {
           </Grid>
         ))}
       </Grid>
-      <Box sx={{ textAlign: "center", mt: 4 }}>
+      <Box sx={{ textAlign: "center", mt: 2 }}>
         {props.hasMoreData && (
           <Button
-            variant="contained"
+            variant="outlined"
             onClick={props.handleLoadMore}
             disabled={props.isLoadingMoreData}
+            sx={{ 
+              opacity: 0.7,
+              fontSize: "12px",
+              py: 1,
+              px: 2
+            }}
           >
             {props.isLoadingMoreData ? (
-              <CircularProgress size={20} />
+              <CircularProgress size={16} />
             ) : (
               t("LEARNER_APP.CONTENT_TABS.LOAD_MORE")
             )}

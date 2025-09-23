@@ -24,11 +24,9 @@ export default function Index() {
       onlyHideElements={["footer"]}
       _topAppBar={{
         _brand: {
-          name:
-            typeof window !== "undefined"
-              ? localStorage.getItem("userProgram") ?? ""
-              : "",
-          logo: checkAuth() ? "/logo.png" : "/images/appLogo.svg",
+          name:"Kenya",
+            
+          // logo:  "/images/appLogo.svg",
           _box: {
             onClick: () => router.push("/content"),
             sx: {

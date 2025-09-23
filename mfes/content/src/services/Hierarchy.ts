@@ -1,4 +1,4 @@
-import axios, { AxiosRequestConfig } from "axios";
+import { get } from "@shared-lib";
 interface ContentSearchResponse {
   ownershipType?: string[];
   publish_type?: string;
@@ -119,41 +119,25 @@ export const hierarchyAPI = async (
     if (!searchApiUrl) {
       throw new Error("Search API URL environment variable is not configured");
     }
-    const tenantId = localStorage.getItem("tenantId");
-    console.log("Hierarchy API - doId:", doId);
-    console.log("Hierarchy API - tenantId:", tenantId);
 
-    const headers: Record<string, string> = {
-      Accept: "*/*",
-      "Content-Type": "application/json",
-    };
-
-    if (tenantId) {
-      headers["tenantId"] = tenantId;
+    // Build URL with query parameters if provided
+    let url = `${searchApiUrl}/action/content/v3/hierarchy/${doId}`;
+    if (params) {
+      const queryString = new URLSearchParams(params as Record<string, string>).toString();
+      if (queryString) {
+        url += `?${queryString}`;
+      }
     }
-    // Axios request configuration
-    const config: AxiosRequestConfig = {
-      method: "get",
-      maxBodyLength: Infinity,
-      url: `${searchApiUrl}/action/content/v3/hierarchy/${doId}`,
-      params: params,
-      headers,
-    };
-    console.log("Hierarchy API - request URL:", config.url);
-    // Execute the request
-    const response = await axios.request(config);
-    const res = response?.data?.result?.content;
 
-    console.log("Hierarchy API - full response:", response?.data);
-    console.log("Hierarchy API - result.content:", res);
-    console.log("Hierarchy API - res.children:", res?.children);
-    console.log("Hierarchy API - res.children type:", typeof res?.children);
-    console.log(
-      "Hierarchy API - res.children isArray:",
-      Array.isArray(res?.children)
+    // Execute the request using the authenticated get function
+    const response = await get(
+      url,
+      {
+        tenantId: localStorage.getItem("tenantId") || '',
+        Authorization: `Bearer ${localStorage.getItem("token") || ''}`,
+      }
     );
-    console.log("Hierarchy API - res.posterImage:", res?.posterImage);
-    console.log("Hierarchy API - res.appIcon:", res?.appIcon);
+    const res = response?.data?.result?.content;
 
     return res;
   } catch (error) {

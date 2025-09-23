@@ -1,10 +1,10 @@
-import axios, { AxiosRequestConfig } from "axios";
+import { post } from "@shared-lib";
 
-export const trackingData = (subIds: string[], courseIds: string[]) => {
-  const data = JSON.stringify({
+export const trackingData = async (subIds: string[], courseIds: string[]) => {
+  const data = {
     userId: subIds,
     courseId: courseIds,
-  });
+  };
 
   const trackingApiUrl = process.env.NEXT_PUBLIC_MIDDLEWARE_URL;
 
@@ -13,23 +13,12 @@ export const trackingData = (subIds: string[], courseIds: string[]) => {
     return;
   }
   console.log("Tracking API URL:", trackingApiUrl);
-  const config: AxiosRequestConfig = {
-    method: "post",
-    maxBodyLength: Infinity,
-    url: `${trackingApiUrl}/tracking/content/course/status`,
-    headers: {
-      "Content-Type": "application/json",
-    },
-    data,
-  };
 
-  return axios
-    .request(config)
-    .then((response) => {
-      return response.data;
-    })
-    .catch((error) => {
-      console.error("Error in tracking API:", error);
-      throw error;
-    });
+  try {
+    const response = await post(`${trackingApiUrl}/tracking/content/course/status`, data);
+    return response.data;
+  } catch (error) {
+    console.error("Error in tracking API:", error);
+    throw error;
+  }
 };

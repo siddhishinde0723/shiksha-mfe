@@ -374,9 +374,29 @@ const FilterSection: React.FC<FilterSectionProps> = ({
         const values = field.options ?? field.range ?? [];
         const code = field.code;
         const selected = selectedValues[code] ?? [];
-        const optionsToShow = showMore.includes(code)
-          ? values
-          : values.slice(0, 5);
+        // Filter out template placeholders like {{name}}
+        const filteredValues = values.filter((option: any) => {
+          const hasTemplate = option.name?.includes('{{') || 
+                              option.name?.includes('}}') ||
+                              option.code?.includes('{{') || 
+                              option.code?.includes('}}');
+          
+          const isValid = !hasTemplate && option.name && option.name.trim() !== '';
+          
+          if (!isValid) {
+            console.log(`🚫 FilterForm-v2 - Filtering out option: "${option.name}" ("${option.code}") - Template: ${hasTemplate}`);
+          }
+          
+          return isValid;
+        });
+        
+        const optionsToShow = filteredValues; // Show all filtered options without limiting to 5
+        
+        // Debug logging for GradeLevel specifically
+        if (code?.toLowerCase().includes('gradelevel') || field.name?.toLowerCase().includes('grade')) {
+          console.log(`🎯 GradeLevel Filter - Original: ${values.length} options, Filtered: ${filteredValues.length} options`);
+          console.log(`🎯 GradeLevel Options:`, filteredValues.map((v: any) => v.name));
+        }
         const staticValues = Array.isArray(staticFormData?.[code])
           ? staticFormData[code]
           : [];
@@ -623,29 +643,7 @@ const FilterSection: React.FC<FilterSectionProps> = ({
                 })}
               </FormGroup>
             </AccordionDetails>
-            {values.length > 5 && !staticValues.length && (
-              <Button
-                /* @ts-expect-error: Custom Button variant 'text-filter-show-more' is not in the type definition, but is used for custom styling */
-                variant="text-filter-show-more"
-                size="small"
-                onClick={() =>
-                  setShowMore((prev: string[]) =>
-                    prev.includes(code)
-                      ? prev.filter((c) => c !== code)
-                      : [...prev, code]
-                  )
-                }
-                sx={{ mt: 0, px: 0 }}
-              >
-                {showMore.includes(code)
-                  ? t
-                    ? t("COMMON.SHOW_LESS")
-                    : "Show less"
-                  : t
-                  ? t("COMMON.SHOW_MORE")
-                  : "Show more"}
-              </Button>
-            )}
+            {/* Show more button removed - all options are now visible */}
           </Accordion>
         );
       })}

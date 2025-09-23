@@ -11,6 +11,77 @@ import { Box, Button } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
 import { CircularProgressWithLabel } from "../Progress/CircularProgressWithLabel";
+
+/**
+ * Transforms image URLs from Azure Blob Storage to AWS S3 URLs
+ * @param imageUrl - The image URL to transform
+ * @returns Transformed image URL or fallback to logo.png
+ */
+const transformImageUrl = (imageUrl: string): string => {
+  console.log("🖼️ CommonCard transformImageUrl - Input:", imageUrl);
+  
+  if (!imageUrl) {
+    console.log("🖼️ CommonCard transformImageUrl - No imageUrl, returning fallback");
+    return '/logo.png';
+  }
+
+  if (imageUrl.includes('https://sunbirdsaaspublic.blob.core.windows.net')) {
+    console.log("🖼️ CommonCard transformImageUrl - Azure URL detected");
+    
+    // Handle double domain pattern
+    if (
+      imageUrl.includes(
+        'https://sunbirdsaaspublic.blob.core.windows.net/https://sunbirdsaaspublic.blob.core.windows.net'
+      )
+    ) {
+      console.log("🖼️ CommonCard transformImageUrl - Double domain pattern detected");
+      // Extract everything after the second domain
+      const urlParts = imageUrl.split(
+        'https://sunbirdsaaspublic.blob.core.windows.net/https://sunbirdsaaspublic.blob.core.windows.net/'
+      );
+      if (urlParts.length > 1) {
+        const pathAfterSecondDomain = urlParts[1];
+        // Remove any existing content/content prefix to avoid duplication
+        let cleanPath = pathAfterSecondDomain.replace(
+          /^content\/content\//,
+          ''
+        );
+        // Remove sunbird-content-prod/schemas/content/ if present
+        cleanPath = cleanPath.replace(
+          /^sunbird-content-prod\/schemas\/content\//,
+          ''
+        );
+        // Transform to AWS S3 URL with the new pattern
+        const transformedUrl = `https://s3.ap-south-1.amazonaws.com/saas-prod/content/${cleanPath}`;
+        console.log("🖼️ CommonCard transformImageUrl - Double domain transformed:", transformedUrl);
+        return transformedUrl;
+      }
+    } else {
+      console.log("🖼️ CommonCard transformImageUrl - Single domain pattern detected");
+      // Handle single domain pattern
+      const urlParts = imageUrl.split(
+        'https://sunbirdsaaspublic.blob.core.windows.net/'
+      );
+      if (urlParts.length > 1) {
+        const pathAfterDomain = urlParts[1];
+        // Remove any existing content/content prefix to avoid duplication
+        let cleanPath = pathAfterDomain.replace(/^content\/content\//, '');
+        // Remove sunbird-content-prod/schemas/content/ if present
+        cleanPath = cleanPath.replace(
+          /^sunbird-content-prod\/schemas\/content\//,
+          ''
+        );
+        // Transform to AWS S3 URL with the new pattern
+        const transformedUrl = `https://s3.ap-south-1.amazonaws.com/saas-prod/content/${cleanPath}`;
+        console.log("🖼️ CommonCard transformImageUrl - Single domain transformed:", transformedUrl);
+        return transformedUrl;
+      }
+    }
+  }
+
+  console.log("🖼️ CommonCard transformImageUrl - No transformation needed, returning original:", imageUrl);
+  return imageUrl;
+};
 export interface ContentItem {
   name: string;
   gradeLevel: string[];
@@ -18,6 +89,7 @@ export interface ContentItem {
   artifactUrl: string;
   identifier: string;
   appIcon: string;
+  appicon?: string; // lowercase variant
   contentType: string;
   mimeType: string;
   description: string;
@@ -77,13 +149,25 @@ export const CommonCard: React.FC<CommonCardProps> = ({
   type,
   onClick,
 }) => {
+  console.log("🎯 CommonCard - Props received:", {
+    title,
+    image,
+    imageAlt,
+    item: {
+      name: item?.name,
+      posterImage: item?.posterImage,
+      appIcon: item?.appIcon,
+      appicon: item?.appicon
+    },
+    type
+  });
+
   const [trackCompleted, setTrackCompleted] = React.useState(0);
   const [trackProgress, setTrackProgress] = React.useState(100);
 
   React.useEffect(() => {
     const init = () => {
       try {
-        //@ts-ignore
         if (TrackData) {
           const result = TrackData?.find((e) => e.courseId === item.identifier);
           if (type === "Course") {
@@ -128,21 +212,35 @@ export const CommonCard: React.FC<CommonCardProps> = ({
     >
       {/* Image and Progress Overlay */}
       <Box sx={{ position: "relative", width: "100%" }}>
-        {image && (
-          <CardMedia
-            component="img"
-            image={image || "/assets/images/default.png"}
-            alt={imageAlt || "Image"}
-            sx={{
-              width: "100%",
-              height: orientation === "horizontal" ? "297px" : "auto",
-              objectFit: "cover", //set contain
-              "@media (max-width: 600px)": {
-                height: "200px",
-              },
-            }}
-          />
-        )}
+        {(() => {
+          const finalImageUrl = transformImageUrl(image || '');
+          console.log("🖼️ CommonCard - Input image:", image);
+          console.log("🖼️ CommonCard - Image type:", typeof image);
+          console.log("🖼️ CommonCard - Image length:", image?.length);
+          console.log("🖼️ CommonCard - Final image URL:", finalImageUrl);
+          console.log("🖼️ CommonCard - Testing logo URL:", '/logo.png');
+          return (
+            <CardMedia
+              component="img"
+              image={finalImageUrl}
+              alt={imageAlt || "Image"}
+              sx={{
+                width: "100%",
+                height: orientation === "horizontal" ? "220px" : "auto",
+                objectFit: "contain", // Changed from cover to contain to prevent cropping
+                padding: "10px", // Added padding to prevent cropping
+                backgroundColor: "#f5f5f5", // Added background color for better visibility
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                "@media (max-width: 600px)": {
+                  height: "180px",
+                  padding: "8px", // Smaller padding on mobile
+                },
+              }}
+            />
+          );
+        })()}
 
         {/* Progress Bar Overlay */}
         {trackProgress >= 0 && (
@@ -154,6 +252,7 @@ export const CommonCard: React.FC<CommonCardProps> = ({
               width: "100%",
               display: "flex",
               alignItems: "center",
+              justifyContent: "center", // Center the progress horizontally
               background: "rgba(0, 0, 0, 0.5)",
             }}
           >
@@ -166,6 +265,7 @@ export const CommonCard: React.FC<CommonCardProps> = ({
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
+                justifyContent: "center", // Center the content
               }}
             >
               {type === "Course" ? (
@@ -195,15 +295,32 @@ export const CommonCard: React.FC<CommonCardProps> = ({
                     `Enrolled`
                   )}
                 </>
-              ) : trackCompleted >= 100 ? (
-                <>
-                  <CheckCircleIcon sx={{ color: "#21A400" }} />
-                  {`Completed`}
-                </>
               ) : (
                 <>
-                  <ErrorIcon sx={{ color: "#FFB74D" }} />
-                  {`Enrolled`}
+                  <CircularProgressWithLabel
+                    value={trackProgress ?? 0}
+                    _text={{
+                      sx: {
+                        color: trackCompleted === 100 ? "#21A400" : "#FFB74D",
+                        fontSize: "10px",
+                      },
+                    }}
+                    sx={{
+                      color: trackCompleted === 100 ? "#21A400" : "#FFB74D",
+                    }}
+                    size={35}
+                    thickness={2}
+                  />
+                  {trackCompleted >= 100 ? (
+                    <>
+                      <CheckCircleIcon sx={{ color: "#21A400" }} />
+                      {`Completed`}
+                    </>
+                  ) : trackProgress > 0 && trackProgress < 100 ? (
+                    `In progress`
+                  ) : (
+                    `Enrolled`
+                  )}
                 </>
               )}
             </Box>
@@ -246,8 +363,13 @@ export const CommonCard: React.FC<CommonCardProps> = ({
           sx={{
             display: "flex",
             paddingBottom: 0,
+            paddingTop: 0,
+            paddingX: 0,
             overflow: "hidden",
             maxWidth: "100%",
+            "&:last-child": {
+              paddingBottom: 0,
+            },
             // height: '50px',
           }}
         >

@@ -55,32 +55,10 @@ const ContentDetails = (props: ContentDetailsProps) => {
   useEffect(() => {
     const fetchContentDetails = async () => {
       try {
-        console.log(
-          "ContentEnroll - Fetching hierarchy for identifier:",
-          identifier
-        );
         const result = await hierarchyAPI(identifier as string);
-        console.log("ContentEnroll - hierarchyAPI result:", result);
-        console.log("ContentEnroll - result.children:", result?.children);
-        console.log(
-          "ContentEnroll - result.children length:",
-          result?.children?.length
-        );
-        console.log(
-          "ContentEnroll - result.children isArray:",
-          Array.isArray(result?.children)
-        );
 
         // Fallback: If no children but we have leafNodes, create a basic structure
         if (!result?.children || result.children.length === 0) {
-          console.log(
-            "ContentEnroll - No children found, checking leafNodes:",
-            result?.leafNodes
-          );
-          console.log(
-            "ContentEnroll - Checking relational_metadata:",
-            result?.relational_metadata
-          );
 
           // Check if we have relational_metadata with hierarchical structure
           if (result?.relational_metadata) {

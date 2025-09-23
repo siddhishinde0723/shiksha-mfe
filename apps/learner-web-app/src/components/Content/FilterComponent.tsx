@@ -66,6 +66,53 @@ if (typeof window !== 'undefined') {
     return prevVal !== newVal;
   };
 
+  // Filter out invalid terms from filterFramework before passing to FilterForm
+  const cleanedFilterFramework = useMemo(() => {
+    if (!filterFramework?.framework?.categories) return filterFramework;
+    
+    const cleanedCategories = filterFramework.framework.categories.map((category: any) => {
+      const originalTerms = category.terms || [];
+      const filteredTerms = originalTerms.filter((term: any) => {
+        const hasTemplate = term.code?.includes('{{') || 
+                            term.name?.includes('{{') || 
+                            term.code?.includes('}}') || 
+                            term.name?.includes('}}');
+        
+        const isLive = term.status === 'Live' || term.status === undefined || term.status === null;
+        const hasValidName = term.name && term.name.trim() !== '';
+        const hasValidCode = term.code && term.code.trim() !== '';
+        
+        const isValid = !hasTemplate && isLive && hasValidName && hasValidCode;
+        
+        if (!isValid) {
+          console.log(`🚫 FilterComponent - Filtering out term: "${term.name}" ("${term.code}") - Template: ${hasTemplate}, Live: ${isLive}, ValidName: ${hasValidName}, ValidCode: ${hasValidCode}`);
+        }
+        
+        return isValid;
+      });
+      
+      console.log(`🔍 FilterComponent - Category ${category.name}: ${originalTerms.length} original terms, ${filteredTerms.length} filtered terms`);
+      
+      // Special logging for subjects
+      if (category.name?.toLowerCase().includes('subject') || category.code?.toLowerCase().includes('subject')) {
+        console.log(`🎯 SUBJECTS FOUND: ${filteredTerms.length} subjects available:`, filteredTerms.map(t => t.name));
+      }
+      
+      return {
+        ...category,
+        terms: filteredTerms
+      };
+    });
+    
+    return {
+      ...filterFramework,
+      framework: {
+        ...filterFramework.framework,
+        categories: cleanedCategories
+      }
+    };
+  }, [filterFramework]);
+
   const memoizedFilterForm = useMemo(
     () => (
       <FilterForm
@@ -74,6 +121,34 @@ if (typeof window !== 'undefined') {
           _filterBody: _config?._filterBody,
           _checkbox: {
             sx: checkboxStyle,
+          },
+          _formControl: {
+            sx: {
+              '& .MuiSelect-select': {
+                maxHeight: 'none', // Remove height restrictions
+              },
+              '& .MuiMenu-paper': {
+                maxHeight: 'none !important', // Remove all height restrictions
+                overflow: 'visible !important',
+              },
+              '& .MuiMenu-list': {
+                maxHeight: 'none !important', // Remove all height restrictions
+                overflow: 'visible !important',
+              },
+              // Hide any "show more" buttons
+              '& button[class*="show-more"], & button[class*="show-more"], & .show-more, & .show-less': {
+                display: 'none !important',
+              },
+              // Ensure all options are visible and force show all items
+              '& .MuiMenuItem-root': {
+                display: 'block !important',
+              },
+              // Force show all options without pagination
+              '& [data-testid*="virtualized"], & .virtualized': {
+                height: 'auto !important',
+                maxHeight: 'none !important',
+              },
+            },
           },
         }}
         onApply={(newFilterState: any) => {
@@ -135,14 +210,15 @@ if (typeof window !== 'undefined') {
         }}
         onlyFields={onlyFields}
         isOpenColapsed={isOpenColapsed}
-        filterFramework={filterFramework}
+        filterFramework={cleanedFilterFramework}
         orginalFormData={filterState?.filters ?? {}}
         staticFilter={staticFilter}
+        showAllOptions={true}
       />
     ),
     [
       handleFilterChange,
-      filterFramework,
+      cleanedFilterFramework,
       isOpenColapsed,
       staticFilter,
       onlyFields,
@@ -159,6 +235,21 @@ if (typeof window !== 'undefined') {
         flexDirection: 'column',
         gap: 2,
         width: '100%',
+        // Global CSS overrides to disable "show more" functionality and show all options
+        '& *': {
+          '& button[class*="show-more"], & button[class*="show-less"], & .show-more, & .show-less': {
+            display: 'none !important',
+          },
+          // Force all menu items to be visible
+          '& .MuiMenuItem-root': {
+            display: 'block !important',
+          },
+          // Override any height restrictions
+          '& .MuiMenu-list, & .MuiMenu-paper': {
+            maxHeight: 'none !important',
+            height: 'auto !important',
+          },
+        },
         ...(_config?._filterBox?.sx ?? {}),
       }}
     >

@@ -67,6 +67,12 @@ const GetIconByMimeType = React.memo(function GetIconByMimeTypeComponent({
       ),
       text: 'Youtube',
     },
+    'video/youtube': {
+      icon: (
+        <Image src="/images/youtube.svg" alt="youtube" width="18" height="18" />
+      ),
+      text: 'Youtube',
+    },
     'application/vnd.sunbird.questionset': {
       icon: <Image src="/images/Qml.svg" alt="quml" width="18" height="18" />,
       text: 'QUML',
@@ -88,6 +94,28 @@ const GetIconByMimeType = React.memo(function GetIconByMimeTypeComponent({
         <Image src="/images/unitIcon.svg" alt="unit" width="18" height="18" />
       ),
       text: 'Unit',
+    },
+    'application/vnd.ekstep.content-collection': {
+      icon: (
+        <Image src="/images/unitIcon.svg" alt="collection" width="18" height="18" />
+      ),
+      text: 'Course',
+    },
+    'audio/mp3': {
+      icon: (
+        <Image src="/images/video.svg" alt="audio" width="18" height="18" />
+      ),
+      text: 'Audio',
+    },
+    'audio/wav': {
+      icon: (
+        <Image src="/images/video.svg" alt="audio" width="18" height="18" />
+      ),
+      text: 'Audio',
+    },
+    'application/vnd.ekstep.ecml-archive': {
+      icon: <Image src="/images/HTML.svg" alt="ecml" width="18" height="18" />,
+      text: 'ECML',
     },
   };
   if (isShowText) {

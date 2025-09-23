@@ -23,6 +23,7 @@ import { fetchContent } from '@learner/utils/API/contentService';
 import BreadCrumb from '@content-mfes/components/BreadCrumb';
 import { hierarchyAPI } from '@content-mfes/services/Hierarchy';
 import { CardComponent } from './List';
+import { transformImageUrl } from '@learner/utils/imageUtils';
 
 const CourseUnitDetails = dynamic(() => import('@CourseUnitDetails'), {
   ssr: false,
@@ -154,7 +155,7 @@ const App = ({
                 <Box sx={{ margin: '8px', px: 3 }}>
                   <img
                     height={'200px'}
-                    src={item?.content?.posterImage || '/images/image_ver.png'}
+                    src={transformImageUrl(item?.content?.posterImage || item?.content?.appIcon) || '/images/image_ver.png'}
                     alt={
                       item?.content?.name || item?.content?.title || 'Content'
                     }
@@ -262,7 +263,7 @@ const PlayerBox = ({
           }}
         >
           <Avatar
-            src={item?.posterImage ?? `/images/image_ver.png`}
+            src={transformImageUrl(item?.posterImage || item?.appIcon) ?? `/images/image_ver.png`}
             alt={item?.identifier}
             style={{
               height: 'calc(100vh - 235px)',
