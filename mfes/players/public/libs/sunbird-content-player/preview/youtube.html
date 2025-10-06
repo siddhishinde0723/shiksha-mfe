@@ -141,7 +141,7 @@
             switch (state) {
                 case -1:
                     postEvent({
-                        eid: "paly",
+                        eid: "play",
                         from: "youtube",
                         type: "events",
                         info: player.playerInfo,
@@ -165,7 +165,7 @@
 
                 case YT.PlayerState.PLAYING:
                     postEvent({
-                        eid: "paly",
+                        eid: "play",
                         from: "youtube",
                         type: "events",
                         info: player.playerInfo,

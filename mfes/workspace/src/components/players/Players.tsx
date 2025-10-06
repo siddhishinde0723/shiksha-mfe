@@ -13,17 +13,7 @@ interface PlayerProps {
 const Players = ({ playerConfig }: PlayerProps) => {
   const mimeType = playerConfig?.metadata?.mimeType;
   
-  console.log("🔥🔥🔥 WORKSPACE COMPONENTS/PLAYERS DEBUG 🔥🔥🔥");
-  console.log("Timestamp:", new Date().toISOString());
-  console.log("File: mfes/workspace/src/components/players/Players.tsx");
-  console.log("This is the UPDATED Players.tsx file with YouTube support!");
-  console.log("🚀🚀🚀 FORCE RELOAD TEST - THIS SHOULD APPEAR IN CONSOLE 🚀🚀🚀");
-  console.log("🎯🎯🎯 WORKSPACE COMPONENTS PLAYER LOADED - NEW VERSION 🎯🎯🎯");
-  console.log("🎯🎯🎯 IF YOU SEE THIS, THE NEW CODE IS WORKING 🎯🎯🎯");
-  console.log("🎯🎯🎯 WORKSPACE COMPONENTS CACHE BUST TEST 🎯🎯🎯");
-  console.log("🎯🎯🎯 THIS SHOULD APPEAR AFTER CACHE CLEAR 🎯🎯🎯");
-  console.log("mimeType:", mimeType);
-  console.log("playerConfig:", playerConfig);
+
 
   // Check for YouTube content with multiple possible mimeType formats
   const isYouTubeContent = mimeType === "video/x-youtube" || 

@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import API_ENDPOINTS from '@/utils/API/APIEndpoints';
 import { post } from './RestClient';
 

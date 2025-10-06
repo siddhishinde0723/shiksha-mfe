@@ -7,6 +7,28 @@ import {
 
 const lastAccessOn = new Date().toISOString();
 
+// Generate a proper UUID for anonymous users
+const generateUUID = (): string => {
+  const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+  console.log("🔧 Generated UUID:", uuid);
+  console.log("🔧 UUID format validation:", /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uuid));
+  return uuid;
+};
+
+// Helper function to get cookie value
+const getCookie = (name: string): string | null => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) {
+    return parts.pop()?.split(';').shift() || null;
+  }
+  return null;
+};
+
 export const handleExitEvent = () => {
   const previousPage = sessionStorage.getItem("previousPage");
   if (previousPage) {
@@ -44,10 +66,17 @@ export const getTelemetryEvents = async (
   contentType: string,
   { courseId, unitId, userId, configFunctionality }: any = {}
 ) => {
-  console.log("getTelemetryEvents hit", eventData);
+  console.log("🎯 getTelemetryEvents called with:", {
+    eventData,
+    contentType,
+    courseId,
+    unitId,
+    userId,
+    configFunctionality
+  });
 
   if (!eventData || (!eventData.object?.id && !eventData.gdata?.id)) {
-    console.error("Invalid event data");
+    console.error("❌ Invalid event data - missing object.id or gdata.id");
     return;
   }
 
@@ -68,6 +97,15 @@ export const getTelemetryEvents = async (
   localStorage.setItem(telemetryKey, JSON.stringify(telemetryData));
 
   if (eid === "START") {
+    console.log("🎯 START event detected, calling contentWithTelemetryData with:", {
+      identifier,
+      detailsObject: [telemetryData],
+      courseId,
+      unitId,
+      userId,
+      configFunctionality
+    });
+    
     await contentWithTelemetryData({
       identifier,
       detailsObject: [telemetryData],
@@ -199,8 +237,17 @@ export const contentWithTelemetryData = async ({
   userId: propUserId,
   configFunctionality,
 }: any) => {
+  console.log("🎯 contentWithTelemetryData called with:", {
+    identifier,
+    detailsObject,
+    courseId,
+    unitId,
+    userId: propUserId,
+    configFunctionality
+  });
+
   if (configFunctionality.trackable === false) {
-    console.log("not trackable");
+    console.log("❌ Content not trackable, skipping tracking");
     return false;
   }
   try {
@@ -215,20 +262,43 @@ export const contentWithTelemetryData = async ({
       return;
     }
 
-    let userId = localStorage.getItem("userId");
-    // if (propUserId) {
-    //   userId = propUserId;
-    // } else {
-    //   userId = localStorage.getItem("userId") ?? "";
-    // }
-    console.log("Final userId===", localStorage.getItem("userId"));
-    // Provide a default userId if none is available
-    if (!userId || userId === "") {
-      userId = "anonymous-user";
-      console.warn("No userId provided, using default anonymous user");
+    let userId = "";
+    
+    
+    // PRIORITY 1: URL parameters (works across ports)
+    if (propUserId && propUserId !== "" && propUserId !== "null" && propUserId !== "undefined") {
+      userId = propUserId;
+    } else {
+      console.log("🔧 ❌ No userId in URL parameters, trying other methods...");
     }
-
-    console.log("propUserId===", propUserId);
+    
+    // PRIORITY 2: Cookies (fallback for same port)
+    if (!userId) {
+ 
+      
+      const cookies = document.cookie.split(';');
+      for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'userId' && value) {
+          userId = value;
+          break;
+        }
+      }
+    }
+    
+    // PRIORITY 3: localStorage (fallback)
+    if (!userId && typeof window !== "undefined" && window.localStorage) {
+      const storedUserId = localStorage.getItem("userId");
+      if (storedUserId && storedUserId !== "null" && storedUserId !== "undefined" && storedUserId !== "") {
+        userId = storedUserId;
+      }
+    }
+    
+    // PRIORITY 4: Generate UUID (final fallback)
+    if (!userId) {
+      userId = generateUUID();
+    }
+    
 
     const ContentTypeReverseMap = Object.fromEntries(
       Object.entries(ContentType).map(([key, value]) => [value, key])
@@ -242,8 +312,8 @@ export const contentWithTelemetryData = async ({
         contentType = "quml"; // For ECML question sets
       } else if (resolvedMimeType === "application/pdf") {
         contentType = "pdf";
-      } else if (resolvedMimeType.includes("video")) {
-        contentType = "video";
+      } else if (resolvedMimeType.includes("video") || resolvedMimeType === "video/x-youtube") {
+        contentType = "video"; // For all video types including YouTube
       } else if (resolvedMimeType === "application/epub") {
         contentType = "epub";
       } else {
@@ -253,6 +323,8 @@ export const contentWithTelemetryData = async ({
         `No content type mapping found for ${resolvedMimeType}, using fallback: ${contentType}`
       );
     }
+    
+    console.log("🎯 Determined content type:", contentType, "for mime type:", resolvedMimeType);
 
     const reqBody: ContentCreate = {
       userId: userId,
@@ -265,9 +337,12 @@ export const contentWithTelemetryData = async ({
       detailsObject: detailsObject,
     };
 
-    console.log("Sending telemetry request:", reqBody);
+    console.log("🎯 Calling createContentTracking with reqBody:", reqBody);
 
     const telemetryResponse = await createContentTracking(reqBody);
+    
+    console.log("🎯 createContentTracking response:", telemetryResponse);
+
     if (
       telemetryResponse &&
       configFunctionality.isGenerateCertificate !== false

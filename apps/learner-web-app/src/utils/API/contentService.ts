@@ -51,7 +51,27 @@ export const fetchContent = async (identifier: any) => {
     return response?.data?.result?.content;
   } catch (error) {
     console.error("Error fetching content:", error);
-    return error;
+    
+    // Return a more structured error object
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as any;
+      return {
+        name: 'AxiosError',
+        message: axiosError.message || 'Request failed',
+        code: axiosError.code || 'ERR_BAD_RESPONSE',
+        status: axiosError.response?.status || 500,
+        config: axiosError.config,
+        isAxiosError: true
+      };
+    }
+    
+    return {
+      name: 'Error',
+      message: error instanceof Error ? error.message : 'Unknown error occurred',
+      code: 'UNKNOWN_ERROR',
+      status: 500,
+      isAxiosError: false
+    };
   }
 };
 

@@ -15,6 +15,12 @@ const SunbirdPdfPlayer = ({
   relatedData: { courseId, unitId, userId },
   configFunctionality,
 }: PlayerConfigProps) => {
+  console.log("🔍 SunbirdPdfPlayer received props:");
+  console.log("🔍 SunbirdPdfPlayer userId:", userId);
+  console.log("🔍 SunbirdPdfPlayer courseId:", courseId);
+  console.log("🔍 SunbirdPdfPlayer unitId:", unitId);
+  console.log("🔍 SunbirdPdfPlayer configFunctionality:", configFunctionality);
+  
   const sunbirdPdfPlayerRef = useRef<HTMLIFrameElement | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [bottom, setBottom] = useState(10);
@@ -60,7 +66,11 @@ const SunbirdPdfPlayer = ({
             pdfElement.addEventListener(
               'telemetryEvent',
               async (event: any) => {
-                console.log('On telemetryEvent', event);
+                console.log('🔍 PDF Player telemetryEvent received:', event);
+                console.log('🔍 PDF Player userId being passed:', userId);
+                console.log('🔍 PDF Player courseId:', courseId);
+                console.log('🔍 PDF Player unitId:', unitId);
+                console.log('🔍 PDF Player configFunctionality:', configFunctionality);
                 try {
                   await getTelemetryEvents(event.detail, 'pdf', {
                     courseId,

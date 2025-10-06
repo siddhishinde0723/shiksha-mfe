@@ -7,6 +7,13 @@ export function middleware(request: NextRequest) {
   if (url.pathname.startsWith('/sbplayer')) {
     url.hostname = 'localhost';
     url.port = '4108';
+    
+    // For local development, ensure userId is passed via URL parameters
+    const userId = request.cookies.get('userId')?.value;
+    if (userId && !url.searchParams.has('userId')) {
+      url.searchParams.set('userId', userId);
+    }
+    
     return NextResponse.rewrite(url);
   }
   //forget-password

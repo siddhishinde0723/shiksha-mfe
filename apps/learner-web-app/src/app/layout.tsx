@@ -83,7 +83,17 @@ export default function RootLayout({
 
             <MuiThemeProvider>{children}</MuiThemeProvider>
           </MuiThemeProviderWithLanguage>
-          <ToastContainer />
+          <ToastContainer 
+            position="bottom-center"
+            autoClose={2000}
+            hideProgressBar={true}
+            newestOnTop={false}
+            closeOnClick={false}
+            rtl={false}
+            pauseOnFocusLoss={false}
+            draggable={false}
+            pauseOnHover={false}
+          />
         </ClientLayout>
       </body>
     </html>

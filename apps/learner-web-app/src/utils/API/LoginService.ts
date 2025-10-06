@@ -12,6 +12,11 @@ interface RefreshParams {
   refresh_token: string;
 }
 
+interface VerifyLinkParams {
+  username: string;
+  magicCode: string;
+}
+
 export const login = async ({
   username,
   password,
@@ -85,6 +90,27 @@ export const resetPassword = async (newPassword: any): Promise<any> => {
     return response?.data;
   } catch (error) {
     console.error('error in reset', error);
+    throw error;
+  }
+};
+
+export const verifyMagicLink = async ({
+  username,
+  magicCode,
+}: VerifyLinkParams): Promise<any> => {
+  // Construct the URL with magic code and redirect parameter
+  const redirectUrl = encodeURIComponent('https://shiksha2-dev.tekdinext.com/dashboard');
+  const apiUrl: string = `${API_ENDPOINTS.verifyMagicLink}/${magicCode}?redirect=${redirectUrl}`;
+  
+  try {
+    const response = await axios.get(apiUrl, {
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+    return response?.data;
+  } catch (error) {
+    console.error('error in verify magic link', error);
     throw error;
   }
 };

@@ -13,6 +13,28 @@ export default function ClientLayout({
   useEffect(() => {
     telemetryFactory.init();
 
+    // Set userId in cookies for cross-port access
+    const currentUserId = localStorage.getItem("userId");
+    console.log("🍪 App-level cookie setting - currentUserId:", currentUserId);
+    console.log("🍪 App-level cookie setting - hostname:", window.location.hostname);
+    console.log("🍪 App-level cookie setting - origin:", window.location.origin);
+    
+    if (currentUserId) {
+      const domain = window.location.hostname;
+      const cookieValue = `userId=${currentUserId}; path=/; domain=${domain}; SameSite=Lax; Secure=false`;
+      document.cookie = cookieValue;
+      console.log("🍪 App-level cookie setting:", cookieValue);
+      console.log("🍪 App-level cookies after setting:", document.cookie);
+      
+      // Also try setting without domain restriction
+      const cookieValueNoDomain = `userId=${currentUserId}; path=/; SameSite=Lax; Secure=false`;
+      document.cookie = cookieValueNoDomain;
+      console.log("🍪 App-level cookie setting (no domain):", cookieValueNoDomain);
+      console.log("🍪 App-level cookies after no-domain setting:", document.cookie);
+    } else {
+      console.warn("🍪 No userId found in localStorage for cookie setting");
+    }
+
     // Listen for force logout events from other tabs
     const handleForceLogout = (event: CustomEvent) => {
       console.log("Force logout event received:", event.detail);

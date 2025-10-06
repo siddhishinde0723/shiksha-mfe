@@ -1,3 +1,4 @@
+import React from "react";
 import { Box, CSSObject, useTheme } from "@mui/material";
 import { CommonCard, ContentItem } from "@shared-lib";
 import AppConst from "../../utils/AppConst/AppConst";
@@ -52,9 +53,6 @@ const ContentCard = ({
     appicon: item?.appicon,
     type
   });
-  console.log("📋 ContentCard - Final image URL:", finalImageUrl);
-  console.log("📋 ContentCard - Default image:", default_img);
-  console.log("📋 ContentCard - AppConst.BASEPATH:", AppConst.BASEPATH);
 
   return (
     <CardWrap isWrap={isWrap && type === "Course"} _card={_card}>
@@ -87,6 +85,9 @@ const ContentCard = ({
         _card={{
           _contentParentText: {
             sx: { height: type !== "Course" ? "50px" : "60px" },
+          },
+          sx: {
+            ..._card?.sx,
           },
           ..._card,
         }}

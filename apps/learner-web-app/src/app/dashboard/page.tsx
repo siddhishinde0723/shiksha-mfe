@@ -8,6 +8,7 @@ import { profileComplitionCheck } from "@learner/utils/API/userService";
 import { getTenantInfo } from "@learner/utils/API/ProgramService";
 import { gredientStyle } from "@learner/utils/style";
 import LearnerCourse from "@learner/components/Content/LearnerCourse";
+import GroupsManager from "@learner/components/Content/GroupsManager";
 import { AccountCircleOutlined } from "@mui/icons-material";
 import ProfileMenu from "../../components/ProfileMenu/ProfileMenu";
 import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal";
@@ -39,6 +40,8 @@ const DashboardPage = () => {
       const tabParam = searchParams.get("tab");
       if (tabParam === "1") {
         setActiveTab("content");
+      } else if (tabParam === "2") {
+        setActiveTab("groups");
       } else {
         setActiveTab("Course");
       }
@@ -186,7 +189,12 @@ const DashboardPage = () => {
     
     // Update URL with tab parameter
     const url = new URL(window.location.href);
-    const tabIndex = tab === "Course" ? 0 : 1;
+    let tabIndex = 0;
+    if (tab === "content") {
+      tabIndex = 1;
+    } else if (tab === "groups") {
+      tabIndex = 2;
+    }
     url.searchParams.set("tab", tabIndex.toString());
     router.replace(url.pathname + url.search);
   };
@@ -265,57 +273,62 @@ const DashboardPage = () => {
         >
           <Tab label="Courses" value="Course" />
           <Tab label="Content" value="content" />
+          <Tab label="Groups" value="groups" />
         </Tabs>
         <Grid container style={gredientStyle}>
           <Grid item xs={12}>
-            <LearnerCourse
-              title={
-                userProgram === "Camp to Club"
-                  ? "LEARNER_APP.COURSE.GET_STARTED_CLUB_COURSES"
-                  : "LEARNER_APP.COURSE.GET_STARTED"
-              }
-              activeTab={activeTab}
-              isLoading={false}
-              _content={{
-                  pageName: "L1_Content",
-                  onlyFields: [
-                    "se_boards",
-                    "se_mediums", 
-                    "se_gradeLevels",
-                    "se_subjects",
-                    "contentLanguage",
-                    "se_subDomains",
-                  ],
-                  isOpenColapsed: [], // Start collapsed - users can expand when needed
-                  // Fix: Only spread if showContent exists and is an array
-                  ...(Array.isArray((storedConfig as any).showContent) &&
-                    (storedConfig as any).showContent.length === 2 &&
-                    (storedConfig as any).showContent.includes("courses")
-                    ? {}
-                    : {}),
-                  //   contentTabs:
-                  //     activeTab === "courses"
-                  //       ? ["Course"]
-                  //       : ["Learning Resource"],
-                  // }),
-                  //   storedConfig.showContent.includes("contents")
-                  //     ? { contentTabs: ["courses", "content"] }
-                  //     : {}),
-                  staticFilter: {
-                    se_domains:
-                      typeof filter.filters?.domain === "string"
-                        ? [filter.filters?.domain]
-                        : filter.filters?.domain,
-                    program:
-                      typeof filter.filters?.program === "string"
-                        ? [filter.filters?.program]
-                        : filter.filters?.program,
-                    ...filter.staticFilter,
-                  },
-                  filterFramework: filter.filterFramework,
-                  tab: activeTab,
-                }}
-              />
+            {activeTab === "groups" ? (
+              <GroupsManager isLoading={isLoading} />
+            ) : (
+              <LearnerCourse
+                title={
+                  userProgram === "Camp to Club"
+                    ? "LEARNER_APP.COURSE.GET_STARTED_CLUB_COURSES"
+                    : "LEARNER_APP.COURSE.GET_STARTED"
+                }
+                activeTab={activeTab}
+                isLoading={false}
+                _content={{
+                    pageName: "L1_Content",
+                    onlyFields: [
+                      "se_boards",
+                      "se_mediums", 
+                      "se_gradeLevels",
+                      "se_subjects",
+                      "contentLanguage",
+                      "se_subDomains",
+                    ],
+                    isOpenColapsed: [], // Start collapsed - users can expand when needed
+                    // Fix: Only spread if showContent exists and is an array
+                    ...(Array.isArray((storedConfig as any).showContent) &&
+                      (storedConfig as any).showContent.length === 2 &&
+                      (storedConfig as any).showContent.includes("courses")
+                      ? {}
+                      : {}),
+                    //   contentTabs:
+                    //     activeTab === "courses"
+                    //       ? ["Course"]
+                    //       : ["Learning Resource"],
+                    // }),
+                    //   storedConfig.showContent.includes("contents")
+                    //     ? { contentTabs: ["courses", "content"] }
+                    //     : {}),
+                    staticFilter: {
+                      se_domains:
+                        typeof filter.filters?.domain === "string"
+                          ? [filter.filters?.domain]
+                          : filter.filters?.domain,
+                      program:
+                        typeof filter.filters?.program === "string"
+                          ? [filter.filters?.program]
+                          : filter.filters?.program,
+                      ...filter.staticFilter,
+                    },
+                    filterFramework: filter.filterFramework,
+                    tab: activeTab === "Course" ? "Course" : "content",
+                  }}
+                />
+            )}
             </Grid>
         </Grid>
       </Box>

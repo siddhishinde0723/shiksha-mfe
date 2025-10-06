@@ -35,6 +35,20 @@ export const UnitGrid: React.FC<CommonAccordionProps> = ({
     _config || {};
   const { t } = useTranslation();
 
+  // Validate item data - if item is empty or missing required fields, show no data message
+  if (!item || !item.identifier || (!item.name && !item.children)) {
+    console.warn("UnitGrid - Invalid item data:", item);
+    return (
+      <Grid container spacing={{ xs: 1, sm: 1, md: 2 }} {..._containerGrid} {..._parentGrid}>
+        <Grid item xs={12} textAlign="center">
+          <Typography variant="body1" sx={{ mt: 4, textAlign: "center" }}>
+            {t("LEARNER_APP.CONTENT_TABS.NO_MORE_DATA")}
+          </Typography>
+        </Grid>
+      </Grid>
+    );
+  }
+
   // Ensure children is an array
   const childrenArray = Array.isArray(item?.children) ? item.children : [];
 

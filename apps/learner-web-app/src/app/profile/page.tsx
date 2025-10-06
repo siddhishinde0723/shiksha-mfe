@@ -45,7 +45,7 @@ const ProfilePage = () => {
 
   const handlePreview = async (id: string) => {
     try {
-      if (!id) {
+      if (!id || id === "null" || id === "undefined" || id.trim() === "") {
         showToastMessage("Certification Id not found", "error");
         return;
       }
@@ -80,6 +80,19 @@ const ProfilePage = () => {
 
         const response = await courseWiseLernerList({ filters });
         console.log("response", response.data);
+        console.log("Raw certificate data from API:", response.data);
+        
+        // Check for certificates with missing certificate IDs
+        const certificatesWithMissingIds = response.data.filter((item: any) => 
+          !item.certificateId || 
+          item.certificateId === "null" || 
+          item.certificateId === "undefined" || 
+          item.certificateId.trim() === ""
+        );
+        
+        if (certificatesWithMissingIds.length > 0) {
+          console.warn("Found certificates with missing certificate IDs:", certificatesWithMissingIds);
+        }
 
         // Process certificates in parallel instead of sequential
         const courseDetailsPromises = response.data.map(async (item: any) => {
@@ -157,9 +170,29 @@ const ProfilePage = () => {
 
         // Wait for all course details to be fetched in parallel
         const courseDetailsResults = await Promise.all(courseDetailsPromises);
-        finalArray.push(...courseDetailsResults);
+        
+        // Filter out certificates with invalid certificate IDs
+        const validCertificates = courseDetailsResults.filter(cert => {
+          const hasValidId = cert.certificateId && 
+                            cert.certificateId !== "null" && 
+                            cert.certificateId !== "undefined" && 
+                            cert.certificateId.trim() !== "";
+          
+          if (!hasValidId) {
+            console.warn(`Filtering out certificate with invalid ID:`, {
+              courseId: cert.courseId,
+              certificateId: cert.certificateId,
+              program: cert.program
+            });
+          }
+          
+          return hasValidId;
+        });
+        
+        finalArray.push(...validCertificates);
 
-        console.log("finalArray", finalArray);
+        console.log("finalArray (filtered):", finalArray);
+        console.log(`Filtered out ${courseDetailsResults.length - validCertificates.length} certificates with invalid IDs`);
 
         // Add a test certificate if no certificates were found
         if (finalArray.length === 0) {
@@ -438,6 +471,13 @@ const ProfilePage = () => {
                     <Grid container spacing={3}>
                       {courseData.map((cert: any, index: number) => {
                         console.log(`Rendering certificate ${index}:`, cert);
+                        
+                        // Additional validation for certificate ID
+                        const hasValidCertificateId = cert.certificateId && 
+                          cert.certificateId !== "null" && 
+                          cert.certificateId !== "undefined" && 
+                          cert.certificateId.trim() !== "";
+                        
                         return (
                           <Grid item xs={12} sm={6} lg={4} xl={3} key={index}>
                             <CourseCertificateCard
@@ -451,9 +491,13 @@ const ProfilePage = () => {
                               completionDate={
                                 cert.completedOn || new Date().toISOString()
                               }
-                              onPreviewCertificate={() =>
-                                handlePreview(cert.certificateId)
-                              }
+                              onPreviewCertificate={() => {
+                                if (!hasValidCertificateId) {
+                                  showToastMessage("Certificate ID not available for this course", "warning");
+                                  return;
+                                }
+                                handlePreview(cert.certificateId);
+                              }}
                             />
                           </Grid>
                         );

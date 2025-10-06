@@ -42,16 +42,15 @@ const SunbirdPlayers = ({
   configFunctionality,
 }: PlayerProps) => {
   const router = useRouter();
-  console.log("🎯🎯🎯 PLAYERS MFE LOADED - NEW VERSION 🎯🎯🎯");
-  console.log("🎯🎯🎯 IF YOU SEE THIS, THE PLAYERS MFE IS WORKING 🎯🎯🎯");
-  console.log("workspace playerconfig", playerConfig);
-  console.log("Player routing decision:");
-  console.log("- Final mimeType:", playerConfig?.metadata?.mimeType);
-  console.log("- Content ID:", playerConfig?.context?.contentId);
-  console.log("- MimeType type:", typeof playerConfig?.metadata?.mimeType);
-  console.log("- MimeType length:", playerConfig?.metadata?.mimeType?.length);
-  console.log("- Is video/x-youtube?", playerConfig?.metadata?.mimeType === "video/x-youtube");
-  console.log("- Is video/youtube?", playerConfig?.metadata?.mimeType === "video/youtube");
+
+  console.log("🎯 SunbirdPlayers: Received parameters:", {
+    courseId,
+    unitId,
+    userId,
+    configFunctionality: !!configFunctionality,
+    playerConfig: !!playerConfig
+  });
+  
 
   // Handle ECML content configuration - ONLY for actual ECML content
   console.log("Checking ECML condition:", playerConfig?.metadata?.mimeType === "application/vnd.ekstep.ecml-archive");
@@ -221,9 +220,13 @@ const SunbirdPlayers = ({
                           (typeof mimeType === 'string' && mimeType.includes('youtube'));
 
   if (isYouTubeContent) {
-    console.log("🎯🎯🎯 PLAYERS MFE: Routing to YouTube Player 🎯🎯🎯");
-    console.log("🎯🎯🎯 PLAYERS MFE: YouTube case matched! mimeType:", mimeType);
-    console.log("🎯🎯🎯 PLAYERS MFE: Using YouTube Player Component 🎯🎯🎯");
+    console.log("🎯 YouTube Player: Routing to YouTube Player with data:", {
+      courseId,
+      unitId,
+      userId,
+      configFunctionality: !!configFunctionality
+    });
+    
     return (
       <YouTubePlayer
         playerConfig={playerConfig}
@@ -235,7 +238,10 @@ const SunbirdPlayers = ({
 
   switch (mimeType) {
     case "application/pdf":
-      console.log("Routing to PDF Player");
+      console.log("🔍 Routing to PDF Player");
+      console.log("🔍 PDF Player userId:", userId);
+      console.log("🔍 PDF Player courseId:", courseId);
+      console.log("🔍 PDF Player unitId:", unitId);
       return (
         <SunbirdPdfPlayer
           playerConfig={playerConfig}

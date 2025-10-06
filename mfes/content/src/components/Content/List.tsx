@@ -188,7 +188,9 @@ export default function Content(props: Readonly<ContentProps>) {
 
       // Get tab value from URL parameter
       const urlTab = searchParams.get("tab");
-      const savedTab = urlTab ? parseInt(urlTab) : 0;
+      const parsedTab = urlTab ? parseInt(urlTab) : 0;
+      // Ensure savedTab is within valid range for DEFAULT_TABS
+      const savedTab = Math.max(0, Math.min(parsedTab, DEFAULT_TABS.length - 1));
 
       const config = props ?? (await getData("mfes_content_pages_content"));
       setPropData(config);
@@ -268,7 +270,7 @@ export default function Content(props: Readonly<ContentProps>) {
           type:
             props?.contentTabs?.length === 1
               ? props.contentTabs[savedTab]
-              : DEFAULT_TABS[savedTab].type,
+              : DEFAULT_TABS[savedTab]?.type || DEFAULT_TABS[0].type,
           ...savedFilters,
           loadOld: true,
         });
@@ -280,7 +282,7 @@ export default function Content(props: Readonly<ContentProps>) {
           type:
             props?.contentTabs?.length === 1
               ? props.contentTabs[savedTab]
-              : DEFAULT_TABS[savedTab].type,
+              : DEFAULT_TABS[savedTab]?.type || DEFAULT_TABS[0].type,
           loadOld: false,
         }));
       }

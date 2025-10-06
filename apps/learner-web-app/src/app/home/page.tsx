@@ -24,7 +24,7 @@ export default function Index() {
       onlyHideElements={["footer"]}
       _topAppBar={{
         _brand: {
-          name:"Kenya",
+          name:"Swadhaar",
             
           // logo:  "/images/appLogo.svg",
           _box: {
@@ -76,16 +76,17 @@ export default function Index() {
               >
                 <Box
                   sx={{
-                    width: { xs: 40, sm: 60 },
-                    height: { xs: 40, sm: 60 },
+                    width: { xs: 120, sm: 120 },
+                    height: { xs: 120, sm: 120 },
                     position: "relative",
                   }}
                 >
                   <Image
-                    src="/images/welcome.gif"
+                    src="/logo.png"
                     alt="welcome gif"
-                    width={60}
-                    height={60}
+                    width={120}
+                    height={120}
+                    style={{ marginBottom: "24px" }}
                   />
                 </Box>
                 <Typography

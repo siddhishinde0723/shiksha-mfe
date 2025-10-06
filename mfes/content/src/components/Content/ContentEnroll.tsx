@@ -55,6 +55,13 @@ const ContentDetails = (props: ContentDetailsProps) => {
   useEffect(() => {
     const fetchContentDetails = async () => {
       try {
+        if (!identifier) {
+          console.error("ContentEnroll - No identifier provided");
+          setIsLoading(false);
+          return;
+        }
+
+        console.log("ContentEnroll - Fetching content details for identifier:", identifier);
         const result = await hierarchyAPI(identifier as string);
 
         // Fallback: If no children but we have leafNodes, create a basic structure
@@ -252,7 +259,22 @@ const ContentDetails = (props: ContentDetailsProps) => {
 
         setContentDetails(result as unknown as ContentSearchResponse);
       } catch (error) {
-        console.error("Failed to fetch content:", error);
+        console.error("ContentEnroll - Failed to fetch content:", {
+          error: error,
+          identifier: identifier,
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined
+        });
+        
+        // Set a fallback content structure to prevent complete failure
+        setContentDetails({
+          identifier: identifier as string,
+          name: "Content Not Available",
+          description: "Unable to load content details. Please try again later.",
+          children: [],
+          appIcon: "/images/image_ver.png",
+          posterImage: "/images/image_ver.png"
+        } as unknown as ContentSearchResponse);
       } finally {
         setIsLoading(false);
       }

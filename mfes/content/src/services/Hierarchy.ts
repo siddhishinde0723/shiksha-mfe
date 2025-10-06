@@ -117,7 +117,14 @@ export const hierarchyAPI = async (
     // Ensure the environment variable is defined
     const searchApiUrl = process.env.NEXT_PUBLIC_MIDDLEWARE_URL;
     if (!searchApiUrl) {
+      console.error("NEXT_PUBLIC_MIDDLEWARE_URL environment variable is not configured");
       throw new Error("Search API URL environment variable is not configured");
+    }
+
+    // Validate doId
+    if (!doId) {
+      console.error("Content ID (doId) is required");
+      throw new Error("Content ID is required");
     }
 
     // Build URL with query parameters if provided
@@ -129,19 +136,41 @@ export const hierarchyAPI = async (
       }
     }
 
+    console.log("Making hierarchy API request to:", url);
+
+    // Check if we're in browser environment before accessing localStorage
+    const tenantId = typeof window !== 'undefined' ? localStorage.getItem("tenantId") || '' : '';
+    const token = typeof window !== 'undefined' ? localStorage.getItem("token") || '' : '';
+
+    if (!token) {
+      console.warn("No authentication token found");
+    }
+
     // Execute the request using the authenticated get function
     const response = await get(
       url,
       {
-        tenantId: localStorage.getItem("tenantId") || '',
-        Authorization: `Bearer ${localStorage.getItem("token") || ''}`,
+        tenantId,
+        Authorization: `Bearer ${token}`,
       }
     );
-    const res = response?.data?.result?.content;
 
+    console.log("Hierarchy API response:", response);
+
+    if (!response?.data?.result?.content) {
+      console.error("Invalid response structure:", response);
+      throw new Error("Invalid response from hierarchy API");
+    }
+
+    const res = response.data.result.content;
     return res;
   } catch (error) {
-    console.error("Error in ContentSearch:", error);
+    console.error("Error in hierarchyAPI:", {
+      error: error,
+      doId: doId,
+      url: `${process.env.NEXT_PUBLIC_MIDDLEWARE_URL}/action/content/v3/hierarchy/${doId}`,
+      hasToken: typeof window !== 'undefined' ? !!localStorage.getItem("token") : false,
+    });
     throw error;
   }
 };

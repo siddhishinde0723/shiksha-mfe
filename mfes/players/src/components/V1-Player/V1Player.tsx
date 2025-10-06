@@ -70,6 +70,100 @@ const V1Player = ({
   console.log("Is YouTube content:", isYouTubeContent);
   console.log("YouTube video ID:", youtubeVideoId);
   
+  // Handle YouTube events from iframe
+  useEffect(() => {
+    if (!isYouTubeContent) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        console.log('🎯 V1Player YouTube message received:', event);
+        console.log('🎯 V1Player Event origin:', event.origin);
+        console.log('🎯 V1Player Event data:', event.data);
+        console.log('🎯 V1Player Event data type:', typeof event.data);
+        
+        // Only process events from YouTube iframe
+        if (event.origin !== 'https://www.youtube.com' && event.origin !== window.location.origin) {
+          console.log('🎯 V1Player Ignoring event from non-YouTube origin:', event.origin);
+          return;
+        }
+
+        if (typeof event.data !== 'string') {
+          console.log('🎯 V1Player Ignoring non-string event data:', event.data);
+          return;
+        }
+
+        const eventData = JSON.parse(event.data);
+        console.log('🎯 V1Player Parsed event data:', eventData);
+        
+        // Check if this is a YouTube event
+        if (eventData.from === 'youtube' && eventData.eid) {
+          console.log('🎯 V1Player YouTube event received:', eventData);
+          
+          // Transform YouTube event to telemetry format
+          const telemetryEvent = {
+            eid: eventData.eid,
+            edata: {
+              type: 'content',
+              mode: 'play',
+              pageid: 'youtube-player',
+              duration: eventData.duration || 0,
+              time: eventData.time || 0,
+              ...eventData
+            },
+            object: {
+              id: playerConfig?.context?.contentId || playerConfig?.metadata?.identifier,
+              type: 'Content',
+              ver: '1.0'
+            },
+            context: {
+              pdata: {
+                id: 'youtube-player',
+                ver: '1.0',
+                pid: 'youtube-player'
+              },
+              env: 'youtube',
+              sid: '',
+              did: '',
+              uid: userId || 'anonymous',
+              channel: 'youtube',
+              cdata: []
+            }
+          };
+
+          // Send to telemetry service
+          if (eventData.eid === 'play' || eventData.eid === 'pause' || eventData.eid === 'end') {
+            console.log('🎯 V1Player YouTube telemetry event detected:', eventData.eid);
+            console.log('🎯 V1Player YouTube userId being used:', userId);
+            console.log('🎯 V1Player YouTube courseId:', courseId);
+            console.log('🎯 V1Player YouTube unitId:', unitId);
+            console.log('🎯 V1Player sending YouTube telemetry event:', telemetryEvent);
+            
+            // Import and call the telemetry service
+            import('../../services/TelemetryService').then(({ getTelemetryEvents }) => {
+              console.log('🎯 V1Player calling getTelemetryEvents for YouTube content');
+              getTelemetryEvents(telemetryEvent, 'video', {
+                courseId,
+                unitId,
+                userId,
+                configFunctionality
+              });
+            }).catch(error => {
+              console.error('V1Player error sending YouTube telemetry:', error);
+            });
+          }
+        }
+      } catch (error) {
+        console.error('V1Player error processing YouTube message:', error);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [isYouTubeContent, playerConfig, courseId, unitId, userId, configFunctionality]);
+  
   useEffect(() => {
     const preview: any = previewRef.current;
     console.log("V1Player useEffect triggered.");

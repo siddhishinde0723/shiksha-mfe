@@ -86,12 +86,27 @@ export const getQumlData = async (identifier: any) => {
 
 export const createContentTracking = async (reqBody: ContentCreate) => {
   const apiUrl = `${process.env.NEXT_PUBLIC_MIDDLEWARE_URL}/tracking/content/create`;
-  try {
-    const response = await axios.post(apiUrl, reqBody);
-    console.log("Content tracking created:", response.data);
+  try {    
+    // Validate required fields
+    const requiredFields = ['userId', 'contentId', 'courseId', 'unitId', 'contentType', 'contentMime', 'lastAccessOn', 'detailsObject'];
+    const missingFields = requiredFields.filter(field => !reqBody[field as keyof ContentCreate]);
+    
+    if (missingFields.length > 0) {
+      throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+    }
+    
+    const response = await axios.post(apiUrl, reqBody, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      timeout: 10000, // 10 second timeout
+    });
+
     return response?.data;
-  } catch (error) {
-    console.log(error);
+  } catch (error: any) {
+
+    console.error("🔍 Full Error:", error);
     throw error;
   }
 };

@@ -79,30 +79,9 @@ const SunbirdPlayers = () => {
     return <div>No player configuration found</div>;
   }
 
-  console.log("workspace playerconfig", playerConfig);
-  console.log("🚀🚀🚀 WORKSPACE PLAYER DEBUG - UPDATED VERSION 🚀🚀🚀");
-  console.log("Timestamp:", new Date().toISOString());
-  console.log("File: mfes/workspace/src/pages/sunbirdPlayers.tsx");
-  console.log("This is the UPDATED sunbirdPlayers.tsx file with YouTube support!");
-  console.log("🔥🔥🔥 FORCE RELOAD TEST - THIS SHOULD APPEAR IN CONSOLE 🔥🔥🔥");
-  console.log("🎯🎯🎯 WORKSPACE PLAYER LOADED - NEW VERSION 🎯🎯🎯");
-  console.log("🎯🎯🎯 IF YOU SEE THIS, THE NEW CODE IS WORKING 🎯🎯🎯");
-  console.log("🎯🎯🎯 WORKSPACE PLAYER CACHE BUST TEST 🎯🎯🎯");
-  console.log("🎯🎯🎯 THIS SHOULD APPEAR AFTER CACHE CLEAR 🎯🎯🎯");
+
   
   const mimeType = playerConfig?.metadata?.mimeType;
-  console.log("Workspace Player routing decision:");
-  console.log("- Final mimeType:", mimeType);
-  console.log("- Content ID:", playerConfig?.context?.contentId);
-  console.log("- MimeType type:", typeof mimeType);
-  console.log("- MimeType length:", mimeType?.length);
-  console.log("- MimeType charCodes:", mimeType ? Array.from(mimeType).map((c: any) => (c as string).charCodeAt(0)) : 'null');
-  console.log("- Is video/x-youtube?", mimeType === "video/x-youtube");
-  console.log("- Is video/youtube?", mimeType === "video/youtube");
-  console.log("- Exact comparison video/x-youtube:", mimeType === "video/x-youtube");
-  console.log("- Exact comparison video/youtube:", mimeType === "video/youtube");
-  console.log("- Trimmed comparison:", mimeType?.trim() === "video/x-youtube");
-  console.log("- Full playerConfig metadata:", JSON.stringify(playerConfig?.metadata, null, 2));
 
   // Check for YouTube content with multiple possible mimeType formats
   const isYouTubeContent = mimeType === "video/x-youtube" || 

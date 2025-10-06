@@ -42,17 +42,24 @@ const Players: React.FC<SunbirdPlayerProps> = ({
   // Get all query params once router is ready
   useEffect(() => {
     if (router.isReady) {
+      console.log("🔍 Router query params:", router.query);
       const queryUserId = router.query.userId as string;
+      console.log("🔍 Query userId from URL:", queryUserId);
+      
       if (queryUserId) {
         setUserId(queryUserId);
+        console.log("🔍 Set userId from URL parameter:", queryUserId);
       } else {
         // Fallback to other sources if not in query params
         const storedUserId = localStorage.getItem("userId") || "";
+        console.log("🔍 Fallback to localStorage userId:", storedUserId);
         setUserId(storedUserId);
       }
     }
   }, [router.isReady, router.query.userId]);
-  console.log("userId====", userId);
+  console.log("🔍 Final userId in Players component:", userId);
+  console.log("🚨🚨🚨 PLAYERS MFE INDEX PAGE LOADED - NEW VERSION 🚨🚨🚨");
+  console.log("🚨🚨🚨 IF YOU SEE THIS, THE PLAYERS MFE IS WORKING 🚨🚨🚨");
   useEffect(() => {
     if (playerConfig || !identifier) return;
 

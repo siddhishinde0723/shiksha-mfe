@@ -33,10 +33,7 @@ const YouTubePlayer = ({ playerConfig }: YouTubePlayerProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
   
-  console.log("🎯🎯🎯 YOUTUBE PLAYER COMPONENT LOADED - NEW VERSION 🎯🎯🎯");
-  console.log("🎯🎯🎯 IF YOU SEE THIS, THE NEW CODE IS WORKING 🎯🎯🎯");
-  console.log("YouTubePlayer Component is rendering!");
-  console.log("YouTube playerConfig:", playerConfig);
+ 
   
   // Try to extract video ID from artifactUrl first, then streamingUrl as fallback
   const artifactUrl = playerConfig?.metadata?.artifactUrl;
@@ -235,17 +232,8 @@ const YouTubePlayer = ({ playerConfig }: YouTubePlayerProps) => {
   // Create YouTube embed URL with parameters optimized to prevent blank screen
   // Try a simpler URL first to avoid potential issues with complex parameters
   const youtubeEmbedUrl = `https://www.youtube.com/embed/${youtubeVideoId}?rel=0&modestbranding=1&fs=1&controls=1&autoplay=0`;
-
-  console.log("🎯🎯🎯 YOUTUBE EMBED URL CREATED 🎯🎯🎯");
-  console.log("YouTube embed URL:", youtubeEmbedUrl);
-  console.log("Video ID:", youtubeVideoId);
-  console.log("Origin:", window.location.origin);
-  console.log("Timestamp:", new Date().toISOString());
-  
   // Test if the video is accessible
   const testUrl = `https://www.youtube.com/watch?v=${youtubeVideoId}`;
-  console.log("Test YouTube URL:", testUrl);
-  console.log("You can test this URL in a new tab to see if the video is accessible");
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', backgroundColor: '#000' }}>
@@ -285,18 +273,12 @@ const YouTubePlayer = ({ playerConfig }: YouTubePlayerProps) => {
         allowFullScreen
         loading="eager"
         onLoad={() => {
-          console.log("🎯🎯🎯 YOUTUBE IFRAME LOADED SUCCESSFULLY 🎯🎯🎯");
-          console.log("YouTube iframe loaded");
-          console.log("Video ID:", youtubeVideoId);
-          console.log("Timestamp:", new Date().toISOString());
+        
           setIsPlayerReady(true);
           setIsLoading(false);
         }}
         onError={() => {
-          console.error("🎯🎯🎯 YOUTUBE IFRAME ERROR 🎯🎯🎯");
-          console.error("YouTube iframe error");
-          console.error("Video ID:", youtubeVideoId);
-          console.error("Timestamp:", new Date().toISOString());
+       
           setLoadingError(true);
           setIsLoading(false);
           setIsPlayerReady(false);

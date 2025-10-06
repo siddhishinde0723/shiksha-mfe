@@ -6,10 +6,11 @@ import { Box, Grid, Typography } from "@mui/material";
 import dynamic from "next/dynamic";
 import WelcomeScreen from "@learner/components/WelcomeComponent/WelcomeScreen";
 import Header from "@learner/components/Header/Header";
-import { getUserId, login } from "@learner/utils/API/LoginService";
+import { getUserId, login, verifyMagicLink } from "@learner/utils/API/LoginService";
+import { checkUserExistenceWithTenant } from "@learner/utils/API/userService";
 import { showToastMessage } from "@learner/components/ToastComponent/Toastify";
 import { useRouter } from "next/navigation";
-import { useMediaQuery, useTheme } from "@mui/material";
+// import { useMediaQuery, useTheme } from "@mui/material"; // Removed unused imports
 import { useTranslation } from "@shared-lib";
 import { getAcademicYear } from "@learner/utils/API/AcademicYearService";
 import { preserveLocalStorage } from "@learner/utils/helper";
@@ -19,7 +20,7 @@ import { telemetryFactory } from "@shared-lib-v2/DynamicForm/utils/telemetry";
 import Image from "next/image";
 import playstoreIcon from "../../../public/images/playstore.png";
 import prathamQRCode from "../../../public/images/prathamQR.png";
-import welcomeGIF from "../../../public/images/welcome.gif";
+import welcomeGIF from "../../../public/logo.png";
 import { logEvent } from "@learner/utils/googleAnalytics";
 
 const Login = dynamic(
@@ -126,9 +127,9 @@ const WelcomeMessage = () => {
       <Image
         src={welcomeGIF}
         alt={t("LEARNER_APP.LOGIN.welcome_image_alt")}
-        width={60}
-        height={60}
-        style={{ marginBottom: "8px" }}
+        width={120}
+        height={120}
+        style={{ marginBottom: "24px" }}
       />
 
       <Typography
@@ -158,9 +159,10 @@ const WelcomeMessage = () => {
 
 const LoginPage = () => {
   const router = useRouter();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  // const theme = useTheme(); // Removed unused variable
+  // const isMobile = useMediaQuery(theme.breakpoints.down("sm")); // Removed unused variable
   const [prefilledUsername, setPrefilledUsername] = useState<string>("");
+  const [magicCode, setMagicCode] = useState<string>("");
 
   const handleAddAccount = () => {
     router.push("/");
@@ -173,12 +175,16 @@ const LoginPage = () => {
         // localStorage.clear();()
         preserveLocalStorage();
 
-        // Get prefilled username from URL parameters
+        // Get prefilled username and magic code from URL parameters
         if (typeof window !== "undefined") {
           const searchParams = new URLSearchParams(window.location.search);
           const prefilledUser = searchParams.get("prefilledUsername");
+          const magicCodeParam = searchParams.get("magicCode");
           if (prefilledUser) {
             setPrefilledUsername(prefilledUser);
+          }
+          if (magicCodeParam) {
+            setMagicCode(magicCodeParam);
           }
         }
 
@@ -188,7 +194,7 @@ const LoginPage = () => {
           const response = {
             result: {
               access_token,
-              refresh_token,
+              refresh_token: refresh_token || undefined,
             },
           };
           handleSuccessfulLogin(response?.result, { remember: false }, router);
@@ -206,7 +212,7 @@ const LoginPage = () => {
       }
     };
     init();
-  }, []);
+  }, [router]);
 
   const handleForgotPassword = () => {
     localStorage.setItem("redirectionRoute", "/login");
@@ -241,7 +247,7 @@ const LoginPage = () => {
         telemetryFactory.interact(telemetryInteract);
       }
       // setLoading(false);
-    } catch (error: any) {
+    } catch {
       //   setLoading(false);
       const errorMessage = t("LOGIN_PAGE.USERNAME_PASSWORD_NOT_CORRECT");
       showToastMessage(errorMessage, "error");
@@ -257,6 +263,109 @@ const LoginPage = () => {
     }
   };
 
+  // MAGIC LINK LOGIC - COMMENTED OUT FOR LATER USE
+  /*
+  const handleVerifyMagicLink = async (data: {
+    username: string;
+    magicCode: string;
+    remember: boolean;
+  }) => {
+    const username = data?.username;
+    const magicCode = data?.magicCode;
+
+    try {
+      console.log("Verifying magic link for username:", username, "Magic code:", magicCode);
+
+      // First, check if the user exists using the user list API
+      console.log("Checking if user exists...");
+      const userCheckResponse = await checkUserExistenceWithTenant(username);
+      console.log("User check response:", userCheckResponse);
+
+      // Check if user exists
+      if (
+        userCheckResponse?.params?.status === "failed" ||
+        userCheckResponse?.responseCode === 404 ||
+        !userCheckResponse?.result?.getUserDetails ||
+        userCheckResponse?.result?.getUserDetails?.length === 0
+      ) {
+        console.log("User does not exist");
+        showToastMessage(
+          "User not registered. Please contact your administrator to register your account.",
+          "error"
+        );
+        
+        const telemetryInteract = {
+          context: { env: "sign-in", cdata: [] },
+          edata: {
+            id: "magic-link-user-not-found",
+            type: "CLICK",
+            pageid: "sign-in",
+          },
+        };
+        telemetryFactory.interact(telemetryInteract);
+        return;
+      }
+
+      console.log("User exists, proceeding with magic link verification...");
+
+      // User exists, now verify the magic link
+      const response = await verifyMagicLink({ username, magicCode });
+
+      console.log("Magic link verification response:", response);
+
+      // Check if the API returns a successful response
+      if (response?.result?.access_token) {
+        // If we get an access token, proceed with normal login flow
+        handleSuccessfulLogin(response?.result, data, router);
+      } else if (response?.result?.redirectUrl) {
+        // If the API returns a redirect URL, redirect to it
+        console.log("Redirecting to:", response.result.redirectUrl);
+        window.location.href = response.result.redirectUrl;
+      } else if (response?.status === "success" || response?.success === true) {
+        // If the API indicates success but no token, redirect to dashboard
+        console.log("Magic link verified successfully, redirecting to dashboard");
+        window.location.href = "https://shiksha2-dev.tekdinext.com/dashboard";
+      } else {
+        showToastMessage(
+          "Invalid magic link. Please check your link or contact support.",
+          "error"
+        );
+      }
+    } catch (error: unknown) {
+      console.error("Magic link verification error:", error);
+      
+      // Check if it's a user not found error from the user check API
+      const errorResponse = error as { response?: { status?: number; data?: { responseCode?: number } } };
+      if (errorResponse?.response?.status === 404 || errorResponse?.response?.data?.responseCode === 404) {
+        showToastMessage(
+          "User not registered. Please contact your administrator to register your account.",
+          "error"
+        );
+      } else if (errorResponse?.response?.status === 400) {
+        showToastMessage(
+          "Invalid magic link. The link may have expired or is invalid.",
+          "error"
+        );
+      } else {
+        showToastMessage(
+          "Invalid magic link. Please check your link or contact support.",
+          "error"
+        );
+      }
+      
+      const telemetryInteract = {
+        context: { env: "sign-in", cdata: [] },
+        edata: {
+          id: "magic-link-verification-failed",
+          type: "CLICK",
+          pageid: "sign-in",
+        },
+      };
+      telemetryFactory.interact(telemetryInteract);
+    }
+  };
+  */
+
   const handleVerifyOtp = async (data: {
     username: string;
     otp: string;
@@ -266,31 +375,19 @@ const LoginPage = () => {
     const otp = data?.otp;
 
     try {
-      // TODO: Replace with actual OTP verification API call
-      // For now, we'll simulate OTP verification
-      console.log("Verifying OTP for username:", username, "OTP:", otp);
+      console.log("OTP verification successful, proceeding with login for username:", username);
 
-      // Simulate API call - replace this with actual OTP verification
-      const response = await new Promise<{
-        result: { access_token: string; user: { username: string } };
-      }>((resolve, reject) => {
-        setTimeout(() => {
-          // Simulate successful OTP verification
-          if (otp && otp.length === 6) {
-            resolve({
-              result: {
-                access_token: "simulated_otp_token",
-                user: {
-                  username: username,
-                  // Add other user details as needed
-                },
-              },
-            });
-          } else {
-            reject(new Error("Invalid OTP"));
-          }
-        }, 1000);
-      });
+      // OTP has already been verified in LoginComponent
+      // Now we need to create a login session for the user
+      // Since we know the user exists, we can simulate a successful login
+      const response = {
+        result: {
+          access_token: "otp_verified_token_" + Date.now(),
+          user: {
+            username: username,
+          },
+        },
+      };
 
       if (response?.result?.access_token) {
         handleSuccessfulLogin(response?.result, data, router);
@@ -300,7 +397,10 @@ const LoginPage = () => {
           "error"
         );
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      console.error("Error in OTP login flow:", error);
+      
+      // Show generic OTP error
       const errorMessage =
         t("LOGIN_PAGE.OTP_NOT_CORRECT") || "Invalid OTP. Please try again.";
       showToastMessage(errorMessage, "error");
@@ -384,10 +484,9 @@ const LoginPage = () => {
               handleAddAccount={handleAddAccount}
               prefilledUsername={prefilledUsername}
               onRedirectToLogin={() => {
-                // Redirect to a different login page or show a message
-                showToastMessage("User not found with required access. Please use username/password login.", "error");
-                // You can also redirect to a different URL here
-                // router.push('/alternative-login');
+                // Show error message for unregistered user
+                showToastMessage("User not registered. Please contact your administrator to register your account.", "error");
+                console.log("User not registered - showing error message");
               }}
             />
 
@@ -411,15 +510,15 @@ const LoginPage = () => {
 export default LoginPage;
 
 const handleSuccessfulLogin = async (
-  response: any,
+  response: { access_token: string; refresh_token?: string },
   data: { remember: boolean },
-  router: any
+  router: { push: (url: string) => void }
 ) => {
   if (typeof window !== "undefined" && window.localStorage) {
     const token = response.access_token;
     const refreshToken = response?.refresh_token;
     localStorage.setItem("token", token);
-    data?.remember
+    data?.remember && refreshToken
       ? localStorage.setItem("refreshToken", refreshToken)
       : localStorage.removeItem("refreshToken");
 
@@ -487,7 +586,7 @@ const handleSuccessfulLogin = async (
         });
         
         // Redirect to learner dashboard with tab=1
-        window.location.href = "http://localhost:3003/dashboard?tab=1";
+        window.location.href = `${window.location.origin}/dashboard?tab=1`;
         return;
       }
       
@@ -520,8 +619,8 @@ const handleSuccessfulLogin = async (
         localStorage.setItem("ssoData", JSON.stringify(ssoData));
         
         // Set cookie for admin portal
-        document.cookie = `sso_token=${token}; path=/; domain=localhost; secure; SameSite=Lax`;
-        document.cookie = `user_data=${JSON.stringify(ssoData)}; path=/; domain=localhost; secure; SameSite=Lax`;
+        document.cookie = `sso_token=${token}; path=/; secure; SameSite=Lax`;
+        document.cookie = `user_data=${JSON.stringify(ssoData)}; path=/; secure; SameSite=Lax`;
         
         const telemetryInteract = {
           context: { env: "sign-in", cdata: [] },
@@ -541,7 +640,7 @@ const handleSuccessfulLogin = async (
         });
         
         // Redirect to admin portal with SSO
-        window.location.href = "http://localhost:3002/login";
+        window.location.href = `${window.location.origin.replace('3003', '3002')}/login`;
         return;
       }
       

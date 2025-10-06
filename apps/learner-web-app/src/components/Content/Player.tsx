@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 // pages/content-details/[identifier].tsx
 
 "use client";
@@ -37,36 +38,141 @@ const App = ({
   const [item, setItem] = useState<{ content?: any; [key: string]: any }>({});
   const [breadCrumbs, setBreadCrumbs] = useState<any>();
   const [isShowMoreContent, setIsShowMoreContent] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [isRetrying, setIsRetrying] = useState(false);
   let activeLink = null;
   if (typeof window !== "undefined") {
     const searchParams = new URLSearchParams(window.location.search);
     activeLink = searchParams.get("activeLink");
   }
+  const retryContentLoad = async () => {
+    if (isRetrying) return;
+    
+    setIsRetrying(true);
+    setRetryCount(prev => prev + 1);
+    
+    try {
+      const response = await fetchContent(identifier);
+      
+      if (response && (response.name === 'AxiosError' || response.isAxiosError)) {
+        console.error('Retry failed - Error loading content:', response);
+        // Don't retry more than 3 times
+        if (retryCount >= 2) {
+          const isServiceUnavailable = response.status === 503;
+          const errorMessage = isServiceUnavailable 
+            ? 'Service temporarily unavailable. Please try again in a few minutes.'
+            : 'This content is temporarily unavailable. Please try again later.';
+          
+          const fallbackContent = {
+            identifier: identifier,
+            name: isServiceUnavailable ? 'Service Unavailable' : 'Content Unavailable',
+            description: errorMessage,
+            mimeType: 'application/vnd.ekstep.html-archive',
+            appIcon: '/images/image_ver.png',
+            posterImage: '/images/image_ver.png',
+            status: 'Live',
+            error: true,
+            errorMessage: response.message,
+            errorStatus: response.status,
+            errorCode: response.code,
+            canRetry: true
+          };
+          
+          setItem({ content: fallbackContent });
+        }
+      } else {
+        setItem({ content: response });
+        setRetryCount(0);
+      }
+    } catch (error) {
+      console.error('Retry failed:', error);
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
   useEffect(() => {
     const fetch = async () => {
-      const response = await fetchContent(identifier);
-      setItem({ content: response });
-      if (unitId) {
-        const course = await hierarchyAPI(courseId as string);
-        const breadcrum = findCourseUnitPath({
-          contentBaseUrl: contentBaseUrl,
-          node: course,
-          targetId: identifier as string,
-          keyArray: [
-            "name",
-            "identifier",
-            "mimeType",
-            {
-              key: "link",
-              suffix: activeLink
-                ? `?activeLink=${encodeURIComponent(activeLink)}`
-                : "",
-            },
-          ],
-        });
+      try {
+        const response = await fetchContent(identifier);
+        
+        // Check if response is an error object
+        if (response && (response.name === 'AxiosError' || response.isAxiosError)) {
+          console.error('Error loading content:', response);
+          
+          // For 503 errors, show a more specific message
+          const isServiceUnavailable = response.status === 503;
+          const errorMessage = isServiceUnavailable 
+            ? 'Service temporarily unavailable. Please try again in a few minutes.'
+            : 'This content is temporarily unavailable. Please try again later.';
+          
+          // Create fallback content object for the player
+          const fallbackContent = {
+            identifier: identifier,
+            name: isServiceUnavailable ? 'Service Unavailable' : 'Content Unavailable',
+            description: errorMessage,
+            mimeType: 'application/vnd.ekstep.html-archive',
+            appIcon: '/images/image_ver.png',
+            posterImage: '/images/image_ver.png',
+            status: 'Live',
+            error: true,
+            errorMessage: response.message,
+            errorStatus: response.status,
+            errorCode: response.code,
+            canRetry: retryCount < 2
+          };
+          
+          setItem({ content: fallbackContent });
+          console.log('Using fallback content due to API error:', response.status, response.message);
+        } else {
+          setItem({ content: response });
+        }
+        
+        if (unitId) {
+          try {
+            const course = await hierarchyAPI(courseId as string);
+            const breadcrum = findCourseUnitPath({
+              contentBaseUrl: contentBaseUrl,
+              node: course,
+              targetId: identifier as string,
+              keyArray: [
+                "name",
+                "identifier",
+                "mimeType",
+                {
+                  key: "link",
+                  suffix: activeLink
+                    ? `?activeLink=${encodeURIComponent(activeLink)}`
+                    : "",
+                },
+              ],
+            });
 
-        setBreadCrumbs(breadcrum?.slice(0, -1));
-      } else {
+            setBreadCrumbs(breadcrum?.slice(0, -1));
+          } catch (breadcrumbError) {
+            console.error('Error fetching breadcrumbs:', breadcrumbError);
+            setBreadCrumbs([]);
+          }
+        } else {
+          setBreadCrumbs([]);
+        }
+      } catch (error) {
+        console.error('Error in fetch function:', error);
+        
+        // Create fallback content for any other errors
+        const fallbackContent = {
+          identifier: identifier,
+          name: 'Content Unavailable',
+          description: 'This content is temporarily unavailable. Please try again later.',
+          mimeType: 'application/vnd.ekstep.html-archive',
+          appIcon: '/images/image_ver.png',
+          posterImage: '/images/image_ver.png',
+          status: 'Live',
+          error: true,
+          errorMessage: 'Failed to load content'
+        };
+        
+        setItem({ content: fallbackContent });
         setBreadCrumbs([]);
       }
     };
@@ -247,6 +353,9 @@ const PlayerBox = ({
   trackable?: boolean;
   isShowMoreContent: boolean;
 }) => {
+  // Use identifier as fallback for courseId and unitId when they're not provided
+  const finalCourseId = courseId || identifier;
+  const finalUnitId = unitId || identifier;
   const router = useRouter();
   const { t } = useTranslation();
   const [play, setPlay] = useState(false);
@@ -320,30 +429,70 @@ const PlayerBox = ({
     metadata: item.content
   } : null;
 
-  console.log("SunbirdPlayers playerConfig", playerConfig);
-  console.log("course id", courseId);
-  console.log("unit id", unitId);
-  console.log(
-    "userIdLocalstorageName",
-    userIdLocalstorageName ? localStorage.getItem(userIdLocalstorageName) : "not set"
-  );
-  console.log("🎯🎯🎯 LEARNER WEB APP PLAYER COMPONENT LOADED - NEW VERSION 🎯🎯🎯");
-  console.log("🎯🎯🎯 IF YOU SEE THIS, THE NEW CODE IS WORKING 🎯🎯🎯");
+
   
   // Debug the iframe URL construction
+  // Get userId from localStorage
+  const currentUserId = localStorage.getItem("userId");
+  
+  // Set userId in cookies for cross-port access
+  if (currentUserId) {
+    const domain = window.location.hostname;
+    const cookieValue = `userId=${currentUserId}; path=/; domain=${domain}; SameSite=Lax; Secure=false`;
+    document.cookie = cookieValue;
+    
+    // Also try setting without domain restriction
+    const cookieValueNoDomain = `userId=${currentUserId}; path=/; SameSite=Lax; Secure=false`;
+    document.cookie = cookieValueNoDomain;
+  } else {
+    console.warn("🍪 No userId found in localStorage to set in cookies");
+  }
+
+  // Add postMessage listener for cross-port communication
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'REQUEST_USER_ID') {
+        const userId = localStorage.getItem("userId");
+        if (userId) {
+          // Send userId back to the player iframe
+          const iframe = document.querySelector('iframe[name*="isGenerateCertificate"]') as HTMLIFrameElement;
+          if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage({
+              type: 'USER_ID_RESPONSE',
+              userId: userId
+            }, '*');
+            console.log("🔍 Sent userId to player iframe:", userId);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+  
   const iframeUrl = `${
-    process.env.NEXT_PUBLIC_LEARNER_SBPLAYER || "http://localhost:4108"
+    process.env.NEXT_PUBLIC_LEARNER_SBPLAYER || "http://localhost:3000/sbplayer"
   }?identifier=${identifier}${
-    courseId && unitId ? `&courseId=${courseId}&unitId=${unitId}` : ""
+    finalCourseId ? `&courseId=${finalCourseId}` : ""
   }${
-    userIdLocalstorageName
-      ? `&userId=${localStorage.getItem("userId")}`
-      : ""
+    finalUnitId ? `&unitId=${finalUnitId}` : ""
+  }${
+    currentUserId ? `&userId=${currentUserId}` : ""
   }&player-config=${encodeURIComponent(JSON.stringify(playerConfig))}&_t=${Date.now()}&_v=${Math.random()}&_cache=${Math.random()}&_force=${Math.random()}&_reload=${Math.random()}`;
   
-  console.log("🎯🎯🎯 CONSTRUCTED IFRAME URL:", iframeUrl);
-  console.log("🎯🎯🎯 NEXT_PUBLIC_LEARNER_SBPLAYER:", process.env.NEXT_PUBLIC_LEARNER_SBPLAYER);
-
+  console.log("🔧 Player parameters:", {
+    identifier,
+    courseId,
+    unitId,
+    finalCourseId,
+    finalUnitId,
+    currentUserId,
+    playerConfig: !!playerConfig
+  });
+  console.log("🔧 Constructed iframe URL:", iframeUrl);
+  
+ 
   return (
     <Box
       sx={{
@@ -420,13 +569,6 @@ const PlayerBox = ({
             }}
             onLoad={() => {
               console.log("Player iframe loaded successfully");
-              console.log("Player config passed to iframe:", playerConfig);
-              console.log("🎯🎯🎯 LEARNER WEB APP PLAYER LOADED - NEW VERSION 🎯🎯🎯");
-              console.log("🎯🎯🎯 IF YOU SEE THIS, THE NEW CODE IS WORKING 🎯🎯🎯");
-              console.log("🎯🎯🎯 USING PLAYERS MFE ON PORT 4108 🎯🎯🎯");
-              console.log("🎯🎯🎯 NOT USING WORKSPACE PLAYER 🎯🎯🎯");
-              console.log("🎯🎯🎯 IFRAME SRC URL:", iframeRef.current?.src);
-              console.log("🎯🎯🎯 IFRAME SRC SHOULD BE: http://localhost:4108");
             }}
           />
         </Box>

@@ -169,7 +169,7 @@ export const userNameExist = async (userData: any): Promise<any> => {
 export const checkUserExistenceWithTenant = async (
   mobile: string
 ): Promise<any> => {
-  const apiUrl: string = `${process.env.NEXT_PUBLIC_BASE_URL}/interface/v1/user/list`;
+  const apiUrl: string = `${process.env.NEXT_PUBLIC_BASE_URL}/user/list`;
 
   try {
     const response = await post(apiUrl, {

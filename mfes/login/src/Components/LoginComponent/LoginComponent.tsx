@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Box,
   TextField,
@@ -14,8 +14,8 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
-import { Loader, useTranslation } from "@shared-lib"; // Updated import
-import { sendOtpInterface } from "@learner/utils/API/OtPService";
+import { useTranslation } from "@shared-lib"; // Updated import
+import { sendOTP, verifyOTP } from "@learner/utils/API/OtPService";
 import { checkUserExistenceWithTenant } from "@learner/utils/API/userService";
 
 interface LoginComponentProps {
@@ -29,18 +29,26 @@ interface LoginComponentProps {
     otp: string;
     remember: boolean;
   }) => void;
+  onVerifyMagicLink?: (data: {
+    username: string;
+    magicCode: string;
+    remember: boolean;
+  }) => void;
   handleAddAccount?: () => void;
   handleForgotPassword?: () => void;
   prefilledUsername?: string;
+  magicCode?: string;
   onRedirectToLogin?: () => void;
 }
 
 const LoginComponent: React.FC<LoginComponentProps> = ({
   onLogin,
   onVerifyOtp,
+  onVerifyMagicLink,
   handleAddAccount,
   handleForgotPassword,
   prefilledUsername,
+  magicCode,
   onRedirectToLogin,
 }) => {
   const { t } = useTranslation(); // Initialize translation function
@@ -49,10 +57,15 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [forcePasswordMode, setForcePasswordMode] = useState(false);
+  const [hasCheckedUser, setHasCheckedUser] = useState(false);
+  const [lastCallTime, setLastCallTime] = useState(0);
+  const [otpHash, setOtpHash] = useState<string>("");
+  const hasInitializedRef = useRef(false);
   const [formData, setFormData] = useState({
     username: "",
     password: "",
     otp: "",
+    magicCode: "",
     remember: false,
   });
 
@@ -70,6 +83,9 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
     return mobile;
   };
 
+  // MAGIC LINK MODE - COMMENTED OUT FOR LATER USE
+  // const isMagicLinkMode = prefilledUsername && magicCode && !forcePasswordMode;
+  
   // Determine if we should show OTP mode
   const isOtpMode =
     prefilledUsername &&
@@ -77,8 +93,19 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
     !forcePasswordMode;
 
   // Function to check user existence and send OTP
-  const sendOtp = async (mobile: string) => {
+  const sendOtp = useCallback(async (mobile: string) => {
+    const now = Date.now();
+    
+    // Prevent duplicate calls with debounce (1000ms) and initialization check
+    if (isSendingOtp || hasCheckedUser || (now - lastCallTime < 1000)) {
+      console.log("sendOtp already in progress, user already checked, or called too recently");
+      return;
+    }
+    
+    console.log("Starting sendOtp for mobile:", mobile);
+    setLastCallTime(now);
     setIsSendingOtp(true);
+    setHasCheckedUser(true);
     try {
       // Process the mobile number to handle country code
       const processedMobile = processMobileNumber(mobile);
@@ -98,10 +125,16 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
       // Check if API returned an error (like 404 - User does not exist)
       if (
         userCheckResponse?.params?.status === "failed" ||
-        userCheckResponse?.responseCode === 404
+        userCheckResponse?.responseCode === 404 ||
+        userCheckResponse?.responseCode !== 200
       ) {
-        console.log("User does not exist, switching to username/password mode");
-        setForcePasswordMode(true);
+        console.log("User does not exist");
+        // Show error message and call the redirect handler
+        if (onRedirectToLogin) {
+          setTimeout(() => {
+            onRedirectToLogin();
+          }, 100);
+        }
         return;
       }
 
@@ -111,47 +144,77 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
 
       if (!users || users.length === 0) {
         console.log("No users found for this mobile number");
-        setForcePasswordMode(true);
+        // Show error message for no users found
+        if (onRedirectToLogin) {
+          setTimeout(() => {
+            onRedirectToLogin();
+          }, 100);
+        }
         return;
       }
 
+      // Find user with target tenant or any user if no specific tenant required
       const userWithTargetTenant = users.find(
-        (user: any) => user.tenantId === targetTenantId
-      );
+        (user: { tenantId: string }) => user.tenantId === targetTenantId
+      ) || users[0]; // Fallback to first user if no specific tenant match
 
       if (userWithTargetTenant) {
-        // User exists with target tenant, send OTP
-        const response = await sendOtpInterface({
+        console.log("User found, sending OTP:", userWithTargetTenant);
+        // User exists, send OTP for login
+        const response = await sendOTP({
           mobile: processedMobile,
-          reason: "signup",
-          key: "SendOtpOn",
-          replacements: {
-            "{eventName}": "Swadaar OTP",
-            "{programName}": "Swadaar",
-          },
+          reason: "login",
         });
 
         console.log("OTP sent successfully:", response);
+        // Store the hash for OTP verification
+        if (response?.result?.data?.hash) {
+          setOtpHash(response.result.data.hash);
+          console.log("OTP hash stored:", response.result.data.hash);
+        }
         setOtpSent(true);
       } else {
-        // User doesn't exist or doesn't have target tenant, switch to password mode
-        console.log(
-          "User not found with target tenant, switching to password mode"
-        );
-        setForcePasswordMode(true);
+        // User doesn't exist or doesn't have target tenant, show error
+        console.log("User not found, showing error message");
+        if (onRedirectToLogin) {
+          setTimeout(() => {
+            onRedirectToLogin();
+          }, 100);
+        }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error in OTP flow:", error);
-      // For any unexpected errors, switch to password mode
+      
+      // Check if it's a user not found error (404)
+      const errorResponse = error as { response?: { status?: number; data?: { responseCode?: number; params?: { status?: string; errmsg?: string } } } };
+      if (
+        errorResponse?.response?.status === 404 || 
+        errorResponse?.response?.data?.responseCode === 404 ||
+        errorResponse?.response?.data?.params?.status === "failed" ||
+        errorResponse?.response?.data?.params?.errmsg === "User does not exist"
+      ) {
+        console.log("User does not exist - showing error message");
+        // Show error message and call the redirect handler
+        if (onRedirectToLogin) {
+          // Add a small delay to ensure the error message is properly displayed
+          setTimeout(() => {
+            onRedirectToLogin();
+          }, 100);
+        }
+        return;
+      }
+      
+      // For any other unexpected errors, switch to password mode
       setForcePasswordMode(true);
     } finally {
       setIsSendingOtp(false);
     }
-  };
+  }, [isSendingOtp, hasCheckedUser, lastCallTime, onRedirectToLogin]);
 
   // Set prefilled username if provided and send OTP if it's a mobile number
   useEffect(() => {
-    if (prefilledUsername) {
+    if (prefilledUsername && !hasInitializedRef.current) {
+      hasInitializedRef.current = true;
       setFormData((prev) => ({
         ...prev,
         username: prefilledUsername,
@@ -162,9 +225,9 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
         sendOtp(prefilledUsername);
       }
     }
-  }, [prefilledUsername]);
+  }, [prefilledUsername, sendOtp]);
 
-  const handleChange = (e: any) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -172,14 +235,37 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
     }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (isOtpMode && onVerifyOtp) {
-      // OTP mode
-      onVerifyOtp({
-        username: formData.username,
-        otp: formData.otp,
-        remember: formData.remember,
-      });
+      // OTP mode - verify OTP first
+      try {
+        console.log("Verifying OTP:", formData.otp, "with hash:", otpHash);
+        
+        const verifyResponse = await verifyOTP({
+          mobile: formData.username,
+          reason: "login",
+          otp: formData.otp,
+          hash: otpHash,
+        });
+        
+        console.log("OTP verification response:", verifyResponse);
+        
+        if (verifyResponse?.responseCode === 200 || verifyResponse?.params?.status === "successful") {
+          // OTP verified successfully, proceed with login
+          onVerifyOtp({
+            username: formData.username,
+            otp: formData.otp,
+            remember: formData.remember,
+          });
+        } else {
+          // OTP verification failed
+          console.error("OTP verification failed:", verifyResponse);
+          // You can add error handling here if needed
+        }
+      } catch (error) {
+        console.error("Error verifying OTP:", error);
+        // You can add error handling here if needed
+      }
     } else if (onLogin) {
       // Password mode
       onLogin({
@@ -192,6 +278,9 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
 
   const handleResendOtp = () => {
     if (formData.username && isMobileNumber(formData.username)) {
+      setHasCheckedUser(false); // Reset the flag to allow resend
+      setOtpHash(""); // Reset the hash
+      setOtpSent(false); // Reset OTP sent status
       sendOtp(formData.username);
     }
   };

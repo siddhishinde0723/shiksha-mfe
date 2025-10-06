@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Box } from "@mui/material";
+import { Box, Grid, Typography } from "@mui/material";
 import {
   calculateTrackData,
   calculateTrackDataItem,
@@ -274,24 +274,29 @@ export default function Details(props: DetailsProps) {
                   ["enrolled", "completed"].includes(data?.result?.status) &&
                   props?._config?.userIdLocalstorageName !== "did"
                 ) {
-                  const userResponse: any = await getUserIdLocal();
-                  const resultCertificate = await issueCertificate({
-                    userId: userId,
-                    courseId: courseId,
-                    unitId: unitId,
-                    issuanceDate: new Date().toISOString(),
-                    expirationDate: new Date(
-                      new Date().setFullYear(new Date().getFullYear() + 20)
-                    ).toISOString(),
-                    credentialId: data?.result?.usercertificateId,
-                    firstName: userResponse?.firstName ?? "",
-                    middleName: userResponse?.middleName ?? "",
-                    lastName: userResponse?.lastName ?? "",
-                    courseName: resultHierarchy?.name ?? "",
-                  });
-                  setCertificateId(
-                    resultCertificate?.result?.credentialSchemaId
-                  );
+                  try {
+                    const userResponse: any = await getUserIdLocal();
+                    const resultCertificate = await issueCertificate({
+                      userId: userId,
+                      courseId: courseId,
+                      unitId: unitId,
+                      issuanceDate: new Date().toISOString(),
+                      expirationDate: new Date(
+                        new Date().setFullYear(new Date().getFullYear() + 20)
+                      ).toISOString(),
+                      credentialId: data?.result?.usercertificateId,
+                      firstName: userResponse?.firstName ?? "",
+                      middleName: userResponse?.middleName ?? "",
+                      lastName: userResponse?.lastName ?? "",
+                      courseName: resultHierarchy?.name ?? "",
+                    });
+                    setCertificateId(
+                      resultCertificate?.result?.credentialSchemaId
+                    );
+                  } catch (certError) {
+                    console.warn("Certificate issuance failed, but continuing with content loading:", certError);
+                    // Don't let certificate errors break the main content flow
+                  }
                 }
               }
             }
@@ -304,9 +309,22 @@ export default function Details(props: DetailsProps) {
         console.log("CourseUnitDetails - Final resultHierarchy:", resultHierarchy);
         console.log("CourseUnitDetails - Children count:", resultHierarchy?.children?.length || 0);
         console.log("CourseUnitDetails - resultHierarchy.children:", resultHierarchy?.children);
-        const finalContent = { ...resultHierarchy, ...startedOn };
-        console.log("CourseUnitDetails - Setting selectedContent to:", finalContent);
-        setSelectedContent(finalContent);
+        
+        // Validate that we have valid content before setting it
+        if (resultHierarchy && resultHierarchy.identifier) {
+          const finalContent = { ...resultHierarchy, ...startedOn };
+          console.log("CourseUnitDetails - Setting selectedContent to:", finalContent);
+          setSelectedContent(finalContent);
+        } else {
+          console.error("CourseUnitDetails - Invalid hierarchy data received:", resultHierarchy);
+          // Set a fallback content structure to prevent empty object issues
+          setSelectedContent({
+            identifier: courseId,
+            name: "Course Content",
+            children: [],
+            mimeType: "application/vnd.ekstep.content-collection"
+          });
+        }
       } catch (error) {
         console.error("Failed to fetch content:", error);
       } finally {
@@ -425,15 +443,25 @@ export default function Details(props: DetailsProps) {
             {console.log("CourseUnitDetails - Rendering UnitGrid with selectedContent:", selectedContent)}
             {console.log("CourseUnitDetails - selectedContent.children:", selectedContent?.children)}
             {console.log("CourseUnitDetails - selectedContent.children.length:", selectedContent?.children?.length)}
-            <UnitGrid
-              handleItemClick={handleItemClick}
-              item={selectedContent}
-              skipContentId={
-                typeof contentId === "string" ? contentId : undefined
-              }
-              trackData={trackData}
-              _config={props?._config}
-            />
+            {loading ? (
+              <Grid container spacing={{ xs: 1, sm: 1, md: 2 }}>
+                <Grid item xs={12} textAlign="center">
+                  <Typography variant="body1" sx={{ mt: 4, textAlign: "center" }}>
+                    Loading content...
+                  </Typography>
+                </Grid>
+              </Grid>
+            ) : (
+              <UnitGrid
+                handleItemClick={handleItemClick}
+                item={selectedContent}
+                skipContentId={
+                  typeof contentId === "string" ? contentId : undefined
+                }
+                trackData={trackData}
+                _config={props?._config}
+              />
+            )}
           </>
         )}
       </Box>

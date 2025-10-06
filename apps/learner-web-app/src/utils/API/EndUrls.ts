@@ -18,6 +18,7 @@ export const API_ENDPOINTS = {
   userCheck: `${baseurl}/user/check`,
   sendOTP: `${baseurl}/user/send-otp`,
   verifyOTP: `${baseurl}/user/verify-otp`,
+  verifyMagicLink: `https://acinaceous-derek-nondiplomatically.ngrok-free.dev/user/v1/auth/validate-magic-link`,
   program: `${baseurl}/tenant/read`,
   fetchCourseId: `${baseurl}/tracking/content/course/inprogress`,
   userUpdate: (userId: string) => `${baseurl}/user/update/${userId}`,
