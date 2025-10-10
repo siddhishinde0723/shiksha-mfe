@@ -1,5 +1,5 @@
-import { post } from "@shared-lib";
-import axios, { AxiosRequestConfig } from "axios";
+import { post } from '@shared-lib';
+import axios, { AxiosRequestConfig } from 'axios';
 export interface ContentSearchResponse {
   ownershipType?: string[];
   publish_type?: string;
@@ -131,15 +131,14 @@ export const ContentSearch = async ({
   limit?: number;
   offset?: number;
 }): Promise<ContentResponse> => {
-  // Cap the limit to prevent large API calls that could cause performance issues
-  const cappedLimit = Math.min(limit, 10);
   try {
     // Ensure the environment variable is defined
     const searchApiUrl = process.env.NEXT_PUBLIC_MIDDLEWARE_URL;
     if (!searchApiUrl) {
-      throw new Error("Search API URL environment variable is not configured");
+      throw new Error('Search API URL environment variable is not configured');
     }
     // Axios request configuration
+
     const data = {
       request: {
         filters: {
@@ -148,30 +147,29 @@ export const ContentSearch = async ({
           //need below after login user channel for dynamic load content
           // channel: '0135656861912678406',
           ...filters,
-          status: ["live"],
-          primaryCategory: Array.isArray(type) ? type : [type],
-          // primaryCategory:
-          //   type?.toLowerCase() === "course"
-          //     ? ["Course"]
-          //     : ["Learning Resource", "Practice Question Set"],
-          channel: localStorage.getItem("channelId"),
+          status: ['live'],
+          primaryCategory:
+            type?.toLowerCase() === 'course'
+              ? ['Course']
+              : ['Learning Resource', 'Practice Question Set'],
+          channel: localStorage.getItem('channelId'),
         },
         fields: [
-          "name",
-          "appIcon",
-          "description",
-          "posterImage",
-          "mimeType",
-          "identifier",
-          "resourceType",
-          "primaryCategory",
-          "contentType",
-          "trackable",
-          "children",
-          "leafNodes",
+          'name',
+          'appIcon',
+          'description',
+          'posterImage',
+          'mimeType',
+          'identifier',
+          'resourceType',
+          'primaryCategory',
+          'contentType',
+          'trackable',
+          'children',
+          'leafNodes',
         ],
-        query: query || undefined, // Only include query if it has a value
-        limit: cappedLimit,
+        query,
+        limit,
         offset,
       },
     };
@@ -185,7 +183,82 @@ export const ContentSearch = async ({
 
     return res;
   } catch (error) {
-    console.error("Error in ContentSearch:", error);
+    console.error('Error in ContentSearch:', error);
     throw error;
   }
 };
+
+export const CommonContentSearch = async ({
+  type,
+  query,
+  filters,
+  limit = 5,
+  offset = 0,
+}: {
+  type: string;
+  query?: string;
+  filters?: object;
+  limit?: number;
+  offset?: number;
+}): Promise<ContentResponse> => {
+  try {
+    // Ensure the environment variable is defined
+    const searchApiUrl = process.env.NEXT_PUBLIC_MIDDLEWARE_URL;
+    if (!searchApiUrl) {
+      throw new Error('Search API URL environment variable is not configured');
+    }
+    // Axios request configuration
+    if (filters && typeof filters === 'object' && 'program' in filters) {
+      // Create a shallow copy to avoid mutating the original filters object
+      // const { program, ...restFilters } = filters as { [key: string]: any };
+      // filters = restFilters;
+      delete filters?.program;
+    }
+    const data = {
+      request: {
+        filters: {
+          // identifier: 'do_114228944942358528173',
+          // identifier: 'do_1141652605790289921389',
+          //need below after login user channel for dynamic load content
+          // channel: '0135656861912678406',
+          primaryCategory:['Course'],
+          ...filters,
+          status: ['live'],
+        
+          channel: localStorage.getItem('channelId'),
+        },
+        fields: [
+          'name',
+          'appIcon',
+          'description',
+          'posterImage',
+          'mimeType',
+          'identifier',
+          'resourceType',
+          'primaryCategory',
+          'contentType',
+          'trackable',
+          'children',
+          'leafNodes',
+          'courseType'
+        ],
+        query,
+        limit,
+        offset,
+      },
+    };
+
+    // Execute the request
+    const response = await post(
+      `${searchApiUrl}/action/composite/v3/search`,
+      data
+    );
+    const res = response?.data;
+
+    return res;
+  } catch (error) {
+    console.error('Error in ContentSearch:', error);
+    throw error;
+  }
+};
+

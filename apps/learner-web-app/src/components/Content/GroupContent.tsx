@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -9,26 +9,23 @@ import {
   Breadcrumbs,
   Link,
   IconButton,
-} from '@mui/material';
-import {
-  ArrowBack,
-  Description,
-} from '@mui/icons-material';
-import { CommonCard } from '@shared-lib';
-import { getGroupContentDetails } from '@learner/utils/API/GroupService';
-import { trackingData } from '@content-mfes/services/TrackingService';
-import { calculateTrackDataItem } from '@shared-lib';
+} from "@mui/material";
+import { ArrowBack, Description } from "@mui/icons-material";
+import { CommonCard } from "@shared-lib";
+import { getGroupContentDetails } from "@learner/utils/API/GroupService";
+import { trackingData } from "@content-mfes/services/TrackingService";
+import { getUserCertificates } from "@content-mfes/services/Certificate";
 
 interface GroupContentItem {
   id: string;
   title: string;
   description: string;
-  type: 'video' | 'document' | 'quiz' | 'assignment' | 'course';
+  type: "video" | "document" | "quiz" | "assignment" | "course";
   duration?: string;
   progress?: number;
   imageUrl?: string;
   isCompleted?: boolean;
-  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  difficulty?: "beginner" | "intermediate" | "advanced";
 }
 
 interface GroupContentProps {
@@ -38,6 +35,12 @@ interface GroupContentProps {
   onContentClick?: (content: GroupContentItem) => void;
   isLoading?: boolean;
 }
+
+const LIMIT = 10;
+const DEFAULT_FILTERS = {
+  limit: LIMIT,
+  offset: 0,
+};
 
 const GroupContent: React.FC<GroupContentProps> = ({
   groupId,
@@ -49,6 +52,81 @@ const GroupContent: React.FC<GroupContentProps> = ({
   const [content, setContent] = useState<GroupContentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [trackData, setTrackData] = useState<Record<string, unknown>[]>([]);
+  const [localFilters] = useState<
+    typeof DEFAULT_FILTERS & {
+      type?: string;
+      query?: string;
+      filters?: object;
+      identifier?: string;
+    }
+  >(DEFAULT_FILTERS);
+
+  // Helper function to determine actual status and progress
+  const getContentStatus = (
+    trackItem: any,
+    certificates: any[],
+    contentItem: GroupContentItem
+  ) => {
+    const certificate = certificates.find(
+      (cert) => cert.courseId === contentItem.id
+    );
+
+    // If no tracking data but enrolled, show "Enrolled, not started"
+    if (!trackItem && certificate?.status === "enrolled") {
+      return {
+        status: "Enrolled, not started",
+        progress: 0,
+        enrolled: true,
+      };
+    }
+
+    // If no tracking data and not enrolled
+    if (!trackItem) {
+      return {
+        status: "Not started",
+        progress: 0,
+        enrolled: false,
+      };
+    }
+
+    // Calculate progress based on tracking data
+    let progress = 0;
+    let status = "Not started";
+
+    // For courses with leafNodes, calculate percentage based on completed_list
+    if (
+      contentItem.type === "course" &&
+      trackItem.completed_list &&
+      trackItem.in_progress_list
+    ) {
+      const totalItems =
+        (trackItem.completed_list || []).length +
+        (trackItem.in_progress_list || []).length;
+      const completedItems = (trackItem.completed_list || []).length;
+      progress =
+        totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+    } else {
+      // For regular content, use simple progress calculation
+      progress = trackItem.completed ? 100 : trackItem.in_progress ? 50 : 0;
+    }
+
+    // Determine status based on progress and tracking data
+    if (trackItem.completed || progress === 100) {
+      status = "Completed";
+    } else if (trackItem.in_progress || progress > 0) {
+      status = "In Progress";
+    } else if (certificate?.status === "enrolled") {
+      status = "Enrolled, not started";
+    } else {
+      status = "Not started";
+    }
+
+    return {
+      status,
+      progress,
+      enrolled: certificate?.status === "enrolled",
+    };
+  };
 
   // Fetch group content from API using composite search
   useEffect(() => {
@@ -56,90 +134,167 @@ const GroupContent: React.FC<GroupContentProps> = ({
       setLoading(true);
       try {
         const contentDetails = await getGroupContentDetails(groupId);
-        console.log('Content details from composite search:', contentDetails);
-        
-        // Transform API response to match our interface
-        const transformedContent = contentDetails.map((item: Record<string, unknown>) => ({
-          id: String(item.identifier || item.id || ''),
-          title: String(item.name || item.title || 'Untitled Content'),
-          description: String(item.description || item.summary || ''),
-          type: (item.mimeType === 'application/vnd.ekstep.content-collection' ? 'course' : 
-                 item.mimeType === 'application/vnd.ekstep.ecml-archive' ? 'video' :
-                 item.mimeType === 'application/vnd.sunbird.questionset' ? 'quiz' :
-                 'document') as 'video' | 'document' | 'quiz' | 'assignment' | 'course',
-          duration: String(item.duration || item.timeLimit || ''),
-          progress: Number(item.progress || item.completionPercentage || 0),
-          isCompleted: item.status === 'completed' || item.progress === 100,
-          difficulty: (item.difficulty === 'intermediate' ? 'intermediate' :
-                     item.difficulty === 'advanced' ? 'advanced' : 'beginner') as 'beginner' | 'intermediate' | 'advanced',
-          imageUrl: String(item.posterImage || item.appIcon || ''),
-        }));
-        setContent(transformedContent);
-        console.log('Transformed content:', transformedContent);
-        console.log('Content count:', transformedContent.length);
+        console.log("Content details from composite search:", contentDetails);
 
-        // Fetch TrackData for enrollment status (same logic as content MFE)
+        // Transform API response to match our interface
+        const transformedContent = contentDetails.map(
+          (item: Record<string, unknown>) => ({
+            id: String(item.identifier || item.id || ""),
+            title: String(item.name || item.title || "Untitled Content"),
+            description: String(item.description || item.summary || ""),
+            type: (item.mimeType === "application/vnd.ekstep.content-collection"
+              ? "course"
+              : item.mimeType === "application/vnd.ekstep.ecml-archive"
+              ? "video"
+              : item.mimeType === "application/vnd.sunbird.questionset"
+              ? "quiz"
+              : "video") as
+              | "video"
+              | "document"
+              | "quiz"
+              | "assignment"
+              | "course",
+            duration: String(item.duration || item.timeLimit || ""),
+            progress: 0, // Will be calculated from tracking data
+            isCompleted: false, // Will be calculated from tracking data
+            difficulty: (item.difficulty === "intermediate"
+              ? "intermediate"
+              : item.difficulty === "advanced"
+              ? "advanced"
+              : "beginner") as "beginner" | "intermediate" | "advanced",
+            imageUrl: String(item.posterImage || item.appIcon || ""),
+          })
+        );
+        setContent(transformedContent);
+        console.log("Transformed content:", transformedContent);
+
+        const courseList = transformedContent
+          .map((item) => item.id)
+          .filter((id): id is string => id !== undefined);
+        console.log("courseList======", courseList);
+
+        // Fetch TrackData for enrollment status
         if (transformedContent.length > 0) {
           try {
-            // Use consistent user ID logic like content MFE
             const getUserId = (userIdLocalstorageName?: string) => {
-              const key = userIdLocalstorageName || 'userId';
-              return localStorage.getItem(key) || '';
+              const key = userIdLocalstorageName || "userId";
+              return localStorage.getItem(key) || "";
             };
-            
-            const userId = getUserId('userId');
+
+            const userId = getUserId("userId");
+            console.log("userId======", userId);
+
             if (userId) {
-              const userIdArray = userId.split(',').filter(Boolean);
-              const courseIds = transformedContent.map(item => item.id);
-              
-              // Fetch both tracking data and certificates (same as content MFE)
-              const [trackDataResponse, certificates] = await Promise.all([
-                trackingData(userIdArray, courseIds),
-                // Note: getUserCertificates would need to be imported if available
-                // For now, we'll use a simplified approach
-                Promise.resolve({ result: { data: [] } })
-              ]);
-              
+              const userIdArray = userId.split(",").filter(Boolean);
+
+              // Fetch both tracking data and certificates
+              const [trackDataResponse, certificatesResponse] =
+                await Promise.all([
+                  trackingData(userIdArray, courseList),
+                  getUserCertificates({
+                    userId: userId,
+                    courseId: courseList,
+                    limit: localFilters.limit,
+                    offset: localFilters.offset,
+                  }),
+                ]);
+
+              console.log("trackDataResponse======", trackDataResponse);
+              console.log("certificatesResponse======", certificatesResponse);
+
+              const certificates = certificatesResponse?.result?.data || [];
+
               if (trackDataResponse?.data) {
-                const userTrackData = trackDataResponse.data.find((course: Record<string, unknown>) => course.userId === userId)?.course ?? [];
-                
-                const processedTrackData = userTrackData.map((item: Record<string, unknown>) => {
-                  const contentItem = transformedContent.find(contentItem => contentItem.id === item.courseId);
-                  const calculatedData = calculateTrackDataItem(item, contentItem ?? {});
-                  
-                  return {
-                    ...calculatedData,
-                    courseId: item.courseId,
-                    completed: item.completed || false,
-                    completed_list: item.completed_list || [],
-                    status: item.status || 'not started',
-                    enrolled: Boolean(
-                      (certificates.result.data as Record<string, unknown>[]).find(
-                        (cert: Record<string, unknown>) => cert.courseId === item.courseId
-                      )?.status === "enrolled"
-                    ),
-                  };
-                });
+                const userTrackData =
+                  trackDataResponse.data.find(
+                    (course: Record<string, unknown>) =>
+                      course.userId === userId
+                  )?.course ?? [];
+
+                console.log("userTrackData======", userTrackData);
+
+                const processedTrackData = transformedContent.map(
+                  (contentItem) => {
+                    const trackItem = userTrackData.find(
+                      (item: Record<string, unknown>) =>
+                        item.courseId === contentItem.id
+                    );
+
+                    console.log(`Processing ${contentItem.id}:`, {
+                      trackItem,
+                      contentItem,
+                    });
+
+                    const { status, progress, enrolled } = getContentStatus(
+                      trackItem,
+                      certificates,
+                      contentItem
+                    );
+
+                    console.log(`Status for ${contentItem.id}:`, {
+                      status,
+                      progress,
+                      enrolled,
+                    });
+
+                    return {
+                      courseId: contentItem.id,
+                      status: status,
+                      percentage: progress,
+                      progress: progress,
+                      completed: status === "Completed",
+                      enrolled: enrolled,
+                      // Include all original tracking data for debugging
+                      ...trackItem,
+                    };
+                  }
+                );
+
                 setTrackData(processedTrackData);
-                console.log('TrackData fetched (Groups):', processedTrackData);
-                console.log('TrackData structure (Groups):', processedTrackData.map((track: Record<string, unknown>) => ({
-                  courseId: track.courseId,
-                  completed: track.completed,
-                  completed_list: track.completed_list,
-                  status: track.status,
-                  enrolled: track.enrolled
-                })));
-                console.log('Content IDs for matching (Groups):', transformedContent.map(item => item.id));
+                console.log("Final processed TrackData:", processedTrackData);
+              } else {
+                // If no tracking data, create default track data based on certificates
+                const defaultTrackData = transformedContent.map(
+                  (contentItem) => {
+                    const { status, progress, enrolled } = getContentStatus(
+                      null,
+                      certificates,
+                      contentItem
+                    );
+
+                    return {
+                      courseId: contentItem.id,
+                      status: status,
+                      percentage: progress,
+                      progress: progress,
+                      completed: status === "Completed",
+                      enrolled: enrolled,
+                    };
+                  }
+                );
+                setTrackData(defaultTrackData);
+                console.log(
+                  "Default TrackData (no tracking response):",
+                  defaultTrackData
+                );
               }
             }
           } catch (trackError) {
-            console.error('Error fetching TrackData (Groups):', trackError);
-            setTrackData([]);
+            console.error("Error fetching TrackData (Groups):", trackError);
+            // Set default track data on error
+            const defaultTrackData = transformedContent.map((contentItem) => ({
+              courseId: contentItem.id,
+              status: "Not started",
+              percentage: 0,
+              progress: 0,
+              completed: false,
+              enrolled: false,
+            }));
+            setTrackData(defaultTrackData);
           }
         }
       } catch (error) {
-        console.error('Error fetching group content:', error);
-        // Fallback to empty array on error
+        console.error("Error fetching group content:", error);
         setContent([]);
         setTrackData([]);
       } finally {
@@ -148,19 +303,24 @@ const GroupContent: React.FC<GroupContentProps> = ({
     };
 
     fetchGroupContent();
-  }, [groupId]);
+  }, [groupId, localFilters.limit, localFilters.offset]);
 
   const handleContentClick = (contentItem: GroupContentItem) => {
     if (onContentClick) {
-      // Transform the content item to match the expected structure
       const transformedContent = {
         ...contentItem,
-        mimeType: contentItem.type === 'video' ? 'application/vnd.ekstep.video' :
-                  contentItem.type === 'document' ? 'application/vnd.ekstep.html-archive' :
-                  contentItem.type === 'quiz' ? 'application/vnd.sunbird.questionset' :
-                  contentItem.type === 'course' ? 'application/vnd.ekstep.content-collection' :
-                  contentItem.type === 'assignment' ? 'application/vnd.ekstep.html-archive' :
-                  'application/vnd.ekstep.html-archive',
+        mimeType:
+          contentItem.type === "video"
+            ? "application/vnd.ekstep.video"
+            : contentItem.type === "document"
+            ? "application/vnd.ekstep.html-archive"
+            : contentItem.type === "quiz"
+            ? "application/vnd.sunbird.questionset"
+            : contentItem.type === "course"
+            ? "application/vnd.ekstep.content-collection"
+            : contentItem.type === "assignment"
+            ? "application/vnd.ekstep.html-archive"
+            : "application/vnd.ekstep.html-archive",
         identifier: contentItem.id,
         name: contentItem.title,
         posterImage: contentItem.imageUrl,
@@ -169,17 +329,15 @@ const GroupContent: React.FC<GroupContentProps> = ({
     }
   };
 
-
-
   if (loading || isLoading) {
     return (
       <Box
         sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          minHeight: '300px',
-          flexDirection: 'column',
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "300px",
+          flexDirection: "column",
           gap: 2,
         }}
       >
@@ -200,11 +358,11 @@ const GroupContent: React.FC<GroupContentProps> = ({
           variant="body2"
           onClick={onBack}
           sx={{
-            textDecoration: 'none',
-            color: 'primary.main',
-            cursor: 'pointer',
-            '&:hover': {
-              textDecoration: 'underline',
+            textDecoration: "none",
+            color: "primary.main",
+            cursor: "pointer",
+            "&:hover": {
+              textDecoration: "underline",
             },
           }}
         >
@@ -216,7 +374,7 @@ const GroupContent: React.FC<GroupContentProps> = ({
       </Breadcrumbs>
 
       {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
         <IconButton onClick={onBack} sx={{ mr: 2 }}>
           <ArrowBack />
         </IconButton>
@@ -225,7 +383,7 @@ const GroupContent: React.FC<GroupContentProps> = ({
             variant="h4"
             sx={{
               fontWeight: 600,
-              color: '#1F1B13',
+              color: "#1F1B13",
               mb: 1,
             }}
           >
@@ -234,23 +392,21 @@ const GroupContent: React.FC<GroupContentProps> = ({
           <Typography variant="body1" color="text.secondary">
             {content.length} content items available
           </Typography>
-          {/* Debug info - remove in production */}
-    
         </Box>
       </Box>
 
       {content.length === 0 ? (
         <Box
           sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            minHeight: '300px',
-            flexDirection: 'column',
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: "300px",
+            flexDirection: "column",
             gap: 2,
           }}
         >
-          <Description sx={{ fontSize: 64, color: 'text.secondary' }} />
+          <Description sx={{ fontSize: 64, color: "text.secondary" }} />
           <Typography variant="h6" color="text.secondary">
             No content available
           </Typography>
@@ -260,50 +416,49 @@ const GroupContent: React.FC<GroupContentProps> = ({
         </Box>
       ) : (
         <Grid container spacing={{ xs: 1, sm: 1, md: 2 }}>
-          {content.map((item) => (
-            <Grid
-              item
-              xs={6}
-              sm={6}
-              md={4}
-              lg={3}
-              xl={2.4}
-              key={item.id}
-            >
-              <CommonCard
-                title={item.title}
-                image={item.imageUrl || ''}
-                content={null}
-                actions={null}
-                orientation="horizontal"
-                item={{
-                  identifier: item.id,
-                  name: item.title,
-                  mimeType: item.type,
-                  posterImage: item.imageUrl || '',
-                  description: item.description,
-                  gradeLevel: [],
-                  language: [],
-                  artifactUrl: '',
-                  appIcon: '',
-                  contentType: item.type,
-                }}
-                type={item.type}
-                TrackData={trackData}
-                onClick={() => handleContentClick(item)}
-                _card={{
-                  _contentParentText: {
-                    sx: { height: item.type !== "course" ? "50px" : "60px" },
-                  },
-                  sx: {
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                  },
-                }}
-              />
-            </Grid>
-          ))}
+          {content.map((item) => {
+            const itemTrackData = trackData.find(
+              (track: Record<string, unknown>) => track.courseId === item.id
+            );
+            console.log(`Rendering card for ${item.id}:`, itemTrackData);
+
+            return (
+              <Grid item xs={6} sm={6} md={4} lg={3} xl={2.4} key={item.id}>
+                <CommonCard
+                  title={item.title}
+                  image={item.imageUrl || ""}
+                  content={null}
+                  actions={null}
+                  orientation="horizontal"
+                  item={{
+                    identifier: item.id,
+                    name: item.title,
+                    mimeType: item.type,
+                    posterImage: item.imageUrl || "",
+                    description: item.description,
+                    gradeLevel: [],
+                    language: [],
+                    artifactUrl: "",
+                    appIcon: "",
+                    contentType: item.type,
+                  }}
+                  type={item.type}
+                  TrackData={trackData}
+                  onClick={() => handleContentClick(item)}
+                  _card={{
+                    _contentParentText: {
+                      sx: { height: item.type !== "course" ? "50px" : "60px" },
+                    },
+                    sx: {
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                    },
+                  }}
+                />
+              </Grid>
+            );
+          })}
         </Grid>
       )}
     </Box>
@@ -311,5 +466,3 @@ const GroupContent: React.FC<GroupContentProps> = ({
 };
 
 export default GroupContent;
-
-

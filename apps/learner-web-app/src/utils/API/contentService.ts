@@ -9,6 +9,16 @@ export interface courseWiseLernerListParam {
     userId?: string[];
   };
 }
+export interface ContentCreate {
+  userId: string;
+  contentId: string;
+  courseId: string;
+  unitId: string;
+  contentType: string;
+  contentMime: string;
+  lastAccessOn: string;
+  detailsObject: any[];
+}
 
 export const hierarchyAPI = async (doId: string, params?: object) => {
   try {
@@ -51,26 +61,27 @@ export const fetchContent = async (identifier: any) => {
     return response?.data?.result?.content;
   } catch (error) {
     console.error("Error fetching content:", error);
-    
+
     // Return a more structured error object
-    if (error && typeof error === 'object' && 'response' in error) {
+    if (error && typeof error === "object" && "response" in error) {
       const axiosError = error as any;
       return {
-        name: 'AxiosError',
-        message: axiosError.message || 'Request failed',
-        code: axiosError.code || 'ERR_BAD_RESPONSE',
+        name: "AxiosError",
+        message: axiosError.message || "Request failed",
+        code: axiosError.code || "ERR_BAD_RESPONSE",
         status: axiosError.response?.status || 500,
         config: axiosError.config,
-        isAxiosError: true
+        isAxiosError: true,
       };
     }
-    
+
     return {
-      name: 'Error',
-      message: error instanceof Error ? error.message : 'Unknown error occurred',
-      code: 'UNKNOWN_ERROR',
+      name: "Error",
+      message:
+        error instanceof Error ? error.message : "Unknown error occurred",
+      code: "UNKNOWN_ERROR",
       status: 500,
-      isAxiosError: false
+      isAxiosError: false,
     };
   }
 };
@@ -265,6 +276,16 @@ export const courseWiseLernerList = async ({
     return response?.data?.result;
   } catch (error) {
     console.error("error in getting user list", error);
+    throw error;
+  }
+};
+export const createContentTracking = async (reqBody: ContentCreate) => {
+  const apiUrl: string = API_ENDPOINTS.contentCreate;
+  try {
+    const response = await post(apiUrl, reqBody);
+    return response?.data;
+  } catch (error) {
+    console.log(error);
     throw error;
   }
 };

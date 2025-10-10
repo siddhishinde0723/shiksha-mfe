@@ -1,16 +1,16 @@
 //@ts-check
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { composePlugins, withNx } = require('@nx/next');
+const { composePlugins, withNx } = require("@nx/next");
 
-const PORTAL_BASE_URL = 'https://sunbird-editor.tekdinext.com';
+const PORTAL_BASE_URL = "https://sunbird-editor.tekdinext.com";
 
 const routes = {
   API: {
     GENERAL: {
-      CONTENT_PREVIEW: '/content/preview/:path*',
-      CONTENT_PLUGINS: '/content-plugins/:path*',
-      GENERIC_EDITOR: '/generic-editor/:path*',
+      CONTENT_PREVIEW: "/content/preview/:path*",
+      CONTENT_PLUGINS: "/content-plugins/:path*",
+      GENERIC_EDITOR: "/generic-editor/:path*",
     },
   },
 };
@@ -33,12 +33,12 @@ const nextConfig = {
   },
 
   //cross import support
-  transpilePackages: ['@shared-lib-v2/*'],
+  transpilePackages: ["@shared-lib-v2/*"],
 
   images: {
-    domains: ['program-image-dev.s3.ap-south-1.amazonaws.com'],
+    domains: ["program-image-dev.s3.ap-south-1.amazonaws.com"],
   },
-
+  basePath: "",
   webpack: (config, { isServer }) => {
     // Fix for FormData polyfill issue
     if (!isServer) {
@@ -56,7 +56,7 @@ const nextConfig = {
         assert: false,
         os: false,
         path: false,
-        'form-data': false,
+        "form-data": false,
       };
     }
     return config;
@@ -64,19 +64,19 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: '/action/data/v3/telemetry',
+        source: "/action/data/v3/telemetry",
         destination: `${process.env.NEXT_PUBLIC_TELEMETRY_URL}/v1/telemetry`,
       },
       {
-        source: '/action/v1/telemetry',
+        source: "/action/v1/telemetry",
         destination: `${process.env.NEXT_PUBLIC_TELEMETRY_URL}/v1/telemetry`,
       },
       {
-        source: '/data/v3/telemetry',
+        source: "/data/v3/telemetry",
         destination: `${process.env.NEXT_PUBLIC_TELEMETRY_URL}/v1/telemetry`,
       },
       {
-        source: '/assets/public/:path*', // Match any URL starting with /assets/public/
+        source: "/assets/public/:path*", // Match any URL starting with /assets/public/
         destination: `${process.env.NEXT_PUBLIC_CLOUD_STORAGE_URL}/:path*`, // Forward to S3, stripping "/assets/public"
       },
       //for player content v1

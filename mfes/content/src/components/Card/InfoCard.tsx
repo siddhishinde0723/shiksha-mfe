@@ -48,7 +48,10 @@ const InfoCard: React.FC<InfoCardProps> = ({
     const transformedUrl = transformImageUrl(url);
 
     // If it's already an absolute URL, return as is
-    if (transformedUrl.startsWith("http://") || transformedUrl.startsWith("https://")) {
+    if (
+      transformedUrl.startsWith("http://") ||
+      transformedUrl.startsWith("https://")
+    ) {
       return transformedUrl;
     }
 
@@ -57,13 +60,16 @@ const InfoCard: React.FC<InfoCardProps> = ({
       process.env.NEXT_PUBLIC_MIDDLEWARE_URL ||
       "https://interface.tekdinext.com";
     const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
-    const cleanImageUrl = transformedUrl.startsWith("/") ? transformedUrl.slice(1) : transformedUrl;
+    const cleanImageUrl = transformedUrl.startsWith("/")
+      ? transformedUrl.slice(1)
+      : transformedUrl;
 
     return `${cleanBaseUrl}/${cleanImageUrl}`;
   };
 
   const finalImageUrl =
-    processImageUrl(item?.posterImage || item?.appIcon) || _infoCard?.default_img;
+    processImageUrl(item?.posterImage || item?.appIcon) ||
+    _infoCard?.default_img;
   console.log("InfoCard - processed final image URL:", finalImageUrl);
 
   return (

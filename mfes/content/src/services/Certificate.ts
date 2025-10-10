@@ -1,4 +1,5 @@
 import { post } from '@shared-lib';
+import axios from 'axios';
 
 export const getUserCertificateStatus = async ({
   userId,

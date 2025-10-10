@@ -4,19 +4,21 @@ import type { NextRequest } from "next/server";
 export function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
 
-  if (url.pathname.startsWith('/sbplayer')) {
-    url.hostname = 'localhost';
-    url.port = '4108';
-    
-    // For local development, ensure userId is passed via URL parameters
-    const userId = request.cookies.get('userId')?.value;
-    if (userId && !url.searchParams.has('userId')) {
-      url.searchParams.set('userId', userId);
-    }
-    
+  // Proxy sunbird-plugins to Player MFE
+  if (url.pathname.startsWith("/sunbird-plugins")) {
+    url.hostname = "localhost";
+    url.port = "4108";
     return NextResponse.rewrite(url);
   }
-  //forget-password
+
+  // Proxy sbplayer routes to Player MFE
+  if (url.pathname.startsWith("/sbplayer")) {
+    url.hostname = "localhost";
+    url.port = "4108";
+    return NextResponse.rewrite(url);
+  }
+
+  // Proxy forget-password routes
   if (url.pathname.startsWith("/forget-password")) {
     url.hostname = "localhost";
     url.port = "4109";

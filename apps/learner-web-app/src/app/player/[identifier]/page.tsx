@@ -1,9 +1,12 @@
-"use client";
+import React from 'react';
+import dynamic from 'next/dynamic';
+import { getMetadata } from '@learner/utils/API/metabaseService';
 
-import React from "react";
-import dynamic from "next/dynamic";
+export async function generateMetadata({ params }: any) {
+  return await getMetadata(params.identifier);
+}
 
-const Player = dynamic(() => import("@learner/components/Content/Player"), {
+const Player = dynamic(() => import('@learner/components/Content/Player'), {
   ssr: false,
 });
 

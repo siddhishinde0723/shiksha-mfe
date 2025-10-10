@@ -42,8 +42,9 @@ const ContentCard = ({
       </CardWrap>
     );
   }
-  const finalImageUrl = (getBestImageUrl(item, process.env.NEXT_PUBLIC_MIDDLEWARE_URL) ||
-    default_img) ??
+  const finalImageUrl =
+    (getBestImageUrl(item, process.env.NEXT_PUBLIC_MIDDLEWARE_URL) ||
+      default_img) ??
     `${AppConst.BASEPATH}/assests/images/image_ver.png`;
 
   console.log("📋 ContentCard - Item data:", {
@@ -51,7 +52,7 @@ const ContentCard = ({
     posterImage: item?.posterImage,
     appIcon: item?.appIcon,
     appicon: item?.appicon,
-    type
+    type,
   });
 
   return (

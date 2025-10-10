@@ -30,9 +30,7 @@ export function calculateCourseStatus({
   const completed_list: string[] = [];
   const in_progress_list: string[] = [];
 
-  console.log("All Course IDs:", allCourseIds);
-  console.log("Completed List:", Array.from(completedList));
-  console.log("In Progress List:", Array.from(inProgressList));
+
 
   // Check each course ID
   for (const id of allCourseIds.map((id) => id.trim())) {
@@ -86,7 +84,7 @@ export const calculateTrackData = (newTrack: any, children: any) => {
 };
 
 export const calculateTrackDataItem = (newTrack: any, item: any) => {
-  if (item?.mimeType === "application/vnd.ekstep.content-collection") {
+    if (item?.mimeType === "application/vnd.ekstep.content-collection") {
     const result = calculateCourseStatus({
       statusData: newTrack,
       allCourseIds: item?.leafNodes ?? [],
@@ -96,8 +94,8 @@ export const calculateTrackDataItem = (newTrack: any, item: any) => {
   } else {
     const result = calculateCourseStatus({
       statusData: newTrack,
-      allCourseIds: item.identifier ? [item.identifier] : [],
-      courseId: item.identifier,
+      allCourseIds: item.identifier ? [item.identifier] : [item.id],
+      courseId: item.identifier ? item.identifier : item.id,
     });
     return result;
   }

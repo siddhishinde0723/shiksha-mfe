@@ -30,6 +30,14 @@ const nextConfig = {
   async rewrites() {
     return [
       {
+        source: "/sunbird-plugins/:path*",
+        destination: "/sunbird-plugins/:path*",
+      },
+      {
+        source: "/content/preview/coreplugins/:path*",
+        destination: "/content/preview/coreplugins/:path*",
+      },
+      {
         source: "/action/asset/v1/upload/:identifier*", // Match asset upload routes
         destination: "/api/fileUpload", // Forward asset uploads to fileUpload.js
       },
@@ -81,10 +89,6 @@ const nextConfig = {
       {
         source: "/workspace/content/assets/:path*", // Match any URL starting with /workspace/content/assets/
         destination: "/assets/:path*", // Serve the assets from the public folder
-      },
-      {
-        source: "/ecml-content/:path*", // Match ECML content files
-        destination: "/ecml-content/:path*", // Serve ECML content from public folder
       },
       {
         source: routes.API.GENERAL.CONTENT_PREVIEW,

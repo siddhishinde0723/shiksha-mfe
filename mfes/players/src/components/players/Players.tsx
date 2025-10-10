@@ -15,14 +15,17 @@ const SunbirdEpubPlayer = dynamic(() => import("./SunbirdEpubPlayer"), {
 const SunbirdQuMLPlayer = dynamic(() => import("./SunbirdQuMLPlayer"), {
   ssr: false,
 });
+const TekdiQuMLPlayer = dynamic(() => import("./TekdiQuMLPlayer"), {
+  ssr: false,
+});
 
 const SunbirdV1Player = dynamic(() => import("../V1-Player/V1Player"), {
   ssr: false,
 });
 
-const YouTubePlayer = dynamic(() => import("./YouTubePlayer"), {
-  ssr: false,
-});
+// const YouTubePlayer = dynamic(() => import("./YouTubePlayer"), {
+//   ssr: false,
+// });
 const SunbirdEcmlPlayer = dynamic(() => import("./SunbirdEcmlPlayer"), {
   ssr: false,
 });
@@ -48,12 +51,14 @@ const SunbirdPlayers = ({
     unitId,
     userId,
     configFunctionality: !!configFunctionality,
-    playerConfig: !!playerConfig
+    playerConfig: !!playerConfig,
   });
-  
 
   // Handle ECML content configuration - ONLY for actual ECML content
-  console.log("Checking ECML condition:", playerConfig?.metadata?.mimeType === "application/vnd.ekstep.ecml-archive");
+  console.log(
+    "Checking ECML condition:",
+    playerConfig?.metadata?.mimeType === "application/vnd.ekstep.ecml-archive"
+  );
   if (
     playerConfig?.metadata?.mimeType === "application/vnd.ekstep.ecml-archive"
   ) {
@@ -208,33 +213,48 @@ const SunbirdPlayers = ({
   console.log("- About to switch on mimeType:", mimeType);
   console.log("- Switch statement mimeType type:", typeof mimeType);
   console.log("- Switch statement mimeType length:", mimeType?.length);
-  console.log("- MimeType charCodes:", mimeType ? Array.from(mimeType).map((c: any) => (c as string).charCodeAt(0)) : 'null');
-  console.log("- Exact comparison video/x-youtube:", mimeType === "video/x-youtube");
-  console.log("- Exact comparison video/youtube:", mimeType === "video/youtube");
+  console.log(
+    "- MimeType charCodes:",
+    mimeType
+      ? Array.from(mimeType).map((c: any) => (c as string).charCodeAt(0))
+      : "null"
+  );
+  console.log(
+    "- Exact comparison video/x-youtube:",
+    mimeType === "video/x-youtube"
+  );
+  console.log(
+    "- Exact comparison video/youtube:",
+    mimeType === "video/youtube"
+  );
   console.log("- Trimmed comparison:", mimeType?.trim() === "video/x-youtube");
-  console.log("- Full playerConfig metadata:", JSON.stringify(playerConfig?.metadata, null, 2));
+  console.log(
+    "- Full playerConfig metadata:",
+    JSON.stringify(playerConfig?.metadata, null, 2)
+  );
 
   // Check for YouTube content with multiple possible mimeType formats
-  const isYouTubeContent = mimeType === "video/x-youtube" || 
-                          mimeType === "video/youtube" ||
-                          (typeof mimeType === 'string' && mimeType.includes('youtube'));
+  // const isYouTubeContent =
+  //   mimeType === "video/x-youtube" ||
+  //   mimeType === "video/youtube" ||
+  //   (typeof mimeType === "string" && mimeType.includes("youtube"));
 
-  if (isYouTubeContent) {
-    console.log("🎯 YouTube Player: Routing to YouTube Player with data:", {
-      courseId,
-      unitId,
-      userId,
-      configFunctionality: !!configFunctionality
-    });
-    
-    return (
-      <YouTubePlayer
-        playerConfig={playerConfig}
-        relatedData={{ courseId, unitId, userId }}
-        configFunctionality={configFunctionality}
-      />
-    );
-  }
+  // if (isYouTubeContent) {
+  //   console.log("🎯 YouTube Player: Routing to YouTube Player with data:", {
+  //     courseId,
+  //     unitId,
+  //     userId,
+  //     configFunctionality: !!configFunctionality,
+  //   });
+
+  //   return (
+  //     <YouTubePlayer
+  //       playerConfig={playerConfig}
+  //       relatedData={{ courseId, unitId, userId }}
+  //       configFunctionality={configFunctionality}
+  //     />
+  //   );
+  // }
 
   switch (mimeType) {
     case "application/pdf":
@@ -264,7 +284,7 @@ const SunbirdPlayers = ({
     case "application/vnd.sunbird.questionset":
       console.log("Routing to QuML Player");
       return (
-        <SunbirdQuMLPlayer
+        <TekdiQuMLPlayer
           playerConfig={playerConfig}
           relatedData={{ courseId, unitId, userId }}
           configFunctionality={configFunctionality}
@@ -281,6 +301,8 @@ const SunbirdPlayers = ({
       );
     case "application/vnd.ekstep.h5p-archive":
     case "application/vnd.ekstep.html-archive":
+    case "video/youtube":
+    case "video/x-youtube":
       // case "application/vnd.ekstep.ecml-archive":
       console.log("Routing to V1 Player");
       console.log("V1 Player case matched! mimeType:", mimeType);
