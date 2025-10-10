@@ -34,7 +34,7 @@ const DashboardPage = () => {
       setStoredConfig(config);
       setFirstName(localStorage.getItem("firstName") || "");
       setUserProgram(localStorage.getItem("userProgram") || "");
-      
+
       // Initialize activeTab from URL parameter
       const searchParams = new URLSearchParams(window.location.search);
       const tabParam = searchParams.get("tab");
@@ -98,77 +98,104 @@ const DashboardPage = () => {
         // Fetch framework data for dynamic filters
         let filterFramework = null;
         let staticFilter = null;
-        
+
         try {
-          const collectionFramework = youthnetContentFilter?.collectionFramework;
+          const collectionFramework =
+            youthnetContentFilter?.collectionFramework;
           const channelId = youthnetContentFilter?.channelId;
-          
+
           if (collectionFramework) {
-            const { filterContent, staticFilterContent } = await import('@shared-lib-v2/utils/AuthService');
-            
+            const { filterContent, staticFilterContent } = await import(
+              "@shared-lib-v2/utils/AuthService"
+            );
+
             const [frameworkData, staticData] = await Promise.all([
               filterContent({ instantId: collectionFramework }),
-              channelId ? staticFilterContent({ instantFramework: channelId }) : null
+              channelId
+                ? staticFilterContent({ instantFramework: channelId })
+                : null,
             ]);
-            
+
             // Filter out invalid terms with template placeholders
             const cleanedFrameworkData = {
               ...frameworkData,
               framework: {
                 ...frameworkData?.framework,
-                categories: frameworkData?.framework?.categories?.map((category: any) => {
-                  const originalTerms = category.terms || [];
-                  const filteredTerms = originalTerms.filter((term: any) => {
-                    const hasTemplate = term.code?.includes('{{') || term.name?.includes('{{');
-                    const isLive = term.status === 'Live';
-                    const isValid = !hasTemplate && isLive;
-                    
-                    if (!isValid) {
-                      console.log(`🚫 Filtering out term: ${term.name} (${term.code}) - Template: ${hasTemplate}, Live: ${isLive}`);
-                    }
-                    
-                    return isValid;
-                  });
-                  
-                  console.log(`🔍 Category ${category.name}: ${originalTerms.length} original terms, ${filteredTerms.length} filtered terms`);
-                  
-                  return {
-                    ...category,
-                    terms: filteredTerms
-                  };
-                }) || []
-              }
+                categories:
+                  frameworkData?.framework?.categories?.map((category: any) => {
+                    const originalTerms = category.terms || [];
+                    const filteredTerms = originalTerms.filter((term: any) => {
+                      const hasTemplate =
+                        term.code?.includes("{{") || term.name?.includes("{{");
+                      const isLive = term.status === "Live";
+                      const isValid = !hasTemplate && isLive;
+
+                      if (!isValid) {
+                        console.log(
+                          `🚫 Filtering out term: ${term.name} (${term.code}) - Template: ${hasTemplate}, Live: ${isLive}`
+                        );
+                      }
+
+                      return isValid;
+                    });
+
+                    console.log(
+                      `🔍 Category ${category.name}: ${originalTerms.length} original terms, ${filteredTerms.length} filtered terms`
+                    );
+
+                    return {
+                      ...category,
+                      terms: filteredTerms,
+                    };
+                  }) || [],
+              },
             };
-            
+
             filterFramework = cleanedFrameworkData;
             staticFilter = staticData;
-            
+
             // Debug: Log framework data
-            console.log('🔍 Dashboard - Framework Data:', frameworkData);
-            console.log('🔍 Dashboard - Framework Categories:', frameworkData?.framework?.categories);
-            console.log('🔍 Dashboard - Framework Name:', (frameworkData?.framework as any)?.name);
-            console.log('🔍 Dashboard - Static Data:', staticData);
-            
+            console.log("🔍 Dashboard - Framework Data:", frameworkData);
+            console.log(
+              "🔍 Dashboard - Framework Categories:",
+              frameworkData?.framework?.categories
+            );
+            console.log(
+              "🔍 Dashboard - Framework Name:",
+              (frameworkData?.framework as any)?.name
+            );
+            console.log("🔍 Dashboard - Static Data:", staticData);
+
             // Log each category with its terms
             if (frameworkData?.framework?.categories) {
-              frameworkData.framework.categories.forEach((category: any, index: number) => {
-                console.log(`🔍 Dashboard Category ${index + 1}: ${category.name} (${category.code}) - ${category.terms?.length || 0} terms`);
-                if (category.terms) {
-                  category.terms.forEach((term: any, termIndex: number) => {
-                    console.log(`  📝 Dashboard Term ${termIndex + 1}: ${term.name} (${term.code})`);
-                  });
+              frameworkData.framework.categories.forEach(
+                (category: any, index: number) => {
+                  console.log(
+                    `🔍 Dashboard Category ${index + 1}: ${category.name} (${
+                      category.code
+                    }) - ${category.terms?.length || 0} terms`
+                  );
+                  if (category.terms) {
+                    category.terms.forEach((term: any, termIndex: number) => {
+                      console.log(
+                        `  📝 Dashboard Term ${termIndex + 1}: ${term.name} (${
+                          term.code
+                        })`
+                      );
+                    });
+                  }
                 }
-              });
+              );
             }
           }
         } catch (error) {
-          console.error('Error fetching framework data:', error);
+          console.error("Error fetching framework data:", error);
         }
 
-        setFilter({ 
+        setFilter({
           filters: youthnetContentFilter?.contentFilter,
           filterFramework,
-          staticFilter
+          staticFilter,
         });
         if (typeof window !== "undefined") {
           localStorage.setItem(
@@ -186,7 +213,7 @@ const DashboardPage = () => {
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
-    
+
     // Update URL with tab parameter
     const url = new URL(window.location.href);
     let tabIndex = 0;
@@ -209,15 +236,8 @@ const DashboardPage = () => {
   };
 
   const performLogout = () => {
-    // Clear user session
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("token");
-      localStorage.removeItem("userId");
-      localStorage.removeItem("firstName");
-    }
-
-    // Redirect to login page
-    router.push("/login");
+    // Redirect to proper logout page which handles API logout and cookie clearing
+    router.push("/logout");
   };
 
   return (
@@ -289,47 +309,47 @@ const DashboardPage = () => {
                 activeTab={activeTab}
                 isLoading={false}
                 _content={{
-                    pageName: "L1_Content",
-                    onlyFields: [
-                      "se_boards",
-                      "se_mediums", 
-                      "se_gradeLevels",
-                      "se_subjects",
-                      "contentLanguage",
-                      "se_subDomains",
-                    ],
-                    isOpenColapsed: [], // Start collapsed - users can expand when needed
-                    // Fix: Only spread if showContent exists and is an array
-                    ...(Array.isArray((storedConfig as any).showContent) &&
-                      (storedConfig as any).showContent.length === 2 &&
-                      (storedConfig as any).showContent.includes("courses")
-                      ? {}
-                      : {}),
-                    //   contentTabs:
-                    //     activeTab === "courses"
-                    //       ? ["Course"]
-                    //       : ["Learning Resource"],
-                    // }),
-                    //   storedConfig.showContent.includes("contents")
-                    //     ? { contentTabs: ["courses", "content"] }
-                    //     : {}),
-                    staticFilter: {
-                      se_domains:
-                        typeof filter.filters?.domain === "string"
-                          ? [filter.filters?.domain]
-                          : filter.filters?.domain,
-                      program:
-                        typeof filter.filters?.program === "string"
-                          ? [filter.filters?.program]
-                          : filter.filters?.program,
-                      ...filter.staticFilter,
-                    },
-                    filterFramework: filter.filterFramework,
-                    tab: activeTab === "Course" ? "Course" : "content",
-                  }}
-                />
+                  pageName: "L1_Content",
+                  onlyFields: [
+                    "se_boards",
+                    "se_mediums",
+                    "se_gradeLevels",
+                    "se_subjects",
+                    "contentLanguage",
+                    "se_subDomains",
+                  ],
+                  isOpenColapsed: [], // Start collapsed - users can expand when needed
+                  // Fix: Only spread if showContent exists and is an array
+                  ...(Array.isArray((storedConfig as any).showContent) &&
+                  (storedConfig as any).showContent.length === 2 &&
+                  (storedConfig as any).showContent.includes("courses")
+                    ? {}
+                    : {}),
+                  //   contentTabs:
+                  //     activeTab === "courses"
+                  //       ? ["Course"]
+                  //       : ["Learning Resource"],
+                  // }),
+                  //   storedConfig.showContent.includes("contents")
+                  //     ? { contentTabs: ["courses", "content"] }
+                  //     : {}),
+                  staticFilter: {
+                    se_domains:
+                      typeof filter.filters?.domain === "string"
+                        ? [filter.filters?.domain]
+                        : filter.filters?.domain,
+                    program:
+                      typeof filter.filters?.program === "string"
+                        ? [filter.filters?.program]
+                        : filter.filters?.program,
+                    ...filter.staticFilter,
+                  },
+                  filterFramework: filter.filterFramework,
+                  tab: activeTab === "Course" ? "Course" : "content",
+                }}
+              />
             )}
-            </Grid>
+          </Grid>
         </Grid>
       </Box>
       <ProfileMenu

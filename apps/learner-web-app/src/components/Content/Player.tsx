@@ -111,7 +111,7 @@ const App = ({
     // } else {
     //   router.push(`${activeLink ? activeLink : '/content'}`);
     // }
-    router.back();
+    router.push("/dashboard?tab=1");
   };
 
   return (
