@@ -1,124 +1,55 @@
 <html>
     <body>
         <iframe id="youtubeIframe" width="100%" height="100%" frameborder="0"></iframe>
-        <div id="errorMessage" style="display: none; text-align: center; padding: 20px; color: red;">
-            <h3>YouTube Player Error</h3>
-            <p>Unable to load YouTube content. Please check your internet connection and try again.</p>
-            <button onclick="retryLoad()">Retry</button>
-        </div>
     </body>
     <script type="text/javascript">
-        console.log('youtube.html: Script starting');
         let params = (new URL(document.location)).searchParams;
-        var videoId = params.get('id');
-        var origin = params.get('origin');
-        
-        console.log('youtube.html: Video ID from URL:', videoId);
-        console.log('youtube.html: Origin from URL:', origin);
-        console.log('youtube.html: Current origin:', window.location.origin);
-        
-        if (!videoId) {
-            console.error('youtube.html: No video ID provided in URL parameters');
-            showError();
-            return;
+        var youtubeSrc = "https://www.youtube.com/embed/"+params.get('id')+"?enablejsapi=1";
+        if(params.get('origin')){
+            youtubeSrc = youtubeSrc + "&origin=" + params.get('origin');   
         }
-        
-        var youtubeSrc = "https://www.youtube.com/embed/"+videoId+"?enablejsapi=1&origin="+encodeURIComponent(window.location.origin);
-        
-        // Add additional YouTube parameters for better compatibility (removed autoplay)
-        youtubeSrc += "&rel=0&modestbranding=1&fs=1&cc_load_policy=0&iv_load_policy=3&autohide=0&playsinline=1";
-        
-        console.log('youtube.html: Final YouTube embed URL:', youtubeSrc);
-        
         document.getElementById('youtubeIframe').setAttribute('allowfullscreen', '');
         document.getElementById('youtubeIframe').setAttribute('src', youtubeSrc);
 
         var tag = document.createElement('script');
         tag.id = 'iframe-demo';
         tag.src = 'https://www.youtube.com/iframe_api';
-        tag.onerror = function() {
-            console.error('Failed to load YouTube API');
-            showError();
-        };
         var firstScriptTag = document.getElementsByTagName('script')[0];
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
         var player;
 
-        // Add timeout to handle YouTube API loading failures
-        var apiTimeout = setTimeout(function() {
-            if (!window.YT || !window.YT.Player) {
-                console.error('YouTube API failed to load within timeout');
-                showError();
-            }
-        }, 10000); // 10 second timeout
-
-        function showError() {
-            document.getElementById('errorMessage').style.display = 'block';
-            document.getElementById('youtubeIframe').style.display = 'none';
-        }
-
-        function retryLoad() {
-            document.getElementById('errorMessage').style.display = 'none';
-            document.getElementById('youtubeIframe').style.display = 'block';
-            document.getElementById('youtubeIframe').src = youtubeSrc;
-        }
-
         window.addEventListener('message', function(event){
             if(event.data == "pause.youtube") {
-                if (player && player.pauseVideo) {
-                    player.pauseVideo();
-                }
+                player.pauseVideo();
             }
             if(event.data == "status.youtube") {
-                if (player && player.getDuration && player.getCurrentTime) {
-                    postEvent({
-                        eid: "status",
-                        from: "youtube",
-                        type: "events",
-                        info: player.playerInfo,
-                        duration: Math.floor(player.getDuration()),
-                        time: (Math.floor(player.getCurrentTime()) * 1000),
-                        event: event
-                    });
-                }
+                postEvent({
+                    eid: "status",
+                    from: "youtube",
+                    type: "events",
+                    info: player.playerInfo,
+                    duration: Math.floor(player.getDuration()),
+                    time: (Math.floor(player.getCurrentTime()) * 1000),
+                    event: event
+                });
             }
         });
         
         function onYouTubeIframeAPIReady() {
-            // Clear the timeout since API loaded successfully
-            clearTimeout(apiTimeout);
-            
-            try {
-                player = new YT.Player('youtubeIframe', {
-                    playerVars: { 
-                        autoplay: 0, // Disabled autoplay to prevent blocking
-                        rel: 0,
-                        modestbranding: 1,
-                        fs: 1,
-                        cc_load_policy: 0,
-                        iv_load_policy: 3,
-                        autohide: 0,
-                        playsinline: 1 // Added for mobile compatibility
-                    },
-                    events: {
-                        'onReady': onPlayerReady,
-                        'onStateChange': onStateChange,
-                        'onPlaybackQualityChange': onPlaybackQualityChange,
-                        'onError': onPlayerError
-                    }
-                });
-            } catch (error) {
-                console.error('Error creating YouTube player:', error);
-                showError();
-            }
+            player = new YT.Player('youtubeIframe', {
+                playerVars: { 
+                    autoplay: 1 
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onStateChange,
+                    'onPlaybackQualityChange': onPlaybackQualityChange
+                }
+            });
         }
 
         function onPlayerReady(event) {
-            console.log('YouTube player ready');
-            // Don't auto-play to prevent blocking
-            // User will need to click play button
-            
-            // Post ready event to parent
+            player.playVideo();
             postEvent({
                 eid: "onReady",
                 from: "youtube",
@@ -126,12 +57,6 @@
                 event: event
             });
         }
-
-        function onPlayerError(event) {
-            console.error('YouTube player error:', event.data);
-            showError();
-        }
-
         function onStateChange(e) {
             var state = e.data;
             if (state === this.lastState || this.errorNumber) {
@@ -141,7 +66,7 @@
             switch (state) {
                 case -1:
                     postEvent({
-                        eid: "play",
+                        eid: "paly",
                         from: "youtube",
                         type: "events",
                         info: player.playerInfo,
@@ -165,7 +90,7 @@
 
                 case YT.PlayerState.PLAYING:
                     postEvent({
-                        eid: "play",
+                        eid: "paly",
                         from: "youtube",
                         type: "events",
                         info: player.playerInfo,

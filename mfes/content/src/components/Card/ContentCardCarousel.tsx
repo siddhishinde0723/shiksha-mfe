@@ -25,7 +25,7 @@ const ContentCardCarousel = ({
   hasMoreData,
   handleLoadMore,
   isLoadingMoreData,
-  isHideEmptyDataMessage,
+  pageName,
 }: {
   contentData: ContentSearchResponse[];
   _config: any;
@@ -35,7 +35,7 @@ const ContentCardCarousel = ({
   hasMoreData: boolean;
   handleLoadMore: (e: any) => void;
   isLoadingMoreData: boolean;
-  isHideEmptyDataMessage?: boolean;
+  pageName?: string;
 }) => {
   const { t } = useTranslation();
   const { default_img, _subBox, _carousel, _card, isHideNavigation } =
@@ -99,6 +99,7 @@ const ContentCardCarousel = ({
           <SwiperSlide
             key={item?.identifier}
             style={{ height: "auto", paddingBottom: "8px" }}
+            id={`${pageName}-${item?.identifier}`}
           >
             <ContentCard
               item={item}
@@ -115,21 +116,15 @@ const ContentCardCarousel = ({
         ))}
       </Swiper>
 
-      <Box sx={{ textAlign: "center", mt: 2 }}>
+      <Box sx={{ textAlign: "center", mt: 4 }}>
         {hasMoreData && (
           <Button
-            variant="outlined"
+            variant="contained"
             onClick={handleLoadMore}
             disabled={isLoadingMoreData}
-            sx={{ 
-              opacity: 0.7,
-              fontSize: "12px",
-              py: 1,
-              px: 2
-            }}
           >
             {isLoadingMoreData ? (
-              <CircularProgress size={16} />
+              <CircularProgress size={20} />
             ) : (
               t("LEARNER_APP.CONTENT_TABS.LOAD_MORE")
             )}
@@ -137,7 +132,7 @@ const ContentCardCarousel = ({
         )}
       </Box>
 
-      {!contentData?.length && !isHideEmptyDataMessage && (
+      {!contentData?.length && (
         <Typography
           variant="body1"
           sx={{
@@ -145,9 +140,10 @@ const ContentCardCarousel = ({
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
+            ...(_config?._noData?.sx ?? {}),
           }}
         >
-          {t("LEARNER_APP.CONTENT_TABS.NO_MORE_DATA")}
+          {_config?.noDataText || t("LEARNER_APP.CONTENT_TABS.NO_MORE_DATA")}
         </Typography>
       )}
     </Box>

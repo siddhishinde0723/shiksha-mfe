@@ -43,67 +43,81 @@ export const processImageUrl = (
  */
 export const transformImageUrl = (imageUrl: string): string => {
   console.log("🔄 transformImageUrl (content MFE) - Input:", imageUrl);
-  
   if (!imageUrl) {
-    console.log("🔄 transformImageUrl (content MFE) - No imageUrl, returning fallback");
-    return '/logo.png';
+    console.log(
+      "🔄 transformImageUrl (content MFE) - No imageUrl, returning fallback"
+    );
+    return "/logo.png";
   }
 
-  if (imageUrl.includes('https://sunbirdsaaspublic.blob.core.windows.net')) {
+  if (imageUrl.includes("https://sunbirdsaaspublic.blob.core.windows.net")) {
     console.log("🔄 transformImageUrl (content MFE) - Azure URL detected");
-    
+
     // Handle double domain pattern
     if (
       imageUrl.includes(
-        'https://sunbirdsaaspublic.blob.core.windows.net/https://sunbirdsaaspublic.blob.core.windows.net'
+        "https://sunbirdsaaspublic.blob.core.windows.net/https://sunbirdsaaspublic.blob.core.windows.net"
       )
     ) {
-      console.log("🔄 transformImageUrl (content MFE) - Double domain pattern detected");
+      console.log(
+        "🔄 transformImageUrl (content MFE) - Double domain pattern detected"
+      );
       // Extract everything after the second domain
       const urlParts = imageUrl.split(
-        'https://sunbirdsaaspublic.blob.core.windows.net/https://sunbirdsaaspublic.blob.core.windows.net/'
+        "https://sunbirdsaaspublic.blob.core.windows.net/https://sunbirdsaaspublic.blob.core.windows.net/"
       );
       if (urlParts.length > 1) {
         const pathAfterSecondDomain = urlParts[1];
         // Remove any existing content/content prefix to avoid duplication
         let cleanPath = pathAfterSecondDomain.replace(
           /^content\/content\//,
-          ''
+          ""
         );
         // Remove sunbird-content-prod/schemas/content/ if present
         cleanPath = cleanPath.replace(
           /^sunbird-content-prod\/schemas\/content\//,
-          ''
+          ""
         );
         // Transform to AWS S3 URL with the new pattern
         const transformedUrl = `https://s3.ap-south-1.amazonaws.com/saas-prod/content/${cleanPath}`;
-        console.log("🔄 transformImageUrl (content MFE) - Double domain transformed:", transformedUrl);
+        console.log(
+          "🔄 transformImageUrl (content MFE) - Double domain transformed:",
+          transformedUrl
+        );
         return transformedUrl;
       }
     } else {
-      console.log("🔄 transformImageUrl (content MFE) - Single domain pattern detected");
+      console.log(
+        "🔄 transformImageUrl (content MFE) - Single domain pattern detected"
+      );
       // Handle single domain pattern
       const urlParts = imageUrl.split(
-        'https://sunbirdsaaspublic.blob.core.windows.net/'
+        "https://sunbirdsaaspublic.blob.core.windows.net/"
       );
       if (urlParts.length > 1) {
         const pathAfterDomain = urlParts[1];
         // Remove any existing content/content prefix to avoid duplication
-        let cleanPath = pathAfterDomain.replace(/^content\/content\//, '');
+        let cleanPath = pathAfterDomain.replace(/^content\/content\//, "");
         // Remove sunbird-content-prod/schemas/content/ if present
         cleanPath = cleanPath.replace(
           /^sunbird-content-prod\/schemas\/content\//,
-          ''
+          ""
         );
         // Transform to AWS S3 URL with the new pattern
         const transformedUrl = `https://s3.ap-south-1.amazonaws.com/saas-prod/content/${cleanPath}`;
-        console.log("🔄 transformImageUrl (content MFE) - Single domain transformed:", transformedUrl);
+        console.log(
+          "🔄 transformImageUrl (content MFE) - Single domain transformed:",
+          transformedUrl
+        );
         return transformedUrl;
       }
     }
   }
 
-  console.log("🔄 transformImageUrl (content MFE) - No transformation needed, returning original:", imageUrl);
+  console.log(
+    "🔄 transformImageUrl (content MFE) - No transformation needed, returning original:",
+    imageUrl
+  );
   return imageUrl;
 };
 
@@ -115,7 +129,6 @@ export const transformImageUrl = (imageUrl: string): string => {
  */
 export const getBestImageUrl = (item?: any, baseUrl?: string): string => {
   console.log("🔍 getBestImageUrl - Input:", { item, baseUrl });
-  
   if (!item) {
     console.log("🔍 getBestImageUrl - No item, returning empty string");
     return "";
@@ -153,5 +166,5 @@ export const getBestImageUrl = (item?: any, baseUrl?: string): string => {
   }
   // Return fallback image if no image found
   console.log("🔍 getBestImageUrl - No image found, returning fallback");
-  return '/logo.png';
+  return "/logo.png";
 };

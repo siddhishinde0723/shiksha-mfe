@@ -6,7 +6,11 @@ import { Box, Grid, Typography } from "@mui/material";
 import dynamic from "next/dynamic";
 import WelcomeScreen from "@learner/components/WelcomeComponent/WelcomeScreen";
 import Header from "@learner/components/Header/Header";
-import { getUserId, login, verifyMagicLink } from "@learner/utils/API/LoginService";
+import {
+  getUserId,
+  login,
+  verifyMagicLink,
+} from "@learner/utils/API/LoginService";
 import { checkUserExistenceWithTenant } from "@learner/utils/API/userService";
 import { showToastMessage } from "@learner/components/ToastComponent/Toastify";
 import { useRouter } from "next/navigation";
@@ -375,7 +379,10 @@ const LoginPage = () => {
     const otp = data?.otp;
 
     try {
-      console.log("OTP verification successful, proceeding with login for username:", username);
+      console.log(
+        "OTP verification successful, proceeding with login for username:",
+        username
+      );
 
       // OTP has already been verified in LoginComponent
       // Now we need to create a login session for the user
@@ -399,7 +406,7 @@ const LoginPage = () => {
       }
     } catch (error: unknown) {
       console.error("Error in OTP login flow:", error);
-      
+
       // Show generic OTP error
       const errorMessage =
         t("LOGIN_PAGE.OTP_NOT_CORRECT") || "Invalid OTP. Please try again.";
@@ -485,7 +492,10 @@ const LoginPage = () => {
               prefilledUsername={prefilledUsername}
               onRedirectToLogin={() => {
                 // Show error message for unregistered user
-                showToastMessage("User not registered. Please contact your administrator to register your account.", "error");
+                showToastMessage(
+                  "User not registered. Please contact your administrator to register your account.",
+                  "error"
+                );
                 console.log("User not registered - showing error message");
               }}
             />
@@ -526,7 +536,7 @@ const handleSuccessfulLogin = async (
 
     if (userResponse) {
       const userRole = userResponse?.tenantData?.[0]?.roleName;
-      
+
       // Handle Learner role - redirect to learner dashboard
       if (userRole === "Learner") {
         localStorage.setItem("userId", userResponse?.userId);
@@ -584,25 +594,29 @@ const handleSuccessfulLogin = async (
           category: "Login Page",
           label: "Login Button Clicked",
         });
-        
+
         // Redirect to learner dashboard with tab=1
         window.location.href = `${window.location.origin}/dashboard?tab=1`;
         return;
       }
-      
+
       // Handle Creator, Reviewer, Admin roles - redirect to admin portal with SSO
-      else if (userRole === "Creator" || userRole === "Reviewer" || userRole === "Admin") {
+      else if (
+        userRole === "Creator" ||
+        userRole === "Reviewer" ||
+        userRole === "Admin"
+      ) {
         // Store user data for SSO
         localStorage.setItem("userId", userResponse?.userId);
         localStorage.setItem("userIdName", userResponse?.username);
         localStorage.setItem("firstName", userResponse?.firstName || "");
         localStorage.setItem("userRole", userRole);
-        
+
         const tenantId = userResponse?.tenantData?.[0]?.tenantId;
         const tenantName = userResponse?.tenantData?.[0]?.tenantName;
         localStorage.setItem("tenantId", tenantId);
         localStorage.setItem("userProgram", tenantName);
-        
+
         // Create SSO token for admin portal
         const ssoData = {
           token: token,
@@ -612,16 +626,18 @@ const handleSuccessfulLogin = async (
           role: userRole,
           tenantId: tenantId,
           tenantName: tenantName,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         };
-        
+
         // Store SSO data in localStorage for cross-domain access
         localStorage.setItem("ssoData", JSON.stringify(ssoData));
-        
+
         // Set cookie for admin portal
         document.cookie = `sso_token=${token}; path=/; secure; SameSite=Lax`;
-        document.cookie = `user_data=${JSON.stringify(ssoData)}; path=/; secure; SameSite=Lax`;
-        
+        document.cookie = `user_data=${JSON.stringify(
+          ssoData
+        )}; path=/; secure; SameSite=Lax`;
+
         const telemetryInteract = {
           context: { env: "sign-in", cdata: [] },
           edata: {
@@ -632,21 +648,27 @@ const handleSuccessfulLogin = async (
           },
         };
         telemetryFactory.interact(telemetryInteract);
-        
+
         logEvent({
           action: "successfully-login-admin-redirect",
           category: "Login Page",
           label: "Admin Login Redirect",
         });
-        
+
         // Redirect to admin portal with SSO
-        window.location.href = `${window.location.origin.replace('3003', '3002')}/login`;
+        window.location.href = `${window.location.origin.replace(
+          "3003",
+          "3002"
+        )}/login`;
         return;
       }
-      
+
       // Handle unknown roles
       else {
-        showToastMessage("User role not recognized. Please contact administrator.", "error");
+        showToastMessage(
+          "User role not recognized. Please contact administrator.",
+          "error"
+        );
         const telemetryInteract = {
           context: { env: "sign-in", cdata: [] },
           edata: {

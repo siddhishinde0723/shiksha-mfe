@@ -9,13 +9,21 @@ const lastAccessOn = new Date().toISOString();
 
 // Generate a proper UUID for anonymous users
 const generateUUID = (): string => {
-  const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
+  const uuid = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+    /[xy]/g,
+    function (c) {
+      const r = (Math.random() * 16) | 0;
+      const v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    }
+  );
   console.log("🔧 Generated UUID:", uuid);
-  console.log("🔧 UUID format validation:", /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uuid));
+  console.log(
+    "🔧 UUID format validation:",
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      uuid
+    )
+  );
   return uuid;
 };
 
@@ -24,7 +32,7 @@ const getCookie = (name: string): string | null => {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
   if (parts.length === 2) {
-    return parts.pop()?.split(';').shift() || null;
+    return parts.pop()?.split(";").shift() || null;
   }
   return null;
 };
@@ -72,7 +80,7 @@ export const getTelemetryEvents = async (
     courseId,
     unitId,
     userId,
-    configFunctionality
+    configFunctionality,
   });
 
   if (!eventData || (!eventData.object?.id && !eventData.gdata?.id)) {
@@ -97,15 +105,18 @@ export const getTelemetryEvents = async (
   localStorage.setItem(telemetryKey, JSON.stringify(telemetryData));
 
   if (eid === "START") {
-    console.log("🎯 START event detected, calling contentWithTelemetryData with:", {
-      identifier,
-      detailsObject: [telemetryData],
-      courseId,
-      unitId,
-      userId,
-      configFunctionality
-    });
-    
+    console.log(
+      "🎯 START event detected, calling contentWithTelemetryData with:",
+      {
+        identifier,
+        detailsObject: [telemetryData],
+        courseId,
+        unitId,
+        userId,
+        configFunctionality,
+      }
+    );
+
     await contentWithTelemetryData({
       identifier,
       detailsObject: [telemetryData],
@@ -243,7 +254,7 @@ export const contentWithTelemetryData = async ({
     courseId,
     unitId,
     userId: propUserId,
-    configFunctionality
+    configFunctionality,
   });
 
   if (configFunctionality.trackable === false) {
@@ -253,8 +264,9 @@ export const contentWithTelemetryData = async ({
   try {
     const response = await fetchBulkContents([identifier, courseId]);
     const course = response?.find(
-      (content: any) => content.identifier === courseId
+      (content: any) => content.identifier === identifier
     );
+    console.log("course 258", response);
     const resolvedMimeType = response?.[0]?.mimeType || null;
     console.log("fetchBulkContents", response, resolvedMimeType);
     if (!resolvedMimeType) {
@@ -263,42 +275,48 @@ export const contentWithTelemetryData = async ({
     }
 
     let userId = "";
-    
-    
+
     // PRIORITY 1: URL parameters (works across ports)
-    if (propUserId && propUserId !== "" && propUserId !== "null" && propUserId !== "undefined") {
+    if (
+      propUserId &&
+      propUserId !== "" &&
+      propUserId !== "null" &&
+      propUserId !== "undefined"
+    ) {
       userId = propUserId;
     } else {
       console.log("🔧 ❌ No userId in URL parameters, trying other methods...");
     }
-    
+
     // PRIORITY 2: Cookies (fallback for same port)
     if (!userId) {
- 
-      
-      const cookies = document.cookie.split(';');
+      const cookies = document.cookie.split(";");
       for (const cookie of cookies) {
-        const [name, value] = cookie.trim().split('=');
-        if (name === 'userId' && value) {
+        const [name, value] = cookie.trim().split("=");
+        if (name === "userId" && value) {
           userId = value;
           break;
         }
       }
     }
-    
+
     // PRIORITY 3: localStorage (fallback)
     if (!userId && typeof window !== "undefined" && window.localStorage) {
       const storedUserId = localStorage.getItem("userId");
-      if (storedUserId && storedUserId !== "null" && storedUserId !== "undefined" && storedUserId !== "") {
+      if (
+        storedUserId &&
+        storedUserId !== "null" &&
+        storedUserId !== "undefined" &&
+        storedUserId !== ""
+      ) {
         userId = storedUserId;
       }
     }
-    
+
     // PRIORITY 4: Generate UUID (final fallback)
     if (!userId) {
       userId = generateUUID();
     }
-    
 
     const ContentTypeReverseMap = Object.fromEntries(
       Object.entries(ContentType).map(([key, value]) => [value, key])
@@ -312,7 +330,10 @@ export const contentWithTelemetryData = async ({
         contentType = "quml"; // For ECML question sets
       } else if (resolvedMimeType === "application/pdf") {
         contentType = "pdf";
-      } else if (resolvedMimeType.includes("video") || resolvedMimeType === "video/x-youtube") {
+      } else if (
+        resolvedMimeType.includes("video") ||
+        resolvedMimeType === "video/x-youtube"
+      ) {
         contentType = "video"; // For all video types including YouTube
       } else if (resolvedMimeType === "application/epub") {
         contentType = "epub";
@@ -323,8 +344,13 @@ export const contentWithTelemetryData = async ({
         `No content type mapping found for ${resolvedMimeType}, using fallback: ${contentType}`
       );
     }
-    
-    console.log("🎯 Determined content type:", contentType, "for mime type:", resolvedMimeType);
+
+    console.log(
+      "🎯 Determined content type:",
+      contentType,
+      "for mime type:",
+      resolvedMimeType
+    );
 
     const reqBody: ContentCreate = {
       userId: userId,
@@ -340,7 +366,7 @@ export const contentWithTelemetryData = async ({
     console.log("🎯 Calling createContentTracking with reqBody:", reqBody);
 
     const telemetryResponse = await createContentTracking(reqBody);
-    
+
     console.log("🎯 createContentTracking response:", telemetryResponse);
 
     if (

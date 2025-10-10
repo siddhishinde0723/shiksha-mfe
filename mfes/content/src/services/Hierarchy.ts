@@ -1,4 +1,4 @@
-import { get } from "@shared-lib";
+import axios, { AxiosRequestConfig } from 'axios';
 interface ContentSearchResponse {
   ownershipType?: string[];
   publish_type?: string;
@@ -49,7 +49,7 @@ interface ContentSearchResponse {
   author?: string;
   consumerId?: string;
   childNodes?: string[];
-  children?: any[]; // Changed from string[] to any[] to match actual API response
+  children?: string[];
   discussionForum?: {
     enabled?: string;
   };
@@ -105,7 +105,6 @@ interface ContentSearchResponse {
   userConsent?: string;
   resourceType?: string;
   node_id?: number;
-  relational_metadata?: string; // Added to support courses with hierarchical structure in metadata
 }
 // Define the payload
 
@@ -117,60 +116,23 @@ export const hierarchyAPI = async (
     // Ensure the environment variable is defined
     const searchApiUrl = process.env.NEXT_PUBLIC_MIDDLEWARE_URL;
     if (!searchApiUrl) {
-      console.error("NEXT_PUBLIC_MIDDLEWARE_URL environment variable is not configured");
-      throw new Error("Search API URL environment variable is not configured");
+      throw new Error('Search API URL environment variable is not configured');
     }
+    // Axios request configuration
+    const config: AxiosRequestConfig = {
+      method: 'get',
+      maxBodyLength: Infinity,
+      url: `${searchApiUrl}/api/course/v1/hierarchy/${doId}`,
+      params: params,
+    };
 
-    // Validate doId
-    if (!doId) {
-      console.error("Content ID (doId) is required");
-      throw new Error("Content ID is required");
-    }
+    // Execute the request
+    const response = await axios.request(config);
+    const res = response?.data?.result?.content;
 
-    // Build URL with query parameters if provided
-    let url = `${searchApiUrl}/action/content/v3/hierarchy/${doId}`;
-    if (params) {
-      const queryString = new URLSearchParams(params as Record<string, string>).toString();
-      if (queryString) {
-        url += `?${queryString}`;
-      }
-    }
-
-    console.log("Making hierarchy API request to:", url);
-
-    // Check if we're in browser environment before accessing localStorage
-    const tenantId = typeof window !== 'undefined' ? localStorage.getItem("tenantId") || '' : '';
-    const token = typeof window !== 'undefined' ? localStorage.getItem("token") || '' : '';
-
-    if (!token) {
-      console.warn("No authentication token found");
-    }
-
-    // Execute the request using the authenticated get function
-    const response = await get(
-      url,
-      {
-        tenantId,
-        Authorization: `Bearer ${token}`,
-      }
-    );
-
-    console.log("Hierarchy API response:", response);
-
-    if (!response?.data?.result?.content) {
-      console.error("Invalid response structure:", response);
-      throw new Error("Invalid response from hierarchy API");
-    }
-
-    const res = response.data.result.content;
     return res;
   } catch (error) {
-    console.error("Error in hierarchyAPI:", {
-      error: error,
-      doId: doId,
-      url: `${process.env.NEXT_PUBLIC_MIDDLEWARE_URL}/action/content/v3/hierarchy/${doId}`,
-      hasToken: typeof window !== 'undefined' ? !!localStorage.getItem("token") : false,
-    });
+    console.error('Error in ContentSearch:', error);
     throw error;
   }
 };

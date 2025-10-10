@@ -25,6 +25,7 @@ export const API_ENDPOINTS = {
   courseWiseLernerList: `${baseurl}/tracking/user_certificate/status/search`,
   academicYearsList: `${baseurl}/academicyears/list`,
   cohortSearch: `${baseurl}/cohort/search`,
+  contentCreate: `${baseurl}/tracking/content/create`,
   myCohortsRead: (userId: string) => `${baseurl}/user/read/${userId}`,
 };
 

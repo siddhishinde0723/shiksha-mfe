@@ -61,12 +61,14 @@ const ContentDetails = (props: ContentDetailsProps) => {
           return;
         }
 
-        console.log("ContentEnroll - Fetching content details for identifier:", identifier);
+        console.log(
+          "ContentEnroll - Fetching content details for identifier:",
+          identifier
+        );
         const result = await hierarchyAPI(identifier as string);
 
         // Fallback: If no children but we have leafNodes, create a basic structure
         if (!result?.children || result.children.length === 0) {
-
           // Check if we have relational_metadata with hierarchical structure
           if (result?.relational_metadata) {
             try {
@@ -262,18 +264,20 @@ const ContentDetails = (props: ContentDetailsProps) => {
         console.error("ContentEnroll - Failed to fetch content:", {
           error: error,
           identifier: identifier,
-          errorMessage: error instanceof Error ? error.message : 'Unknown error',
-          stack: error instanceof Error ? error.stack : undefined
+          errorMessage:
+            error instanceof Error ? error.message : "Unknown error",
+          stack: error instanceof Error ? error.stack : undefined,
         });
-        
+
         // Set a fallback content structure to prevent complete failure
         setContentDetails({
           identifier: identifier as string,
           name: "Content Not Available",
-          description: "Unable to load content details. Please try again later.",
+          description:
+            "Unable to load content details. Please try again later.",
           children: [],
           appIcon: "/images/image_ver.png",
-          posterImage: "/images/image_ver.png"
+          posterImage: "/images/image_ver.png",
         } as unknown as ContentSearchResponse);
       } finally {
         setIsLoading(false);

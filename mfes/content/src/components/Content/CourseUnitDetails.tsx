@@ -54,7 +54,11 @@ const getUnitFromHierarchy = (resultHierarchy: any, unitId: string): any => {
 export default function Details(props: DetailsProps) {
   const router = useRouter();
   const { courseId, unitId, identifier: contentId } = useParams();
-  console.log("CourseUnitDetails - URL params:", { courseId, unitId, contentId });
+  console.log("CourseUnitDetails - URL params:", {
+    courseId,
+    unitId,
+    contentId,
+  });
   const identifier = courseId;
   const [trackData, setTrackData] = useState<trackDataPorps[]>([]);
   const [selectedContent, setSelectedContent] = useState<any>({});
@@ -83,18 +87,29 @@ export default function Details(props: DetailsProps) {
     activeLink = searchParams.get("activeLink");
   }
   useEffect(() => {
-    console.log("CourseUnitDetails - useEffect triggered with identifier:", identifier);
+    console.log(
+      "CourseUnitDetails - useEffect triggered with identifier:",
+      identifier
+    );
     const getDetails = async (identifier: string) => {
       try {
-        console.log("CourseUnitDetails - Calling hierarchyAPI with identifier:", identifier);
+        console.log(
+          "CourseUnitDetails - Calling hierarchyAPI with identifier:",
+          identifier
+        );
         const resultHierarchyCourse = await hierarchyAPI(identifier);
-        
+
         // Fallback: If no children but we have relational_metadata, create a basic structure
-        if (!resultHierarchyCourse?.children || resultHierarchyCourse.children.length === 0) {
+        if (
+          !resultHierarchyCourse?.children ||
+          resultHierarchyCourse.children.length === 0
+        ) {
           // Check if we have relational_metadata with hierarchical structure
           if (resultHierarchyCourse?.relational_metadata) {
             try {
-              const relationalData = JSON.parse(resultHierarchyCourse.relational_metadata);
+              const relationalData = JSON.parse(
+                resultHierarchyCourse.relational_metadata
+              );
               console.log(
                 "CourseUnitDetails - Parsed relational_metadata:",
                 relationalData
@@ -116,8 +131,8 @@ export default function Details(props: DetailsProps) {
                   );
 
                   // Create children structure from relational_metadata
-                  resultHierarchyCourse.children = courseStructure.children.map(
-                    (childId: string) => {
+                  resultHierarchyCourse.children = courseStructure.children
+                    .map((childId: string) => {
                       const childStructure = relationalData[childId];
                       if (childStructure) {
                         return {
@@ -138,11 +153,18 @@ export default function Details(props: DetailsProps) {
                                     name:
                                       grandChildStructure?.name ||
                                       `Content ${grandChildId}`,
-                                    mimeType: grandChildStructure?.mimeType || "application/vnd.ekstep.ecml-archive",
-                                    contentType: grandChildStructure?.contentType || "Resource",
-                                    description: grandChildStructure?.name || `Content ${grandChildId}`,
+                                    mimeType:
+                                      grandChildStructure?.mimeType ||
+                                      "application/vnd.ekstep.ecml-archive",
+                                    contentType:
+                                      grandChildStructure?.contentType ||
+                                      "Resource",
+                                    description:
+                                      grandChildStructure?.name ||
+                                      `Content ${grandChildId}`,
                                     appIcon: resultHierarchyCourse.appIcon,
-                                    posterImage: resultHierarchyCourse.posterImage,
+                                    posterImage:
+                                      resultHierarchyCourse.posterImage,
                                   };
                                 }
                               )
@@ -150,27 +172,38 @@ export default function Details(props: DetailsProps) {
                         };
                       }
                       return null;
-                    }
-                  ).filter(Boolean); // Remove null entries
+                    })
+                    .filter(Boolean); // Remove null entries
                 }
               }
             } catch (error) {
-              console.error("CourseUnitDetails - Failed to parse relational_metadata:", error);
+              console.error(
+                "CourseUnitDetails - Failed to parse relational_metadata:",
+                error
+              );
             }
           }
         }
-        
+
         let resultHierarchy = resultHierarchyCourse;
-        console.log("CourseUnitDetails - Initial resultHierarchyCourse:", resultHierarchyCourse);
+        console.log(
+          "CourseUnitDetails - Initial resultHierarchyCourse:",
+          resultHierarchyCourse
+        );
         console.log("CourseUnitDetails - unitId:", unitId);
         if (unitId) {
           resultHierarchy = getUnitFromHierarchy(
             resultHierarchy,
             unitId as string
           );
-          console.log("CourseUnitDetails - After getUnitFromHierarchy:", resultHierarchy);
+          console.log(
+            "CourseUnitDetails - After getUnitFromHierarchy:",
+            resultHierarchy
+          );
         } else {
-          console.log("CourseUnitDetails - No unitId, using resultHierarchyCourse directly");
+          console.log(
+            "CourseUnitDetails - No unitId, using resultHierarchyCourse directly"
+          );
         }
         if (props?.showBreadCrumbs) {
           const breadcrum = findCourseUnitPath({
@@ -294,7 +327,10 @@ export default function Details(props: DetailsProps) {
                       resultCertificate?.result?.credentialSchemaId
                     );
                   } catch (certError) {
-                    console.warn("Certificate issuance failed, but continuing with content loading:", certError);
+                    console.warn(
+                      "Certificate issuance failed, but continuing with content loading:",
+                      certError
+                    );
                     // Don't let certificate errors break the main content flow
                   }
                 }
@@ -306,23 +342,38 @@ export default function Details(props: DetailsProps) {
             };
           }
         }
-        console.log("CourseUnitDetails - Final resultHierarchy:", resultHierarchy);
-        console.log("CourseUnitDetails - Children count:", resultHierarchy?.children?.length || 0);
-        console.log("CourseUnitDetails - resultHierarchy.children:", resultHierarchy?.children);
-        
+        console.log(
+          "CourseUnitDetails - Final resultHierarchy:",
+          resultHierarchy
+        );
+        console.log(
+          "CourseUnitDetails - Children count:",
+          resultHierarchy?.children?.length || 0
+        );
+        console.log(
+          "CourseUnitDetails - resultHierarchy.children:",
+          resultHierarchy?.children
+        );
+
         // Validate that we have valid content before setting it
         if (resultHierarchy && resultHierarchy.identifier) {
           const finalContent = { ...resultHierarchy, ...startedOn };
-          console.log("CourseUnitDetails - Setting selectedContent to:", finalContent);
+          console.log(
+            "CourseUnitDetails - Setting selectedContent to:",
+            finalContent
+          );
           setSelectedContent(finalContent);
         } else {
-          console.error("CourseUnitDetails - Invalid hierarchy data received:", resultHierarchy);
+          console.error(
+            "CourseUnitDetails - Invalid hierarchy data received:",
+            resultHierarchy
+          );
           // Set a fallback content structure to prevent empty object issues
           setSelectedContent({
             identifier: courseId,
             name: "Course Content",
             children: [],
-            mimeType: "application/vnd.ekstep.content-collection"
+            mimeType: "application/vnd.ekstep.content-collection",
           });
         }
       } catch (error) {
@@ -331,7 +382,10 @@ export default function Details(props: DetailsProps) {
         setLoading(false);
       }
     };
-    console.log("CourseUnitDetails - About to call getDetails with identifier:", identifier);
+    console.log(
+      "CourseUnitDetails - About to call getDetails with identifier:",
+      identifier
+    );
     if (identifier) {
       console.log("CourseUnitDetails - Calling getDetails");
       getDetails(identifier as string);
@@ -440,13 +494,25 @@ export default function Details(props: DetailsProps) {
           )
         ) : (
           <>
-            {console.log("CourseUnitDetails - Rendering UnitGrid with selectedContent:", selectedContent)}
-            {console.log("CourseUnitDetails - selectedContent.children:", selectedContent?.children)}
-            {console.log("CourseUnitDetails - selectedContent.children.length:", selectedContent?.children?.length)}
+            {console.log(
+              "CourseUnitDetails - Rendering UnitGrid with selectedContent:",
+              selectedContent
+            )}
+            {console.log(
+              "CourseUnitDetails - selectedContent.children:",
+              selectedContent?.children
+            )}
+            {console.log(
+              "CourseUnitDetails - selectedContent.children.length:",
+              selectedContent?.children?.length
+            )}
             {loading ? (
               <Grid container spacing={{ xs: 1, sm: 1, md: 2 }}>
                 <Grid item xs={12} textAlign="center">
-                  <Typography variant="body1" sx={{ mt: 4, textAlign: "center" }}>
+                  <Typography
+                    variant="body1"
+                    sx={{ mt: 4, textAlign: "center" }}
+                  >
                     Loading content...
                   </Typography>
                 </Grid>

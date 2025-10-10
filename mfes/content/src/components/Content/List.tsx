@@ -91,7 +91,6 @@ export default function Content(props: Readonly<ContentProps>) {
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMoreData, setHasMoreData] = useState(false);
-  
   // Stabilize loading state to prevent blinking
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
@@ -112,11 +111,14 @@ export default function Content(props: Readonly<ContentProps>) {
   const abortControllerRef = useRef<AbortController | null>(null);
   const hasInitialized = useRef(false);
   // Session keys - memoized to prevent unnecessary re-renders
-  const sessionKeys = useMemo(() => ({
-    filters: `${props?.pageName}_savedFilters`,
-    search: `${props?.pageName}_searchValue`,
-    scrollId: `${props?.pageName}_scrollToContentId`,
-  }), [props?.pageName]);
+  const sessionKeys = useMemo(
+    () => ({
+      filters: `${props?.pageName}_savedFilters`,
+      search: `${props?.pageName}_searchValue`,
+      scrollId: `${props?.pageName}_scrollToContentId`,
+    }),
+    [props?.pageName]
+  );
 
   // Save filters to session
   const persistFilters = useCallback(
@@ -124,38 +126,34 @@ export default function Content(props: Readonly<ContentProps>) {
     [sessionKeys.filters]
   );
 
-  const handleSetFilters = useCallback(
-    (updater: any) => {
-      setLocalFilters(prev => {
-        const updated =
-          typeof updater === "function"
-            ? updater(prev)
-            : { ...prev, ...updater };
-        
-        // Only update if there's actually a change
-        if (JSON.stringify(prev) === JSON.stringify(updated)) {
-          return prev; // No change, return same object to prevent re-render
-        }
-        
-        return { ...updated, loadOld: false };
-      });
-    },
-    []
-  );
+  const handleSetFilters = useCallback((updater: any) => {
+    setLocalFilters((prev) => {
+      const updated =
+        typeof updater === "function" ? updater(prev) : { ...prev, ...updater };
+
+      // Only update if there's actually a change
+      if (JSON.stringify(prev) === JSON.stringify(updated)) {
+        return prev; // No change, return same object to prevent re-render
+      }
+
+      return { ...updated, loadOld: false };
+    });
+  }, []);
 
   // Sync tabValue with activeTab prop
   useEffect(() => {
     if (props.activeTab) {
       const tabIndex = props.activeTab === "Course" ? 0 : 1;
       setTabValue(tabIndex);
-      
+
       // Update filters when activeTab changes
-      const tabType = props.activeTab === "Course" ? "Course" : "Learning Resource";
-      setLocalFilters(prev => ({
+      const tabType =
+        props.activeTab === "Course" ? "Course" : "Learning Resource";
+      setLocalFilters((prev) => ({
         ...prev,
         offset: 0,
         type: tabType,
-        loadOld: false
+        loadOld: false,
       }));
     }
   }, [props.activeTab]);
@@ -163,7 +161,7 @@ export default function Content(props: Readonly<ContentProps>) {
   // Sync filters from props
   useEffect(() => {
     if (props.filters) {
-      setLocalFilters(prev => {
+      setLocalFilters((prev) => {
         // Only update if filters actually changed to prevent unnecessary re-renders
         const newFilters = { ...prev, ...props.filters, loadOld: false };
         if (JSON.stringify(prev) === JSON.stringify(newFilters)) {
@@ -190,7 +188,10 @@ export default function Content(props: Readonly<ContentProps>) {
       const urlTab = searchParams.get("tab");
       const parsedTab = urlTab ? parseInt(urlTab) : 0;
       // Ensure savedTab is within valid range for DEFAULT_TABS
-      const savedTab = Math.max(0, Math.min(parsedTab, DEFAULT_TABS.length - 1));
+      const savedTab = Math.max(
+        0,
+        Math.min(parsedTab, DEFAULT_TABS.length - 1)
+      );
 
       const config = props ?? (await getData("mfes_content_pages_content"));
       setPropData(config);
@@ -198,70 +199,94 @@ export default function Content(props: Readonly<ContentProps>) {
 
       // Fetch framework data for dynamic filters
       try {
-        const collectionFramework = localStorage.getItem('collectionFramework');
-        const channelId = localStorage.getItem('channelId');
-        
+        const collectionFramework = localStorage.getItem("collectionFramework");
+        const channelId = localStorage.getItem("channelId");
+
         if (collectionFramework) {
           // Import filterContent dynamically to avoid SSR issues
-          const { filterContent, staticFilterContent } = await import('@shared-lib-v2/utils/AuthService');
-          
+          const { filterContent, staticFilterContent } = await import(
+            "@shared-lib-v2/utils/AuthService"
+          );
+
           const [frameworkData, staticData] = await Promise.all([
             filterContent({ instantId: collectionFramework }),
-            channelId ? staticFilterContent({ instantFramework: channelId }) : null
+            channelId
+              ? staticFilterContent({ instantFramework: channelId })
+              : null,
           ]);
-          
-            // Filter out invalid terms with template placeholders
-            const cleanedFrameworkData = {
-              ...frameworkData,
-              framework: {
-                ...frameworkData?.framework,
-                categories: frameworkData?.framework?.categories?.map((category: any) => {
+
+          // Filter out invalid terms with template placeholders
+          const cleanedFrameworkData = {
+            ...frameworkData,
+            framework: {
+              ...frameworkData?.framework,
+              categories:
+                frameworkData?.framework?.categories?.map((category: any) => {
                   const originalTerms = category.terms || [];
                   const filteredTerms = originalTerms.filter((term: any) => {
-                    const hasTemplate = term.code?.includes('{{') || term.name?.includes('{{');
-                    const isLive = term.status === 'Live';
+                    const hasTemplate =
+                      term.code?.includes("{{") || term.name?.includes("{{");
+                    const isLive = term.status === "Live";
                     const isValid = !hasTemplate && isLive;
-                    
+
                     if (!isValid) {
-                      console.log(`🚫 Content MFE - Filtering out term: ${term.name} (${term.code}) - Template: ${hasTemplate}, Live: ${isLive}`);
+                      console.log(
+                        `🚫 Content MFE - Filtering out term: ${term.name} (${term.code}) - Template: ${hasTemplate}, Live: ${isLive}`
+                      );
                     }
-                    
+
                     return isValid;
                   });
-                  
-                  console.log(`🔍 Content MFE - Category ${category.name}: ${originalTerms.length} original terms, ${filteredTerms.length} filtered terms`);
-                  
+
+                  console.log(
+                    `🔍 Content MFE - Category ${category.name}: ${originalTerms.length} original terms, ${filteredTerms.length} filtered terms`
+                  );
+
                   return {
                     ...category,
-                    terms: filteredTerms
+                    terms: filteredTerms,
                   };
-                }) || []
-              }
-            };
-          
+                }) || [],
+            },
+          };
+
           setFilterFramework(cleanedFrameworkData);
           setStaticFilter(staticData);
-          
+
           // Debug: Log framework data
-          console.log('🔍 Content MFE - Framework Data:', frameworkData);
-          console.log('🔍 Content MFE - Framework Categories:', frameworkData?.framework?.categories);
-          console.log('🔍 Content MFE - Framework Name:', (frameworkData?.framework as any)?.name);
-          console.log('🔍 Content MFE - Static Data:', staticData);
-          
+          console.log("🔍 Content MFE - Framework Data:", frameworkData);
+          console.log(
+            "🔍 Content MFE - Framework Categories:",
+            frameworkData?.framework?.categories
+          );
+          console.log(
+            "🔍 Content MFE - Framework Name:",
+            (frameworkData?.framework as any)?.name
+          );
+          console.log("🔍 Content MFE - Static Data:", staticData);
+
           // Log each category with its terms
           if (frameworkData?.framework?.categories) {
-            frameworkData.framework.categories.forEach((category: any, index: number) => {
-              console.log(`🔍 Category ${index + 1}: ${category.name} (${category.code}) - ${category.terms?.length || 0} terms`);
-              if (category.terms) {
-                category.terms.forEach((term: any, termIndex: number) => {
-                  console.log(`  📝 Term ${termIndex + 1}: ${term.name} (${term.code})`);
-                });
+            frameworkData.framework.categories.forEach(
+              (category: any, index: number) => {
+                console.log(
+                  `🔍 Category ${index + 1}: ${category.name} (${
+                    category.code
+                  }) - ${category.terms?.length || 0} terms`
+                );
+                if (category.terms) {
+                  category.terms.forEach((term: any, termIndex: number) => {
+                    console.log(
+                      `  📝 Term ${termIndex + 1}: ${term.name} (${term.code})`
+                    );
+                  });
+                }
               }
-            });
+            );
           }
         }
       } catch (error) {
-        console.error('Error fetching framework data:', error);
+        console.error("Error fetching framework data:", error);
       }
       if (savedFilters) {
         setLocalFilters({
@@ -437,7 +462,7 @@ export default function Content(props: Readonly<ContentProps>) {
         // For search operations, use a different loading state
         setIsSearching(true);
       }
-      
+
       try {
         const response = await fetchAllContent(localFilters);
         if (!response || !isMounted) return;
@@ -445,32 +470,34 @@ export default function Content(props: Readonly<ContentProps>) {
           ...(response.content ?? []),
           ...(response?.QuestionSet ?? []),
         ];
-        
+
         // Set content data immediately
         if (localFilters.offset === 0) {
           setContentData(newContentData);
         } else {
           setContentData((prev) => [...(prev ?? []), ...newContentData]);
         }
-        
+
         // Fetch track data in parallel (non-blocking)
-        fetchDataTrack(newContentData).then((userTrackData) => {
-          if (!isMounted) return;
-          if (localFilters.offset === 0) {
-            setTrackData(userTrackData);
-          } else {
-            setTrackData((prev) => [...prev, ...userTrackData]);
-          }
-        }).catch((error) => {
-          console.error("🔍 Error fetching track data:", error);
-        });
+        fetchDataTrack(newContentData)
+          .then((userTrackData) => {
+            if (!isMounted) return;
+            if (localFilters.offset === 0) {
+              setTrackData(userTrackData);
+            } else {
+              setTrackData((prev) => [...prev, ...userTrackData]);
+            }
+          })
+          .catch((error) => {
+            console.error("🔍 Error fetching track data:", error);
+          });
 
         setHasMoreData(
           propData?.hasMoreData === false
             ? false
             : response.count > localFilters.offset + newContentData.length
         );
-        
+
         // Clear loading states
         setIsLoading(false);
         setIsSearching(false);
@@ -497,10 +524,7 @@ export default function Content(props: Readonly<ContentProps>) {
       isMounted = false;
       abortControllerRef.current?.abort();
     };
-  }, [
-    localFilters,
-    propData,
-  ]);
+  }, [localFilters, propData]);
 
   // Scroll to saved card ID
   useEffect(() => {
@@ -571,7 +595,7 @@ export default function Content(props: Readonly<ContentProps>) {
       const url = new URL(window.location.href);
       url.searchParams.set("tab", newValue.toString());
       router.replace(url.pathname + url.search);
-      
+
       // Only call handleSetFilters when there's no parent handler
       handleSetFilters({
         offset: 0,
@@ -581,7 +605,6 @@ export default function Content(props: Readonly<ContentProps>) {
   };
   const handleCardClickLocal = useCallback(
     async (content: ContentItem) => {
-
       try {
         sessionStorage.setItem(sessionKeys.scrollId, content.identifier);
         persistFilters(localFilters);
@@ -594,12 +617,12 @@ export default function Content(props: Readonly<ContentProps>) {
 
           // Build URL with unitId if available
           let activeLinkUrl = window.location.pathname;
-          
+
           // Include tab parameter in activeLink
           if (tabValue !== undefined) {
             activeLinkUrl += `?tab=${tabValue}`;
           }
-          
+
           let playerUrl = `${props?._config?.contentBaseUrl ?? ""}/player/${
             content?.identifier
           }?activeLink=${encodeURIComponent(activeLinkUrl)}`;
@@ -618,15 +641,17 @@ export default function Content(props: Readonly<ContentProps>) {
           const courseId = params?.courseId as string;
           // Build URL with unitId if available
           let activeLinkUrl = window.location.pathname;
-          
+
           // Include tab parameter in activeLink
           if (tabValue !== undefined) {
             activeLinkUrl += `?tab=${tabValue}`;
           }
-          
+
           let contentDetailsUrl = `${
             props?._config?.contentBaseUrl ?? ""
-          }/content-details/${content?.identifier}?activeLink=${encodeURIComponent(activeLinkUrl)}`;
+          }/content-details/${
+            content?.identifier
+          }?activeLink=${encodeURIComponent(activeLinkUrl)}`;
 
           if (unitId) {
             contentDetailsUrl += `&unitId=${unitId}`;
@@ -697,12 +722,15 @@ export default function Content(props: Readonly<ContentProps>) {
           )}
           {propData?.showFilter && (
             <Box>
-              <Button variant="outlined" onClick={() => {
-                console.log('🔍 Filter button clicked!');
-                console.log('🔍 Current filterFramework:', filterFramework);
-                console.log('🔍 Current staticFilter:', staticFilter);
-                setFilterShow(true);
-              }}>
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  console.log("🔍 Filter button clicked!");
+                  console.log("🔍 Current filterFramework:", filterFramework);
+                  console.log("🔍 Current staticFilter:", staticFilter);
+                  setFilterShow(true);
+                }}
+              >
                 <FilterAltOutlinedIcon />
               </Button>
               <FilterDialog
@@ -714,14 +742,16 @@ export default function Content(props: Readonly<ContentProps>) {
                 onApply={handleApplyFilters}
               />
               {/* Debug: Log when FilterDialog is rendered */}
-              {filterShow && (() => {
-                console.log('🔍 Content - Rendering FilterDialog with:', {
-                  filterFramework: filterFramework,
-                  categoriesCount: filterFramework?.framework?.categories?.length,
-                  staticFilter: staticFilter
-                });
-                return null;
-              })()}
+              {filterShow &&
+                (() => {
+                  console.log("🔍 Content - Rendering FilterDialog with:", {
+                    filterFramework: filterFramework,
+                    categoriesCount:
+                      filterFramework?.framework?.categories?.length,
+                    staticFilter: staticFilter,
+                  });
+                  return null;
+                })()}
             </Box>
           )}
         </Box>
@@ -750,7 +780,7 @@ export default function Content(props: Readonly<ContentProps>) {
     const handleScroll = () => {
       if (
         window.innerHeight + document.documentElement.scrollTop >=
-        document.documentElement.offsetHeight - 1000 &&
+          document.documentElement.offsetHeight - 1000 &&
         hasMoreData &&
         !isLoading
       ) {
