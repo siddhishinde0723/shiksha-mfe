@@ -1,3 +1,4 @@
+/* eslint-disable no-debugger */
 import { post } from '@shared-lib';
 import axios from 'axios';
 

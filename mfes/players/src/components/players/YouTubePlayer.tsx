@@ -79,9 +79,8 @@ const YouTubePlayer = ({
         edata: {
           type: "content",
           mode: "play",
-          pageid: "youtube-player",
-          duration: 0,
-          time: 0,
+          pageid: "",
+          duration: 1.36,
         },
         object: {
           id:

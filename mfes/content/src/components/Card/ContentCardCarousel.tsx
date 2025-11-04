@@ -26,6 +26,7 @@ const ContentCardCarousel = ({
   handleLoadMore,
   isLoadingMoreData,
   pageName,
+  isHideEmptyDataMessage,
 }: {
   contentData: ContentSearchResponse[];
   _config: any;
@@ -36,6 +37,7 @@ const ContentCardCarousel = ({
   handleLoadMore: (e: any) => void;
   isLoadingMoreData: boolean;
   pageName?: string;
+  isHideEmptyDataMessage?: boolean;
 }) => {
   const { t } = useTranslation();
   const { default_img, _subBox, _carousel, _card, isHideNavigation } =

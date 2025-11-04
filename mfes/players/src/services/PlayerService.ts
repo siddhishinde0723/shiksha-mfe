@@ -1,3 +1,4 @@
+import { log } from "console";
 import { ContentCreate } from "../utils/Interface";
 import { URL_CONFIG } from "../utils/url.config";
 import axios from "axios";
@@ -88,6 +89,7 @@ export const getQumlData = async (identifier: any) => {
 export const createContentTracking = async (reqBody: ContentCreate) => {
   console.log("reqBody player service", reqBody);
   const apiUrl = `${process.env.NEXT_PUBLIC_MIDDLEWARE_URL}/tracking/content/create`;
+  
   try {
     // Validate required fields
     const requiredFields = [
@@ -112,6 +114,7 @@ export const createContentTracking = async (reqBody: ContentCreate) => {
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
+        tenantId: localStorage.getItem("tenantId")
       },
       timeout: 10000, // 10 second timeout
     });

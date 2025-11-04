@@ -306,6 +306,10 @@ const PlayerBox = ({
               userIdLocalstorageName
                 ? `&userId=${localStorage.getItem(userIdLocalstorageName)}`
                 : ''
+            }${
+              localStorage.getItem("tenantId")
+                ? `&tenantId=${localStorage.getItem("tenantId")}`
+                : ""
             }`}
             style={{
               border: 'none',

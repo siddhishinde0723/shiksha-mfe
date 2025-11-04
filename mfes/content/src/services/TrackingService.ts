@@ -19,8 +19,9 @@ const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenantId"
     maxBodyLength: Infinity,
     url: `${trackingApiUrl}/tracking/content/course/status`,
     headers: {
-"Content-Type": "application/json",
- ...(tenantId && { tenantid: tenantId })  },
+      "Content-Type": "application/json",
+      ...(tenantId && { "tenantId": tenantId }),
+    },
     data,
   };
 

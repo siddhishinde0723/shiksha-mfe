@@ -1,4 +1,5 @@
 export const baseurl = process.env.NEXT_PUBLIC_MIDDLEWARE_URL;
+console.log("hello",baseurl)
 export const API_ENDPOINTS = {
   accountCreate: `${baseurl}/account/create`,
   accountLogin: `${baseurl}/account/login`,

@@ -50,7 +50,24 @@ export interface ContentSearchResponse {
   author?: string;
   consumerId?: string;
   childNodes?: string[];
-  children: [{}];
+  children?: Array<{
+    identifier: string;
+    name: string;
+    mimeType: string;
+    contentType: string;
+    description: string;
+    appIcon?: string;
+    posterImage?: string;
+    children?: Array<{
+      identifier: string;
+      name: string;
+      mimeType: string;
+      contentType: string;
+      description: string;
+      appIcon?: string;
+      posterImage?: string;
+    }>;
+  }>;
   discussionForum?: {
     enabled?: string;
   };

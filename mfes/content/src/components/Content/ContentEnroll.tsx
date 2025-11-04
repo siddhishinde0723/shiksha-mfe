@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 // pages/content-details/[identifier].tsx
 
 "use client";
@@ -19,7 +20,7 @@ import {
 } from "@content-mfes/services/Certificate";
 import InfoCard from "@content-mfes/components/Card/InfoCard";
 import { hierarchyAPI } from "@content-mfes/services/Hierarchy";
-import { ContentSearchResponse } from "@content-mfes/services/Search";
+import { ContentSearchResponse } from "@content-mfes/services/Hierarchy";
 import { checkAuth, getUserId } from "@shared-lib-v2/utils/AuthService";
 import SpeakableText from "@shared-lib-v2/lib/textToSpeech/SpeakableText";
 import { useTranslation } from "@shared-lib-v2/lib/context/LanguageContext";
@@ -335,7 +336,11 @@ const ContentDetails = (props: ContentDetailsProps) => {
           item={contentDetails}
           topic={contentDetails?.se_subjects?.join(",")}
           onBackClick={onBackClick}
-          _config={{ onButtonClick: handleClick, ...props?._config }}
+          _config={{ 
+            onButtonClick: handleClick, 
+            userIdLocalstorageName: props?._config?.userIdLocalstorageName || 'userId',
+            ...props?._config 
+          }}
           checkLocalAuth={checkLocalAuth}
         />
         <Box sx={{ display: "flex" }}>
@@ -438,7 +443,10 @@ const ContentDetails = (props: ContentDetailsProps) => {
                                 return (
                                   <UnitGrid
                                     item={item}
-                                    _config={props?._config || {}}
+                                    _config={{
+                                      ...props?._config,
+                                      userIdLocalstorageName: props?._config?.userIdLocalstorageName || 'userId'
+                                    }}
                                     handleItemClick={(content: ContentItem) => {
                                       // Handle navigation to content details or player
                                       const unitId = item?.identifier;

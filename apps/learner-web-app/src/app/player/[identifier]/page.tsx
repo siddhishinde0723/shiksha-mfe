@@ -11,7 +11,7 @@ const Player = dynamic(() => import('@learner/components/Content/Player'), {
 });
 
 const App: React.FC = () => {
-  return <Player />;
+  return <Player userIdLocalstorageName="userId" />;
 };
 
 export default App;

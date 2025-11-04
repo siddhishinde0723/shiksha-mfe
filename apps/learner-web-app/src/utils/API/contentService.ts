@@ -1,6 +1,6 @@
 import { post, get } from "@shared-lib";
 import { API_ENDPOINTS, COURSE_L2_ENDPOINTS } from "./EndUrls";
-import axios, { AxiosHeaderValue } from "axios";
+import axios, { AxiosHeaderValue, AxiosRequestConfig } from "axios";
 export interface courseWiseLernerListParam {
   limit?: number;
   offset?: number;
@@ -282,10 +282,30 @@ export const courseWiseLernerList = async ({
 export const createContentTracking = async (reqBody: ContentCreate) => {
   const apiUrl: string = API_ENDPOINTS.contentCreate;
   try {
-    const response = await post(apiUrl, reqBody);
+    console.log("🔍 Learner Web App - createContentTracking called with:", reqBody);
+    console.log("🔍 Learner Web App - API URL:", apiUrl);
+    console.log("🔍 Learner Web App - tenantId from localStorage:", localStorage.getItem("tenantId"));
+    
+    // Get tenantId from localStorage
+    const tenantId = localStorage.getItem("tenantId");
+    
+    // Prepare headers with tenantId
+    console.log("🔍 Learner Web App - tenantId from localStorage:", tenantId);
+    const headers = {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...(tenantId && { "tenantId": tenantId }),
+    };
+    
+    console.log("🔍 Learner Web App - Request headers:", headers);
+    
+    const response = await post(apiUrl, reqBody, headers);
+    console.log("🔍 Learner Web App - createContentTracking response:", response?.data);
     return response?.data;
   } catch (error) {
-    console.log(error);
+    console.error("🔍 Learner Web App - createContentTracking error:", error);
     throw error;
   }
 };
+
+

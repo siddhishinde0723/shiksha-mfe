@@ -122,13 +122,14 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
       );
       console.log("User check response:", userCheckResponse);
 
-      // Check if API returned an error (like 404 - User does not exist)
+      // Check if API returned an error (like 404 - User does not exist, or 401 - Unauthorized)
       if (
         userCheckResponse?.params?.status === "failed" ||
         userCheckResponse?.responseCode === 404 ||
+        userCheckResponse?.responseCode === 401 ||
         userCheckResponse?.responseCode !== 200
       ) {
-        console.log("User does not exist");
+        console.log("User does not exist or unauthorized (401/404)");
         // Show error message and call the redirect handler
         if (onRedirectToLogin) {
           setTimeout(() => {
@@ -185,15 +186,17 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
     } catch (error: unknown) {
       console.error("Error in OTP flow:", error);
       
-      // Check if it's a user not found error (404)
+      // Check if it's a user not found error (404) or unauthorized error (401)
       const errorResponse = error as { response?: { status?: number; data?: { responseCode?: number; params?: { status?: string; errmsg?: string } } } };
       if (
         errorResponse?.response?.status === 404 || 
+        errorResponse?.response?.status === 401 ||
         errorResponse?.response?.data?.responseCode === 404 ||
+        errorResponse?.response?.data?.responseCode === 401 ||
         errorResponse?.response?.data?.params?.status === "failed" ||
         errorResponse?.response?.data?.params?.errmsg === "User does not exist"
       ) {
-        console.log("User does not exist - showing error message");
+        console.log("User does not exist or unauthorized (401/404) - showing error message");
         // Show error message and call the redirect handler
         if (onRedirectToLogin) {
           // Add a small delay to ensure the error message is properly displayed

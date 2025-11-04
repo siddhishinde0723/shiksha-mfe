@@ -262,16 +262,9 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
       // Only send OTP if user is not already authenticated
       const existingToken =
         localStorage.getItem("token") || getCookieValue("token");
-      console.log("🔍 LoginComponent: Checking if should send OTP");
-      console.log("🔍 LoginComponent: Prefilled username:", prefilledUsername);
-      console.log("🔍 LoginComponent: Existing token:", !!existingToken);
-      console.log(
-        "🔍 LoginComponent: Is mobile number:",
-        isMobileNumber(prefilledUsername)
-      );
+    
 
       if (!existingToken && isMobileNumber(prefilledUsername)) {
-        console.log("📱 LoginComponent: Sending OTP for mobile number");
         sendOtp(prefilledUsername);
       } else {
         console.log(
@@ -633,8 +626,6 @@ const WelcomeMessage = () => {
 
 const LoginPage = () => {
   const router = useRouter();
-  // const theme = useTheme(); // Removed unused variable
-  // const isMobile = useMediaQuery(theme.breakpoints.down("sm")); // Removed unused variable
   const [prefilledUsername, setPrefilledUsername] = useState<string>("");
   const [showLoginForm, setShowLoginForm] = useState<boolean>(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState<boolean>(true);
@@ -642,14 +633,184 @@ const LoginPage = () => {
   const handleAddAccount = () => {
     router.push("/");
   };
+
   const { t } = useTranslation();
+
+  const handleSuccessfulLogin = async (
+    response: { access_token: string; refresh_token?: string },
+    data: { remember: boolean },
+    router: { push: (url: string) => void }
+  ) => {
+    if (typeof window !== "undefined" && window.localStorage) {
+      const token = response.access_token;
+      const refreshToken = response?.refresh_token;
+      localStorage.setItem("token", token);
+      data?.remember && refreshToken
+        ? localStorage.setItem("refreshToken", refreshToken)
+        : localStorage.removeItem("refreshToken");
+
+      const userResponse = await getUserId();
+
+      // If getUserId returns null (due to 401 redirect), exit early
+      if (!userResponse) {
+        console.log('🚨 getUserId returned null, likely due to 401 redirect');
+        return;
+      }
+
+      if (userResponse) {
+        const userRole = userResponse?.tenantData?.[0]?.roleName;
+
+        // Handle Learner role - redirect to learner dashboard
+        if (userRole === "Learner") {
+          localStorage.setItem("userId", userResponse?.userId);
+          localStorage.setItem(
+            "templtateId",
+            userResponse?.tenantData?.[0]?.templateId
+          );
+          localStorage.setItem("userIdName", userResponse?.username);
+          localStorage.setItem("firstName", userResponse?.firstName || "");
+
+          const tenantId = userResponse?.tenantData?.[0]?.tenantId;
+          const tenantName = userResponse?.tenantData?.[0]?.tenantName;
+          const uiConfig = userResponse?.tenantData?.[0]?.params?.uiConfig;
+
+          localStorage.setItem("uiConfig", JSON.stringify(uiConfig || {}));
+
+          localStorage.setItem("tenantId", tenantId);
+          localStorage.setItem("userProgram", tenantName);
+          await profileComplitionCheck();
+          if (tenantName === "YouthNet") {
+            const academicYearResponse = await getAcademicYear();
+            if (academicYearResponse[0]?.id) {
+              localStorage.setItem("academicYearId", academicYearResponse[0]?.id);
+            }
+          }
+          const telemetryInteract = {
+            context: { env: "sign-in", cdata: [] },
+            edata: {
+              id: "login-success",
+              type: "CLICK",
+              pageid: "sign-in",
+              uid: userResponse?.userId || "Anonymous",
+            },
+          };
+          telemetryFactory.interact(telemetryInteract);
+
+          const channelId = userResponse?.tenantData?.[0]?.channelId;
+          localStorage.setItem("channelId", channelId);
+
+          const collectionFramework =
+            userResponse?.tenantData?.[0]?.collectionFramework;
+          localStorage.setItem("collectionFramework", collectionFramework);
+
+          document.cookie = `token=${token}; path=/; secure; SameSite=Strict`;
+          const query = new URLSearchParams(window.location.search);
+          const redirectUrl = query.get("redirectUrl");
+          const activeLink = query.get("activeLink");
+          if (redirectUrl && redirectUrl.startsWith("/")) {
+            router.push(
+              `${redirectUrl}${activeLink ? `?activeLink=${activeLink}` : ""}`
+            );
+          }
+          logEvent({
+            action: "successfully-login-in-learner-app",
+            category: "Login Page",
+            label: "Login Button Clicked",
+          });
+
+          // Redirect to learner dashboard with tab=1
+          window.location.href = `${window.location.origin}/dashboard?tab=1`;
+          return;
+        }
+
+        // Handle Creator, Reviewer, Admin roles - redirect to admin portal with SSO
+        else if (
+          userRole === "Creator" ||
+          userRole === "Reviewer" ||
+          userRole === "Admin"
+        ) {
+          // Store user data for SSO
+          localStorage.setItem("userId", userResponse?.userId);
+          localStorage.setItem("userIdName", userResponse?.username);
+          localStorage.setItem("firstName", userResponse?.firstName || "");
+          localStorage.setItem("userRole", userRole);
+
+          const tenantId = userResponse?.tenantData?.[0]?.tenantId;
+          const tenantName = userResponse?.tenantData?.[0]?.tenantName;
+          localStorage.setItem("tenantId", tenantId);
+          localStorage.setItem("userProgram", tenantName);
+
+          // Create SSO token for admin portal
+          const ssoData = {
+            token: token,
+            userId: userResponse?.userId,
+            username: userResponse?.username,
+            firstName: userResponse?.firstName,
+            role: userRole,
+            tenantId: tenantId,
+            tenantName: tenantName,
+            timestamp: Date.now(),
+          };
+
+          // Store SSO data in localStorage for cross-domain access
+          localStorage.setItem("ssoData", JSON.stringify(ssoData));
+
+          // Set cookie for admin portal
+          document.cookie = `sso_token=${token}; path=/; secure; SameSite=Lax`;
+          document.cookie = `user_data=${JSON.stringify(
+            ssoData
+          )}; path=/; secure; SameSite=Lax`;
+
+          const telemetryInteract = {
+            context: { env: "sign-in", cdata: [] },
+            edata: {
+              id: "login-success-admin",
+              type: "CLICK",
+              pageid: "sign-in",
+              uid: userResponse?.userId || "Anonymous",
+            },
+          };
+          telemetryFactory.interact(telemetryInteract);
+
+          logEvent({
+            action: "successfully-login-admin-redirect",
+            category: "Login Page",
+            label: "Admin Login Button Clicked",
+          });
+
+          // Redirect to admin portal with SSO
+          window.location.href = `${window.location.origin.replace(
+            "3003",
+            "3002"
+          )}/login`;
+          return;
+        }
+
+        // Handle unknown roles
+        else {
+          showToastMessage(
+            "User role not recognized. Please contact administrator.",
+            "error"
+          );
+          const telemetryInteract = {
+            context: { env: "sign-in", cdata: [] },
+            edata: {
+              id: "login-failed-unknown-role",
+              type: "CLICK",
+              pageid: "sign-in",
+            },
+          };
+          telemetryFactory.interact(telemetryInteract);
+        }
+      }
+    }
+  };
 
   useEffect(() => {
     const init = async () => {
       try {
         console.log("🔍 Starting authentication check...");
 
-        // localStorage.clear();()
         preserveLocalStorage();
 
         // Check for existing authentication first - check both localStorage and cookies
@@ -659,52 +820,53 @@ const LoginPage = () => {
         const refresh_token = localStorage.getItem("refreshToken");
 
         console.log("🔑 Token found:", !!access_token);
-        console.log(
-          "🔑 Token value:",
-          access_token ? access_token.substring(0, 20) + "..." : "null"
-        );
-        console.log(
-          "🍪 Cookie token:",
-          cookieToken ? cookieToken.substring(0, 20) + "..." : "null"
-        );
 
         if (access_token) {
-          console.log(
-            "✅ User already authenticated, checking for redirect URL"
-          );
+          console.log("✅ User already authenticated, checking for redirect URL");
 
-          // Check for redirect URL in query parameters
-          if (typeof window !== "undefined") {
-            const searchParams = new URLSearchParams(window.location.search);
-            const redirectUrl = searchParams.get("redirectUrl");
-            const activeLink = searchParams.get("activeLink");
+          // Check if we have all required authentication data
+          const userId = localStorage.getItem("userId");
+          const tenantId = localStorage.getItem("tenantId");
+          
+          // If we have all required data, redirect directly
+          if (userId && tenantId) {
+            console.log("✅ All authentication data present, checking for redirect URL");
+            
+            // Check for redirect URL in query parameters
+            if (typeof window !== "undefined") {
+              const searchParams = new URLSearchParams(window.location.search);
+              const redirectUrl = searchParams.get("redirectUrl");
+              const activeLink = searchParams.get("activeLink");
 
-            console.log("🔗 Redirect URL:", redirectUrl);
-            console.log("🔗 Active Link:", activeLink);
+              console.log("🔗 Redirect URL:", redirectUrl);
+              console.log("🔗 Active Link:", activeLink);
 
-            if (redirectUrl && redirectUrl.startsWith("/")) {
-              console.log(
-                "🚀 Redirect URL found, redirecting to:",
-                redirectUrl
-              );
-              // Direct redirect to the target URL without going through login flow
-              window.location.href = `${window.location.origin}${redirectUrl}${
-                activeLink ? `?activeLink=${activeLink}` : ""
-              }`;
-              return;
+              if (redirectUrl && redirectUrl.startsWith("/")) {
+                console.log("🚀 Redirect URL found, redirecting to:", redirectUrl);
+                // Direct redirect to the target URL without going through login flow
+                window.location.href = `${window.location.origin}${redirectUrl}${
+                  activeLink ? `?activeLink=${activeLink}` : ""
+                }`;
+                return;
+              }
             }
-          }
 
-          // If no redirect URL, proceed with normal successful login flow
-          console.log("🏠 No redirect URL, redirecting to dashboard");
-          const response = {
-            result: {
-              access_token,
-              refresh_token: refresh_token || undefined,
-            },
-          };
-          handleSuccessfulLogin(response?.result, { remember: false }, router);
-          return;
+            // If no redirect URL, redirect to dashboard
+            console.log("🏠 No redirect URL, redirecting to dashboard");
+            window.location.href = `${window.location.origin}/dashboard?tab=1`;
+            return;
+          } else {
+            console.log("⚠️ Missing userId or tenantId, proceeding with full login flow");
+            // If we have a token but missing userId/tenantId, proceed with full login flow
+            const response = {
+              result: {
+                access_token,
+                refresh_token: refresh_token || undefined,
+              },
+            };
+            handleSuccessfulLogin(response?.result, { remember: false }, router);
+            return;
+          }
         }
 
         console.log("❌ No authentication token found, showing login form");
@@ -740,14 +902,13 @@ const LoginPage = () => {
       }
     };
     init();
-  }, [router]); // Keep router dependency for handleSuccessfulLogin
+  }, [router]);
 
   const handleForgotPassword = () => {
     localStorage.setItem("redirectionRoute", "/login");
-    //   router.push('/password-forget?redirectRoute=/login');
-
     router.push("/password-forget");
   };
+
   const handleLogin = async (data: {
     username: string;
     password: string;
@@ -800,9 +961,7 @@ const LoginPage = () => {
         };
         telemetryFactory.interact(telemetryInteract);
       }
-      // setLoading(false);
     } catch {
-      //   setLoading(false);
       const errorMessage = t("LOGIN_PAGE.USERNAME_PASSWORD_NOT_CORRECT");
       showToastMessage(errorMessage, "error");
       const telemetryInteract = {
@@ -816,116 +975,6 @@ const LoginPage = () => {
       telemetryFactory.interact(telemetryInteract);
     }
   };
-
-  // MAGIC LINK LOGIC - COMMENTED OUT FOR LATER USE
-  /*
- const handleVerifyMagicLink = async (data: {
-   username: string;
-   magicCode: string;
-   remember: boolean;
- }) => {
-   const username = data?.username;
-   const magicCode = data?.magicCode;
-
-
-   try {
-     console.log("Verifying magic link for username:", username, "Magic code:", magicCode);
-
-
-     // First, check if the user exists using the user list API
-     console.log("Checking if user exists...");
-     const userCheckResponse = await checkUserExistenceWithTenant(username);
-     console.log("User check response:", userCheckResponse);
-
-
-     // Check if user exists
-     if (
-       userCheckResponse?.params?.status === "failed" ||
-       userCheckResponse?.responseCode === 404 ||
-       !userCheckResponse?.result?.getUserDetails ||
-       userCheckResponse?.result?.getUserDetails?.length === 0
-     ) {
-       console.log("User does not exist");
-       showToastMessage(
-         "User not registered. Please contact your administrator to register your account.",
-         "error"
-       );
-      
-       const telemetryInteract = {
-         context: { env: "sign-in", cdata: [] },
-         edata: {
-           id: "magic-link-user-not-found",
-           type: "CLICK",
-           pageid: "sign-in",
-         },
-       };
-       telemetryFactory.interact(telemetryInteract);
-       return;
-     }
-
-
-     console.log("User exists, proceeding with magic link verification...");
-
-
-     // User exists, now verify the magic link
-     const response = await verifyMagicLink({ username, magicCode });
-
-
-     console.log("Magic link verification response:", response);
-
-
-     // Check if the API returns a successful response
-     if (response?.result?.access_token) {
-       // If we get an access token, proceed with normal login flow
-       handleSuccessfulLogin(response?.result, data, router);
-     } else if (response?.result?.redirectUrl) {
-       // If the API returns a redirect URL, redirect to it
-       console.log("Redirecting to:", response.result.redirectUrl);
-       window.location.href = response.result.redirectUrl;
-     } else if (response?.status === "success" || response?.success === true) {
-       // If the API indicates success but no token, redirect to dashboard
-       console.log("Magic link verified successfully, redirecting to dashboard");
-       window.location.href = "https://shiksha2-dev.tekdinext.com/dashboard";
-     } else {
-       showToastMessage(
-         "Invalid magic link. Please check your link or contact support.",
-         "error"
-       );
-     }
-   } catch (error: unknown) {
-     console.error("Magic link verification error:", error);
-    
-     // Check if it's a user not found error from the user check API
-     const errorResponse = error as { response?: { status?: number; data?: { responseCode?: number } } };
-     if (errorResponse?.response?.status === 404 || errorResponse?.response?.data?.responseCode === 404) {
-       showToastMessage(
-         "User not registered. Please contact your administrator to register your account.",
-         "error"
-       );
-     } else if (errorResponse?.response?.status === 400) {
-       showToastMessage(
-         "Invalid magic link. The link may have expired or is invalid.",
-         "error"
-       );
-     } else {
-       showToastMessage(
-         "Invalid magic link. Please check your link or contact support.",
-         "error"
-       );
-     }
-    
-     const telemetryInteract = {
-       context: { env: "sign-in", cdata: [] },
-       edata: {
-         id: "magic-link-verification-failed",
-         type: "CLICK",
-         pageid: "sign-in",
-       },
-     };
-     telemetryFactory.interact(telemetryInteract);
-   }
- };
- */
 
   const handleVerifyOtp = async (data: {
     username: string;
@@ -987,11 +1036,7 @@ const LoginPage = () => {
         if (redirectUrl && redirectUrl.startsWith("/")) {
           console.log("🚀 OTP Verification - Redirecting to:", redirectUrl);
           // For redirect URLs, call auth API and then redirect directly
-          await handleSuccessfulLoginWithRedirect(
-            response?.result,
-            data,
-            redirectUrl
-          );
+          await handleSuccessfulLogin(response?.result, data, router);
         } else {
           // For normal login, use the standard flow
           handleSuccessfulLogin(response?.result, data, router);
@@ -1020,6 +1065,7 @@ const LoginPage = () => {
       telemetryFactory.interact(telemetryInteract);
     }
   };
+
   // Show loading while checking authentication
   if (isCheckingAuth) {
     return (
@@ -1045,13 +1091,9 @@ const LoginPage = () => {
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <Box
-        //height="100vh"
-        // width="100vw"
         display="flex"
         flexDirection="column"
-        //  overflow="hidden"
         sx={{
-          //  overflowWrap: 'break-word',
           wordBreak: "break-word",
           background: "linear-gradient(135deg, #FFFDF6, #F8EFDA)",
         }}
@@ -1140,259 +1182,3 @@ const LoginPage = () => {
 };
 
 export default LoginPage;
-
-const handleSuccessfulLogin = async (
-  response: { access_token: string; refresh_token?: string },
-  data: { remember: boolean },
-  router: { push: (url: string) => void }
-) => {
-  if (typeof window !== "undefined" && window.localStorage) {
-    const token = response.access_token;
-    const refreshToken = response?.refresh_token;
-    localStorage.setItem("token", token);
-    data?.remember && refreshToken
-      ? localStorage.setItem("refreshToken", refreshToken)
-      : localStorage.removeItem("refreshToken");
-
-    const userResponse = await getUserId();
-
-    if (userResponse) {
-      const userRole = userResponse?.tenantData?.[0]?.roleName;
-
-      // Handle Learner role - redirect to learner dashboard
-      if (userRole === "Learner") {
-        localStorage.setItem("userId", userResponse?.userId);
-        localStorage.setItem(
-          "templtateId",
-          userResponse?.tenantData?.[0]?.templateId
-        );
-        localStorage.setItem("userIdName", userResponse?.username);
-        localStorage.setItem("firstName", userResponse?.firstName || "");
-
-        const tenantId = userResponse?.tenantData?.[0]?.tenantId;
-        const tenantName = userResponse?.tenantData?.[0]?.tenantName;
-        const uiConfig = userResponse?.tenantData?.[0]?.params?.uiConfig;
-
-        localStorage.setItem("uiConfig", JSON.stringify(uiConfig || {}));
-
-        localStorage.setItem("tenantId", tenantId);
-        localStorage.setItem("userProgram", tenantName);
-        await profileComplitionCheck();
-        if (tenantName === "YouthNet") {
-          const academicYearResponse = await getAcademicYear();
-          if (academicYearResponse[0]?.id) {
-            localStorage.setItem("academicYearId", academicYearResponse[0]?.id);
-          }
-        }
-        const telemetryInteract = {
-          context: { env: "sign-in", cdata: [] },
-          edata: {
-            id: "login-success",
-            type: "CLICK",
-            pageid: "sign-in",
-            uid: userResponse?.userId || "Anonymous",
-          },
-        };
-        telemetryFactory.interact(telemetryInteract);
-
-        const channelId = userResponse?.tenantData?.[0]?.channelId;
-        localStorage.setItem("channelId", channelId);
-
-        const collectionFramework =
-          userResponse?.tenantData?.[0]?.collectionFramework;
-        localStorage.setItem("collectionFramework", collectionFramework);
-
-        document.cookie = `token=${token}; path=/; secure; SameSite=Strict`;
-        const query = new URLSearchParams(window.location.search);
-        const redirectUrl = query.get("redirectUrl");
-        const activeLink = query.get("activeLink");
-        if (redirectUrl && redirectUrl.startsWith("/")) {
-          router.push(
-            `${redirectUrl}${activeLink ? `?activeLink=${activeLink}` : ""}`
-          );
-        }
-        logEvent({
-          action: "successfully-login-in-learner-app",
-          category: "Login Page",
-          label: "Login Button Clicked",
-        });
-
-        // Redirect to learner dashboard with tab=1
-        window.location.href = `${window.location.origin}/dashboard?tab=1`;
-        return;
-      }
-
-      // Handle Creator, Reviewer, Admin roles - redirect to admin portal with SSO
-      else if (
-        userRole === "Creator" ||
-        userRole === "Reviewer" ||
-        userRole === "Admin"
-      ) {
-        // Store user data for SSO
-        localStorage.setItem("userId", userResponse?.userId);
-        localStorage.setItem("userIdName", userResponse?.username);
-        localStorage.setItem("firstName", userResponse?.firstName || "");
-        localStorage.setItem("userRole", userRole);
-
-        const tenantId = userResponse?.tenantData?.[0]?.tenantId;
-        const tenantName = userResponse?.tenantData?.[0]?.tenantName;
-        localStorage.setItem("tenantId", tenantId);
-        localStorage.setItem("userProgram", tenantName);
-
-        // Create SSO token for admin portal
-        const ssoData = {
-          token: token,
-          userId: userResponse?.userId,
-          username: userResponse?.username,
-          firstName: userResponse?.firstName,
-          role: userRole,
-          tenantId: tenantId,
-          tenantName: tenantName,
-          timestamp: Date.now(),
-        };
-
-        // Store SSO data in localStorage for cross-domain access
-        localStorage.setItem("ssoData", JSON.stringify(ssoData));
-
-        // Set cookie for admin portal
-        document.cookie = `sso_token=${token}; path=/; secure; SameSite=Lax`;
-        document.cookie = `user_data=${JSON.stringify(
-          ssoData
-        )}; path=/; secure; SameSite=Lax`;
-
-        const telemetryInteract = {
-          context: { env: "sign-in", cdata: [] },
-          edata: {
-            id: "login-success-admin",
-            type: "CLICK",
-            pageid: "sign-in",
-            uid: userResponse?.userId || "Anonymous",
-          },
-        };
-        telemetryFactory.interact(telemetryInteract);
-
-        logEvent({
-          action: "successfully-login-admin-redirect",
-          category: "Login Page",
-          label: "Admin Login Redirect",
-        });
-
-        // Redirect to admin portal with SSO
-        window.location.href = `${window.location.origin.replace(
-          "3003",
-          "3002"
-        )}/login`;
-        return;
-      }
-
-      // Handle unknown roles
-      else {
-        showToastMessage(
-          "User role not recognized. Please contact administrator.",
-          "error"
-        );
-        const telemetryInteract = {
-          context: { env: "sign-in", cdata: [] },
-          edata: {
-            id: "login-failed-unknown-role",
-            type: "CLICK",
-            pageid: "sign-in",
-          },
-        };
-        telemetryFactory.interact(telemetryInteract);
-      }
-    }
-  }
-};
-
-// Handle successful login with redirect URL (for OTP flow)
-const handleSuccessfulLoginWithRedirect = async (
-  response: { access_token: string; refresh_token?: string },
-  data: { remember: boolean },
-  redirectUrl: string
-) => {
-  if (typeof window !== "undefined" && window.localStorage) {
-    const token = response.access_token;
-    const refreshToken = response?.refresh_token;
-    localStorage.setItem("token", token);
-    data?.remember && refreshToken
-      ? localStorage.setItem("refreshToken", refreshToken)
-      : localStorage.removeItem("refreshToken");
-
-    try {
-      // Call auth API to get user data
-      const userResponse = await getUserId();
-      console.log("🔑 Auth API response:", userResponse);
-
-      if (userResponse) {
-        const userRole = userResponse?.tenantData?.[0]?.roleName;
-
-        // Handle Learner role - store user data and redirect
-        if (userRole === "Learner") {
-          localStorage.setItem("userId", userResponse?.userId);
-          localStorage.setItem(
-            "templtateId",
-            userResponse?.tenantData?.[0]?.templateId
-          );
-          localStorage.setItem("userIdName", userResponse?.username);
-          localStorage.setItem("firstName", userResponse?.firstName || "");
-
-          const tenantId = userResponse?.tenantData?.[0]?.tenantId;
-          const tenantName = userResponse?.tenantData?.[0]?.tenantName;
-          const uiConfig = userResponse?.tenantData?.[0]?.params?.uiConfig;
-
-          localStorage.setItem("uiConfig", JSON.stringify(uiConfig || {}));
-          localStorage.setItem("tenantId", tenantId);
-          localStorage.setItem("userProgram", tenantName);
-
-          const channelId = userResponse?.tenantData?.[0]?.channelId;
-          localStorage.setItem("channelId", channelId);
-
-          const collectionFramework =
-            userResponse?.tenantData?.[0]?.collectionFramework;
-          localStorage.setItem("collectionFramework", collectionFramework);
-
-          // Set cookie for authentication
-          document.cookie = `token=${token}; path=/; secure; SameSite=Strict`;
-
-          // Track telemetry
-          const telemetryInteract = {
-            context: { env: "sign-in", cdata: [] },
-            edata: {
-              id: "otp-login-success",
-              type: "CLICK",
-              pageid: "sign-in",
-              uid: userResponse?.userId || "Anonymous",
-            },
-          };
-          telemetryFactory.interact(telemetryInteract);
-
-          // Log Google Analytics event
-          logEvent({
-            action: "successfully-login-in-learner-app-otp",
-            category: "Login Page",
-            label: "OTP Login Button Clicked",
-          });
-
-          console.log("🚀 Redirecting to:", redirectUrl);
-
-          // Redirect to the specified URL
-          window.location.href = redirectUrl;
-          return;
-        }
-
-        // Handle other roles if needed
-        else {
-          console.log("⚠️ User role not Learner, redirecting to dashboard");
-          window.location.href = `${window.location.origin}/dashboard?tab=1`;
-        }
-      } else {
-        console.error("❌ Failed to get user data from auth API");
-        showToastMessage("Failed to get user data. Please try again.", "error");
-      }
-    } catch (error) {
-      console.error("❌ Error calling auth API:", error);
-      showToastMessage("Failed to authenticate. Please try again.", "error");
-    }
-  }
-};

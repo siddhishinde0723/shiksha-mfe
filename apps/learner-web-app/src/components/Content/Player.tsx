@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 // pages/content-details/[identifier].tsx
 
 "use client";
@@ -371,15 +372,22 @@ const PlayerBox = ({
               isGenerateCertificate: isGenerateCertificate,
               trackable: trackable,
             })}
-            src={`${
-              process.env.NEXT_PUBLIC_LEARNER_SBPLAYER
-            }?identifier=${identifier}${
-              courseId && unitId ? `&courseId=${courseId}&unitId=${unitId}` : ""
-            }${
-              userIdLocalstorageName
-                ? `&userId=${localStorage.getItem(userIdLocalstorageName)}`
-                : ""
-            }`}
+            src={(() => {
+              const tenantId = localStorage.getItem("tenantId");
+              const userId = userIdLocalstorageName ? localStorage.getItem(userIdLocalstorageName) : "";
+              console.log("🔍 Player - userIdLocalstorageName:", userIdLocalstorageName);
+              console.log("🔍 Player - localStorage userId:", localStorage.getItem("userId"));
+              console.log("🔍 Player - localStorage tenantId:", localStorage.getItem("tenantId"));
+              console.log("🔍 Player - localStorage token:", localStorage.getItem("token"));
+              console.log("🔍 Player - All localStorage keys:", Object.keys(localStorage));
+              const url = `${process.env.NEXT_PUBLIC_LEARNER_SBPLAYER}?identifier=${identifier}${
+                courseId && unitId ? `&courseId=${courseId}&unitId=${unitId}` : ""
+              }${userId ? `&userId=${userId}` : ""}${tenantId ? `&tenantId=${tenantId}` : ""}`;
+              console.log("🔍 Iframe URL:", url);
+              console.log("🔍 TenantId being passed:", tenantId);
+              console.log("🔍 UserId being passed:", userId);
+              return url;
+            })()}
             style={{
               border: "none",
               objectFit: "contain",

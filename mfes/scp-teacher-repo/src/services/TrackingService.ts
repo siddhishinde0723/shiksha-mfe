@@ -34,7 +34,19 @@ export const getContentTrackingStatus = async (reqBody: ContentStatus) => {
 export const createContentTracking = async (reqBody: ContentCreate) => {
   const apiUrl: string = API_ENDPOINTS.contentCreate
   try {
-    const response = await post(apiUrl, reqBody);
+    // Get tenantId from localStorage
+    const tenantId = localStorage.getItem("tenantId");
+    
+    // Prepare headers with tenantId
+    const headers = {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...(tenantId && { "tenantId": tenantId }),
+    };
+    
+    console.log("🔍 Teacher Repo - createContentTracking headers:", headers);
+    
+    const response = await post(apiUrl, reqBody, headers);
     return response?.data;
   } catch (error) {
     console.log(error);

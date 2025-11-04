@@ -35,9 +35,14 @@ instance.interceptors.request.use(
         config.headers.academicyearid = academicYearId;
       }
     }
-    // config.headers.tenantid = '4783a636-1191-487a-8b09-55eca51b5036';
-    // config.headers.tenantid = 'fbe108db-e236-48a7-8230-80d34c370800';
-    config.headers.tenantid = tenantId;
+    // Get tenantId from localStorage
+    const tenantIdFromStorage = localStorage.getItem('tenantId');
+    if (tenantIdFromStorage) {
+      config.headers.tenantId = tenantIdFromStorage;
+    } else {
+      // Fallback to config tenantId if localStorage doesn't have it
+      config.headers.tenantId = tenantId;
+    }
     return config;
   },
   (error) => {
@@ -52,10 +57,25 @@ instance.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Log 401 errors for debugging
+    if (error?.response?.status === 401) {
+      console.log('🚨 401 Unauthorized error detected:', {
+        url: originalRequest?.url,
+        status: error?.response?.status,
+        data: error?.response?.data
+      });
+    }
+
     if (
-      error?.response?.data?.responseCode === 401 &&
+      (error?.response?.status === 401 || error?.response?.data?.responseCode === 401) &&
       !originalRequest._retry
     ) {
+      // Don't try to refresh token for /user/auth endpoint - let getUserId handle it
+      if (error?.response?.request?.responseURL.includes('/user/auth')) {
+        console.log('🚨 401 on /user/auth - letting getUserId handle the redirect');
+        return Promise.reject(error);
+      }
+      
       if (error?.response?.request?.responseURL.includes('/auth/refresh')) {
         window.location.href = '/logout';
       } else {
@@ -63,12 +83,16 @@ instance.interceptors.response.use(
         try {
           const accessToken = await refreshToken();
           if (!accessToken) {
+            console.log('No access token available, redirecting to logout');
             window.location.href = '/logout';
+            return Promise.reject(error);
           } else {
             originalRequest.headers.Authorization = `Bearer ${accessToken}`;
             return instance(originalRequest);
           }
         } catch (refreshError) {
+          console.log('Token refresh failed, redirecting to logout');
+          window.location.href = '/logout';
           return Promise.reject(refreshError);
         }
       }

@@ -1,3 +1,4 @@
+/* eslint-disable no-debugger */
 import { fetchBulkContents } from '@/services/PlayerService';
 import {
   ContentCreate,
@@ -236,7 +237,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
             const ContentTypeReverseMap = Object.fromEntries(
               Object.entries(ContentType).map(([key, value]) => [value, key])
             );
-
+debugger;
             const reqBody: ContentCreate = {
               userId: userId,
               contentId: identifier,
