@@ -400,76 +400,8 @@ options.push(t('LEARNER_APP.USER_PROFILE_CARD.EDIT_PROFILE'));
           </>
         )}
 
-        <Typography sx={sectionTitleStyle}>
-          <PersonIcon sx={{ fontSize: '1.2rem' }} />
-          {t('LEARNER_APP.USER_PROFILE_CARD.PERSONAL_INFORMATION')}
-        </Typography>
-        <Box sx={sectionCardStyle}>
-          <Grid container spacing={1.5}>
-            {gender !== '-' && (
-              <Grid item xs={6}>
-                <Typography sx={labelStyle}>
-                  {t('LEARNER_APP.USER_PROFILE_CARD.GENDER')}
-                </Typography>
-                <Typography sx={valueStyle}>{toPascalCase(gender)}</Typography>
-              </Grid>
-            )}
-            {dob !== '-' && (
-              <Grid item xs={6}>
-                <Typography sx={labelStyle}>
-                  {t('LEARNER_APP.USER_PROFILE_CARD.DOB')}
-                </Typography>
-                <Typography sx={valueStyle}>
-                  {new Date(dob).toLocaleDateString('en-GB', {
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric',
-                  })}
-                </Typography>
-              </Grid>
-            )}
-            {maritalStatus !== '-' && (
-              <Grid item xs={6}>
-                <Typography sx={labelStyle}>
-                  {t('LEARNER_APP.USER_PROFILE_CARD.MARITAL_STATUS')}
-                </Typography>
-                <Typography sx={valueStyle}>
-                  {toPascalCase(maritalStatus)}
-                </Typography>
-              </Grid>
-            )}
-            {motherName !== '-' && (
-              <Grid item xs={6}>
-                <Typography sx={labelStyle}>
-                  {t('LEARNER_APP.USER_PROFILE_CARD.MOTHER_NAME')}
-                </Typography>
-                <Typography sx={valueStyle}>
-                  {toPascalCase(motherName)}
-                </Typography>
-              </Grid>
-            )}
-            {qualification !== '-' && (
-              <Grid item xs={12}>
-                <Typography sx={labelStyle}>
-                  {t('LEARNER_APP.USER_PROFILE_CARD.HIGHEST_QUALIFICATION')}
-                </Typography>
-                <Typography sx={valueStyle}>
-                  {t(`FORM.${qualification}`, { defaultValue: qualification })}
-                </Typography>
-              </Grid>
-            )}
-            {[state, district, block, village].filter(Boolean).join(', ') !== '-' && (
-              <Grid item xs={12}>
-                <Typography sx={labelStyle}>
-                  {t('LEARNER_APP.USER_PROFILE_CARD.LOCATION')}
-                </Typography>
-                <Typography sx={valueStyle}>
-                  {[state, district, block, village].filter(Boolean).join(', ')}
-                </Typography>
-              </Grid>
-            )}
-          </Grid>
-        </Box>
+    
+    
       </Box>
 
       <Menu

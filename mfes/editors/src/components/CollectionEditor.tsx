@@ -160,7 +160,6 @@ const CollectionEditor: React.FC = () => {
       loadJQuery();
       if (!document.getElementById("collection-editor-js")) {
         const script = document.createElement("script");
-        console.log("Hello");
 
         script.id = "collection-editor-js";
         script.src =

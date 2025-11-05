@@ -31,7 +31,7 @@ const Header = () => {
     >
       {/* Logo */}
       <Box display="flex" alignItems="center" gap={2}>
-        <Image src={appLogo} alt="Shiksha" width={120} height={120} style={{ objectFit: "contain" }} />
+        <Image src={appLogo} alt="Shiksha" width={60} height={60} style={{ objectFit: "contain" }} />
       </Box>
 
       {/* Language Selector */}

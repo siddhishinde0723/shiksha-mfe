@@ -91,7 +91,6 @@ if (typeof window !== 'undefined') {
         return isValid;
       });
       
-      console.log(`🔍 FilterComponent - Category ${category.name}: ${originalTerms.length} original terms, ${filteredTerms.length} filtered terms`);
       
       // Special logging for subjects
       if (category.name?.toLowerCase().includes('subject') || category.code?.toLowerCase().includes('subject')) {

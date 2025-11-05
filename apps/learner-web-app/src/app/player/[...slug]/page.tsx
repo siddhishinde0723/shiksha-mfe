@@ -24,20 +24,15 @@ const PlayerWithMobileCheck: React.FC = () => {
         const magicLinkPattern = /^\/player\/(do_[^\/]+)\/(\d{10,})\/activeLink\/dashboard\/magic-link\/([^\/]+)$/;
         const match = pathname.match(magicLinkPattern);
 
-        console.log("Full URL pathname:", pathname);
-        console.log("Full URL:", fullUrl);
-        console.log("Slug params:", slug);
+      
 
         if (match) {
           const [, identifier, mobileNumber, magicCode] = match;
-          console.log("Magic link detected in URL");
-          console.log("Mobile number:", mobileNumber);
-          console.log("Magic code:", magicCode);
-          console.log("Extracted identifier:", identifier);
+          
 
           // Check if user is authenticated
           const isAuthenticated = checkAuth();
-          console.log("Authentication check result:", isAuthenticated);
+          
 
           if (!isAuthenticated) {
             console.log("User not authenticated, redirecting to login with magic link");

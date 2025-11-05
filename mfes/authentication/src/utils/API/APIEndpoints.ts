@@ -1,5 +1,4 @@
 const baseurl = process.env.NEXT_PUBLIC_MIDDLEWARE_URL
-console.log(baseurl,"hellooooo")
 const API_ENDPOINTS = {
   accountLogin: `${baseurl}/account/login`,
   authRefresh: `${baseurl}/account/auth/refresh`,

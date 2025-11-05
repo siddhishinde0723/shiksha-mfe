@@ -116,16 +116,16 @@ export const ContentSearch = async ({
           //   ],
           //   channel: localStorage.getItem('channelId'),
         },
-        fields: [
-          "name",
-          "appIcon",
-          "description",
-          "posterImage",
-          "mimeType",
-          "identifier",
-          "leafNodes",
-          "se_subjects",
-        ],
+        // fields: [
+        //   "name",
+        //   "appIcon",
+        //   "description",
+        //   "posterImage",
+        //   "mimeType",
+        //   "identifier",
+        //   "leafNodes",
+        //   "se_subjects",
+        // ],
         query,
         limit,
         offset,
@@ -138,7 +138,6 @@ export const ContentSearch = async ({
       data
     );
     const res = response?.data;
-
     return res;
   } catch (error) {
     console.error("Error in ContentSearch:", error);
@@ -282,25 +281,21 @@ export const courseWiseLernerList = async ({
 export const createContentTracking = async (reqBody: ContentCreate) => {
   const apiUrl: string = API_ENDPOINTS.contentCreate;
   try {
-    console.log("🔍 Learner Web App - createContentTracking called with:", reqBody);
-    console.log("🔍 Learner Web App - API URL:", apiUrl);
-    console.log("🔍 Learner Web App - tenantId from localStorage:", localStorage.getItem("tenantId"));
+  
     
     // Get tenantId from localStorage
     const tenantId = localStorage.getItem("tenantId");
     
     // Prepare headers with tenantId
-    console.log("🔍 Learner Web App - tenantId from localStorage:", tenantId);
     const headers = {
       "Content-Type": "application/json",
       Accept: "application/json",
       ...(tenantId && { "tenantId": tenantId }),
     };
     
-    console.log("🔍 Learner Web App - Request headers:", headers);
+   
     
     const response = await post(apiUrl, reqBody, headers);
-    console.log("🔍 Learner Web App - createContentTracking response:", response?.data);
     return response?.data;
   } catch (error) {
     console.error("🔍 Learner Web App - createContentTracking error:", error);

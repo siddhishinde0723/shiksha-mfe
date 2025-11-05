@@ -135,6 +135,98 @@ export interface ContentResponse {
   result: ResultProp;
 }
 
+// Helper function to clean filters - remove empty arrays and invalid values
+const cleanFilters = (filters: any): any => {
+  if (!filters || typeof filters !== 'object') {
+    return {};
+  }
+  
+  // List of keys that should NEVER be sent to the search API
+  const excludedKeys = [
+    'objectCategoryDefinition', // This is metadata, not a filter
+    'filterFramework', // Framework data, not a filter
+    'staticFilter', // Static filter metadata, not a filter
+    'objectMetadata', // Metadata object, not a filter
+    'schema', // Schema definition, not a filter
+    'forms', // Form definitions, not a filter
+    'userId', // User-specific tracking filter, not for content search
+    'courseId', // Course-specific tracking filter, not for content search
+  ];
+  
+  const cleaned: any = {};
+  
+  Object.keys(filters).forEach((key) => {
+    // Skip excluded keys
+    if (excludedKeys.includes(key)) {
+      return;
+    }
+    
+    const value = filters[key];
+    
+    // Skip null, undefined, or empty strings
+    if (value === null || value === undefined || value === '') {
+      return;
+    }
+    
+    // Skip if the value is an object with objectCategoryDefinition (nested case)
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      if ('objectCategoryDefinition' in value || 'objectMetadata' in value || 'schema' in value) {
+        // This looks like metadata, skip it
+        return;
+      }
+    }
+    
+    // Handle arrays
+    if (Array.isArray(value)) {
+      // Filter out null, undefined, empty strings, and invalid objects
+      const filteredArray = value.filter((item: any) => {
+        if (item === null || item === undefined || item === '') {
+          return false;
+        }
+        // If it's an object, check if it has valid name or code (and is not metadata)
+        if (typeof item === 'object') {
+          // Skip if it looks like metadata
+          if ('objectCategoryDefinition' in item || 'objectMetadata' in item || 'schema' in item) {
+            return false;
+          }
+          const name = item?.name ?? item?.code ?? '';
+          return name && name.trim() !== '';
+        }
+        // If it's a string, check if it's not empty
+        if (typeof item === 'string') {
+          return item.trim() !== '';
+        }
+        return true;
+      });
+      
+      // Only include non-empty arrays
+      if (filteredArray.length > 0) {
+        // Convert objects to strings (names) if needed
+        cleaned[key] = filteredArray.map((item: any) => {
+          if (typeof item === 'object' && item !== null) {
+            return item?.name ?? item?.code ?? item;
+          }
+          return item;
+        });
+      }
+    } else if (typeof value === 'string' && value.trim() !== '') {
+      // Include non-empty strings
+      cleaned[key] = value;
+    } else if (typeof value === 'object' && value !== null) {
+      // Recursively clean nested objects (but skip metadata objects)
+      const cleanedNested = cleanFilters(value);
+      if (Object.keys(cleanedNested).length > 0) {
+        cleaned[key] = cleanedNested;
+      }
+    } else if (typeof value !== 'object') {
+      // Include other primitive types (numbers, booleans, etc.)
+      cleaned[key] = value;
+    }
+  });
+  
+  return cleaned;
+};
+
 export const ContentSearch = async ({
   type,
   query,
@@ -154,8 +246,53 @@ export const ContentSearch = async ({
     if (!searchApiUrl) {
       throw new Error('Search API URL environment variable is not configured');
     }
-    // Axios request configuration
+    
+    // Clean filters to remove empty arrays and invalid values
+    const cleanedFilters = cleanFilters(filters || {});
+    
+    // Explicitly remove filters that should not be sent to the search API
+    // This prevents previous filter values from affecting the current tab's content
+    delete cleanedFilters.primaryCategory;
+    delete cleanedFilters.userId;
+    delete cleanedFilters.courseId;
+    
+    // Determine primaryCategory based on type
+    // Normalize type to handle variations like "Course", "Courses", etc.
+    const normalizedType = type && typeof type === 'string' 
+      ? type.toLowerCase().trim() 
+      : '';
+    
+    // Check if this is a Course type (tab=0: Course tab)
+    const isCourse = normalizedType === 'course' || normalizedType === 'courses';
+    
+    // Define content categories (excluding "Course")
+    const CONTENT_CATEGORIES = [
+      'Content Playlist',
+      'Digital Textbook',
+      'Question paper',
+      'Course Assessment',
+      'eTextbook',
+      'Explanation Content',
+      'Learning Resource',
+      'Practice Question Set',
+      'Teacher Resource',
+      'Exam Question'
+    ];
+    
+    // For Course tab (tab=0): only "Course" category
+    // For Content tab (tab=1): all content categories (excluding "Course")
+    const primaryCategory = isCourse
+      ? ['Course']
+      : CONTENT_CATEGORIES;
 
+    // Log for debugging (always log in development to help diagnose issues)
+    console.log('🔍 ContentSearch - Type:', type);
+    console.log('🔍 ContentSearch - Normalized Type:', normalizedType);
+    console.log('🔍 ContentSearch - Is Course:', isCourse);
+    console.log('🔍 ContentSearch - PrimaryCategory:', primaryCategory);
+    console.log('🔍 ContentSearch - PrimaryCategory length:', primaryCategory.length);
+    
+    // Axios request configuration
     const data = {
       request: {
         filters: {
@@ -163,12 +300,9 @@ export const ContentSearch = async ({
           // identifier: 'do_1141652605790289921389',
           //need below after login user channel for dynamic load content
           // channel: '0135656861912678406',
-          ...filters,
+          ...cleanedFilters,
           status: ['live'],
-          primaryCategory:
-            type?.toLowerCase() === 'course'
-              ? ['Course']
-              : ['Learning Resource', 'Practice Question Set'],
+          primaryCategory,
           channel: localStorage.getItem('channelId'),
         },
         fields: [
@@ -199,8 +333,22 @@ export const ContentSearch = async ({
     const res = response?.data;
 
     return res;
-  } catch (error) {
-    console.error('Error in ContentSearch:', error);
+  } catch (error: any) {
+    console.error('❌ Error in ContentSearch:', error);
+    // Log request details for debugging
+    if (error?.config?.data) {
+      try {
+        const requestData = typeof error.config.data === 'string' 
+          ? JSON.parse(error.config.data) 
+          : error.config.data;
+        console.error('❌ Request payload:', JSON.stringify(requestData, null, 2));
+      } catch (e) {
+        console.error('❌ Request payload (raw):', error.config.data);
+      }
+    }
+    if (error?.response?.data) {
+      console.error('❌ Error response:', error.response.data);
+    }
     throw error;
   }
 };
@@ -224,13 +372,15 @@ export const CommonContentSearch = async ({
     if (!searchApiUrl) {
       throw new Error('Search API URL environment variable is not configured');
     }
-    // Axios request configuration
-    if (filters && typeof filters === 'object' && 'program' in filters) {
-      // Create a shallow copy to avoid mutating the original filters object
-      // const { program, ...restFilters } = filters as { [key: string]: any };
-      // filters = restFilters;
-      delete filters?.program;
+    // Clean filters to remove empty arrays and invalid values
+    const cleanedFilters = cleanFilters(filters || {});
+    
+    // Remove program filter if it exists (as per original logic)
+    if ('program' in cleanedFilters) {
+      delete cleanedFilters.program;
     }
+    
+    // Axios request configuration
     const data = {
       request: {
         filters: {
@@ -239,7 +389,7 @@ export const CommonContentSearch = async ({
           //need below after login user channel for dynamic load content
           // channel: '0135656861912678406',
           primaryCategory:['Course'],
-          ...filters,
+          ...cleanedFilters,
           status: ['live'],
         
           channel: localStorage.getItem('channelId'),

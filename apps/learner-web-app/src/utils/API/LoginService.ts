@@ -62,12 +62,9 @@ export const getUserId = async (): Promise<any> => {
   try {
     const token = localStorage.getItem('token');
     if (!token) {
-      console.log('❌ No token found in localStorage');
       throw new Error('Authorization token not found');
     }
 
-    console.log('🔍 Calling getUserId API:', apiUrl);
-    console.log('🔑 Using token:', token.substring(0, 20) + '...');
 
     const response = await axios.get(apiUrl, {
       headers: {
@@ -87,7 +84,6 @@ export const getUserId = async (): Promise<any> => {
     });
 
     if (error?.response?.status === 401) {
-      console.log('🚨 401 Unauthorized - clearing data and redirecting to login');
       // Clear all localStorage data
       localStorage.clear();
       // Clear sessionStorage as well

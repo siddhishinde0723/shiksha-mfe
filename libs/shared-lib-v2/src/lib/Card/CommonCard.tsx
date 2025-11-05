@@ -155,7 +155,6 @@ export const CommonCard: React.FC<CommonCardProps> = ({
 }) => {
   const [statusBar, setStatusBar] = React.useState<StatuPorps>();
   const { t } = useTranslation();
-  console.log("TrackData", TrackData);
   React.useEffect(() => {
     const init = () => {
       try {

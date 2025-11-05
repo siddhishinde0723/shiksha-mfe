@@ -33,6 +33,15 @@ const MyComponent: React.FC = () => {
   const [isLogin, setIsLogin] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isProfileCard, setIsProfileCard] = useState(false);
+  const [filterFramework, setFilterFramework] = useState<any>(null);
+  const [staticFilter, setStaticFilter] = useState<any>(null);
+  const [dynamicFilterFields, setDynamicFilterFields] = useState<{
+    onlyFields: string[];
+    isOpenColapsed: string[];
+  }>({
+    onlyFields: [],
+    isOpenColapsed: [],
+  });
   const storedConfig =
     typeof window !== "undefined"
       ? JSON.parse(localStorage.getItem("uiConfig") || "{}")
@@ -73,13 +82,95 @@ const MyComponent: React.FC = () => {
         const storedCollectionFramework = localStorage.getItem(
           "collectionFramework"
         );
-        if (!storedCollectionFramework) {
-          const collectionFramework =
-            youthnetContentFilter?.collectionFramework;
-          if (collectionFramework) {
-            localStorage.setItem("collectionFramework", collectionFramework);
+        const collectionFramework =
+          storedCollectionFramework ||
+          youthnetContentFilter?.collectionFramework;
+        if (collectionFramework && !storedCollectionFramework) {
+          localStorage.setItem("collectionFramework", collectionFramework);
+        }
+
+        const channelId =
+          localStorage.getItem("channelId") ||
+          youthnetContentFilter?.channelId;
+
+        // Fetch framework data for dynamic filters
+        if (collectionFramework) {
+          try {
+            // Dynamically import lazy-loaded libraries
+            const { filterContent, staticFilterContent } = await import(
+              "@shared-lib-v2/utils/AuthService"
+            );
+            const { transformRenderForm } = await import(
+              "@shared-lib-v2/lib/Filter/FilterForm"
+            );
+
+            const [frameworkData, staticData] = await Promise.all([
+              filterContent({ instantId: collectionFramework }),
+              channelId
+                ? staticFilterContent({ instantFramework: channelId })
+                : null,
+            ]);
+
+            // Filter out invalid terms with template placeholders
+            const cleanedFrameworkData = {
+              ...frameworkData,
+              framework: {
+                ...frameworkData?.framework,
+                categories:
+                  frameworkData?.framework?.categories?.map(
+                    (category: any) => {
+                      const originalTerms = category.terms || [];
+                      const filteredTerms = originalTerms.filter(
+                        (term: any) => {
+                          const hasTemplate =
+                            term.code?.includes("{{") ||
+                            term.name?.includes("{{");
+                          const isLive = term.status === "Live";
+                          const isValid = !hasTemplate && isLive;
+
+                          return isValid;
+                        }
+                      );
+
+                      return {
+                        ...category,
+                        terms: filteredTerms,
+                      };
+                    }
+                  ) || [],
+              },
+            };
+
+            setFilterFramework(cleanedFrameworkData);
+            setStaticFilter(staticData);
+
+            // Extract categories and transform to filter field codes
+            const categories =
+              cleanedFrameworkData?.framework?.categories ?? [];
+            const transformedFields = transformRenderForm(categories);
+
+            // Generate onlyFields and isOpenColapsed dynamically from framework categories
+            const onlyFields = transformedFields.map(
+              (field: any) => field.code
+            );
+            // Also include contentLanguage if it exists (static filter)
+            if (!onlyFields.includes("contentLanguage")) {
+              onlyFields.push("contentLanguage");
+            }
+
+            setDynamicFilterFields({
+              onlyFields,
+              isOpenColapsed: onlyFields, // Open all filters by default
+            });
+
+          
+          } catch (error) {
+            console.error("Error fetching framework data:", error);
+            // Don't set fallback - let it be empty, framework will be fetched eventually
+            // If framework fetch fails, onlyFields will be empty and FilterForm will show all available fields
           }
         }
+
         setTimeout(() => {
           setFilter({ filters: youthnetContentFilter?.contentFilter });
           localStorage.setItem(
@@ -160,20 +251,11 @@ const MyComponent: React.FC = () => {
               }
               _content={{
                 pageName: "L1_Content",
-                onlyFields: ["contentLanguage", "se_subDomains", "se_subjects"],
-                isOpenColapsed: [
-                  "contentLanguage",
-                  "se_subDomains",
-                  "se_subjects",
-                ],
-                ...(Array.isArray(storedConfig.showContent) &&
-                storedConfig.showContent.length === 2 &&
-                storedConfig.showContent.includes("courses") &&
-                storedConfig.showContent.includes("contents")
-                  ? { contentTabs: ["courses", "content"] }
-                  : {}),
-
+                onlyFields: dynamicFilterFields.onlyFields, // Always use dynamic fields from framework
+                isOpenColapsed: dynamicFilterFields.isOpenColapsed, // Always use dynamic collapse state
+                filterFramework: filterFramework,
                 staticFilter: {
+                  ...(staticFilter || {}),
                   se_domains:
                     typeof filter.filters?.domain === "string"
                       ? [filter.filters?.domain]
@@ -183,6 +265,12 @@ const MyComponent: React.FC = () => {
                       ? [filter.filters?.program]
                       : filter.filters?.program,
                 },
+                ...(Array.isArray(storedConfig.showContent) &&
+                storedConfig.showContent.length === 2 &&
+                storedConfig.showContent.includes("courses") &&
+                storedConfig.showContent.includes("contents")
+                  ? { contentTabs: ["courses", "content"] }
+                  : {}),
               }}
             />
           )}

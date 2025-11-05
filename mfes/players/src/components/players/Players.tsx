@@ -258,10 +258,7 @@ const SunbirdPlayers = ({
 
   switch (mimeType) {
     case "application/pdf":
-      console.log("🔍 Routing to PDF Player");
-      console.log("🔍 PDF Player userId:", userId);
-      console.log("🔍 PDF Player courseId:", courseId);
-      console.log("🔍 PDF Player unitId:", unitId);
+     
       return (
         <SunbirdPdfPlayer
           playerConfig={playerConfig}

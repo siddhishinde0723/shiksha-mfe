@@ -16,7 +16,7 @@ const WelcomeScreen = () => {
 
   return (
     <Box
-      minHeight="100vh"
+   
       display="flex"
       flexDirection="column"
       alignItems="center"

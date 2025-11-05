@@ -44,7 +44,6 @@ export const createContentTracking = async (reqBody: ContentCreate) => {
       ...(tenantId && { "tenantId": tenantId }),
     };
     
-    console.log("🔍 Teacher Repo - createContentTracking headers:", headers);
     
     const response = await post(apiUrl, reqBody, headers);
     return response?.data;

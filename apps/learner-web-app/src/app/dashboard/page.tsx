@@ -26,6 +26,13 @@ const DashboardPage = () => {
   const [storedConfig, setStoredConfig] = useState({});
   const [firstName, setFirstName] = useState("");
   const [userProgram, setUserProgram] = useState("");
+  const [dynamicFilterFields, setDynamicFilterFields] = useState<{
+    onlyFields: string[];
+    isOpenColapsed: string[];
+  }>({
+    onlyFields: [],
+    isOpenColapsed: [],
+  });
   const hasInitialized = useRef(false);
 
   useEffect(() => {
@@ -100,9 +107,14 @@ const DashboardPage = () => {
         let staticFilter = null;
 
         try {
+          const storedCollectionFramework = localStorage.getItem(
+            "collectionFramework"
+          );
           const collectionFramework =
+            storedCollectionFramework ||
             youthnetContentFilter?.collectionFramework;
-          const channelId = youthnetContentFilter?.channelId;
+          const storedChannelId = localStorage.getItem("channelId");
+          const channelId = storedChannelId || youthnetContentFilter?.channelId;
 
           if (collectionFramework) {
             const { filterContent, staticFilterContent } = await import(
@@ -131,17 +143,13 @@ const DashboardPage = () => {
                       const isValid = !hasTemplate && isLive;
 
                       if (!isValid) {
-                        console.log(
-                          `🚫 Filtering out term: ${term.name} (${term.code}) - Template: ${hasTemplate}, Live: ${isLive}`
-                        );
+                      
                       }
 
                       return isValid;
                     });
 
-                    console.log(
-                      `🔍 Category ${category.name}: ${originalTerms.length} original terms, ${filteredTerms.length} filtered terms`
-                    );
+                   
 
                     return {
                       ...category,
@@ -154,34 +162,40 @@ const DashboardPage = () => {
             filterFramework = cleanedFrameworkData;
             staticFilter = staticData;
 
+            // Extract categories and transform to filter field codes
+            const { transformRenderForm } = await import(
+              "@shared-lib-v2/lib/Filter/FilterForm"
+            );
+            const categories =
+              cleanedFrameworkData?.framework?.categories ?? [];
+            const transformedFields = transformRenderForm(categories);
+
+            // Generate onlyFields and isOpenColapsed dynamically from framework categories
+            const onlyFields = transformedFields.map(
+              (field: any) => field.code
+            );
+            // Also include contentLanguage if it exists (static filter)
+            if (!onlyFields.includes("contentLanguage")) {
+              onlyFields.push("contentLanguage");
+            }
+
+            setDynamicFilterFields({
+              onlyFields,
+              isOpenColapsed: onlyFields, // Open all filters by default
+            });
+
             // Debug: Log framework data
-            console.log("🔍 Dashboard - Framework Data:", frameworkData);
-            console.log(
-              "🔍 Dashboard - Framework Categories:",
-              frameworkData?.framework?.categories
-            );
-            console.log(
-              "🔍 Dashboard - Framework Name:",
-              (frameworkData?.framework as any)?.name
-            );
-            console.log("🔍 Dashboard - Static Data:", staticData);
+         
+          
 
             // Log each category with its terms
             if (frameworkData?.framework?.categories) {
               frameworkData.framework.categories.forEach(
                 (category: any, index: number) => {
-                  console.log(
-                    `🔍 Dashboard Category ${index + 1}: ${category.name} (${
-                      category.code
-                    }) - ${category.terms?.length || 0} terms`
-                  );
+                
                   if (category.terms) {
                     category.terms.forEach((term: any, termIndex: number) => {
-                      console.log(
-                        `  📝 Dashboard Term ${termIndex + 1}: ${term.name} (${
-                          term.code
-                        })`
-                      );
+                   
                     });
                   }
                 }
@@ -190,6 +204,8 @@ const DashboardPage = () => {
           }
         } catch (error) {
           console.error("Error fetching framework data:", error);
+          // Don't set fallback - let it be empty, framework will be fetched eventually
+          // If framework fetch fails, onlyFields will be empty and FilterForm will show all available fields
         }
 
         setFilter({
@@ -310,15 +326,8 @@ const DashboardPage = () => {
                 isLoading={false}
                 _content={{
                   pageName: "L1_Content",
-                  onlyFields: [
-                    "se_boards",
-                    "se_mediums",
-                    "se_gradeLevels",
-                    "se_subjects",
-                    "contentLanguage",
-                    "se_subDomains",
-                  ],
-                  isOpenColapsed: [], // Start collapsed - users can expand when needed
+                  onlyFields: dynamicFilterFields.onlyFields, // Always use dynamic fields from framework
+                  isOpenColapsed: dynamicFilterFields.isOpenColapsed, // Always use dynamic collapse state
                   // Fix: Only spread if showContent exists and is an array
                   ...(Array.isArray((storedConfig as any).showContent) &&
                   (storedConfig as any).showContent.length === 2 &&

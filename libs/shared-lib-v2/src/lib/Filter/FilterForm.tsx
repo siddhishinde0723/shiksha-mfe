@@ -130,9 +130,48 @@ export function FilterForm({
         props,
         transformedRenderForm.map((r) => r.name)
       );
+      
+      // Filter out static fields that have no valid options/range
+      const validStaticFields = (filtered[0]?.fields ?? [])
+        .map((field: any) => {
+          const options = field.options ?? field.range ?? [];
+          // Filter out invalid options
+          const validOptions = options.filter((option: any) => {
+            const hasTemplate =
+              option.name?.includes('{{') ||
+              option.name?.includes('}}') ||
+              option.code?.includes('{{') ||
+              option.code?.includes('}}');
+            const hasValidName = option.name && option.name.trim() !== '';
+            const hasValidCode = option.code && option.code.trim() !== '';
+            
+            return !hasTemplate && hasValidName && hasValidCode;
+          });
+          
+          // Update the field with only valid options
+          if (field.options) {
+            return { ...field, options: validOptions };
+          } else if (field.range) {
+            return { ...field, range: validOptions };
+          }
+          return field;
+        })
+        .filter((field: any) => {
+          const options = field.options ?? field.range ?? [];
+          const hasValidOptions = options.length > 0;
+          
+          if (!hasValidOptions && (field.options || field.range)) {
+            console.log(`"${field.name}" (${field.code}) - No valid options`);
+          }
+          
+          // If the field has options/range, only include if it has valid options
+          // If it has no options/range (like static values), include it
+          return !field.options && !field.range || hasValidOptions;
+        });
+      
       const allFields = [
         ...transformedRenderForm,
-        ...(filtered[0]?.fields ?? []),
+        ...validStaticFields,
       ];
 
       setFilterData(allFields);
@@ -221,12 +260,48 @@ export function FilterForm({
 const formatPayload = (payload: any) => {
   const formattedPayload: any = {};
   Object.keys(payload).forEach((key) => {
-    if (Array.isArray(payload[key])) {
-      formattedPayload[key] = payload[key].map(
-        (item: any) => item?.name ?? item
-      );
-    } else {
-      formattedPayload[key] = payload[key];
+    const value = payload[key];
+    
+    // Skip null, undefined, or empty values
+    if (value === null || value === undefined) {
+      return;
+    }
+    
+    if (Array.isArray(value)) {
+      // Filter out null/undefined items and empty strings, then map to names/strings
+      const filteredArray = value
+        .filter((item: any) => {
+          // Keep items that are not null/undefined and have a valid name/code
+          if (item === null || item === undefined) return false;
+          if (typeof item === 'string') return item.trim() !== '';
+          if (typeof item === 'object') {
+            const name = item?.name ?? item?.code ?? '';
+            return name && name.trim() !== '';
+          }
+          return true;
+        })
+        .map((item: any) => {
+          // Convert to string (name or code or the item itself if it's already a string)
+          if (typeof item === 'string') return item;
+          if (typeof item === 'object') return item?.name ?? item?.code ?? item;
+          return String(item);
+        });
+      
+      // Only include non-empty arrays
+      if (filteredArray.length > 0) {
+        formattedPayload[key] = filteredArray;
+      }
+    } else if (typeof value === 'string' && value.trim() !== '') {
+      // Include non-empty strings
+      formattedPayload[key] = value;
+    } else if (typeof value === 'object' && value !== null) {
+      // Include non-null objects (but filter out empty objects)
+      if (Object.keys(value).length > 0) {
+        formattedPayload[key] = value;
+      }
+    } else if (typeof value !== 'object') {
+      // Include other primitive types (numbers, booleans, etc.)
+      formattedPayload[key] = value;
     }
   });
   return formattedPayload;
@@ -247,12 +322,31 @@ function filterObjectsWithSourceCategory(data: any[], filteredNames: string[]) {
 export function transformRenderForm(categories: any[]) {
   return categories
     .sort((a, b) => a.index - b.index)
-    .map((category) => ({
-      name: category.name,
-      code: `se_${category.code}s`,
-      old_code: category.code,
-      options: category.terms
-        .sort((a: any, b: any) => a.index - b.index)
+    .map((category) => {
+      // Filter out invalid terms (with template placeholders, empty names, etc.)
+      const validTerms = (category.terms || [])
+        .filter((term: any) => {
+          const hasTemplate =
+            term.code?.includes('{{') ||
+            term.name?.includes('{{') ||
+            term.code?.includes('}}') ||
+            term.name?.includes('}}');
+          const hasValidName = term.name && term.name.trim() !== '';
+          const hasValidCode = term.code && term.code.trim() !== '';
+          const isLive = term.status === 'Live' || term.status === undefined || term.status === null;
+          
+          return !hasTemplate && hasValidName && hasValidCode && isLive;
+        })
+        .sort((a: any, b: any) => {
+          // First sort by index if available
+          if (a.index !== undefined && b.index !== undefined && a.index !== b.index) {
+            return a.index - b.index;
+          }
+          // Then sort alphabetically by name
+          const nameA = (a.name || "").toLowerCase().trim();
+          const nameB = (b.name || "").toLowerCase().trim();
+          return nameA.localeCompare(nameB);
+        })
         .map((term: any) => ({
           code: term.code,
           name: term.name,
@@ -263,9 +357,24 @@ export function transformRenderForm(categories: any[]) {
               g[assoc.category].push(assoc);
               return g;
             }, {}) || {},
-        })),
-      index: category.index,
-    }));
+        }));
+      
+      return {
+        name: category.name,
+        code: `se_${category.code}s`,
+        old_code: category.code,
+        options: validTerms,
+        index: category.index,
+      };
+    })
+    .filter((category) => {
+      // Only include categories that have at least one valid term
+      const hasValidOptions = category.options && category.options.length > 0;
+      if (!hasValidOptions) {
+        console.log(`🔍 transformRenderForm - Skipping category "${category.name}" (${category.code}) - No valid terms`);
+      }
+      return hasValidOptions;
+    });
 }
 
 function replaceOptionsWithAssoc({
@@ -330,7 +439,13 @@ function replaceOptionsWithAssoc({
           );
         }
         if (nextFilterIndex !== -1) {
-          updatedFilters[nextFilterIndex].options = assocOptions;
+          // Sort associated options alphabetically by name
+          const sortedAssocOptions = [...assocOptions].sort((a: any, b: any) => {
+            const nameA = (a.name || "").toLowerCase().trim();
+            const nameB = (b.name || "").toLowerCase().trim();
+            return nameA.localeCompare(nameB);
+          });
+          updatedFilters[nextFilterIndex].options = sortedAssocOptions;
         }
       });
     }
@@ -390,12 +505,24 @@ const FilterSection: React.FC<FilterSectionProps> = ({
           return isValid;
         });
         
-        const optionsToShow = filteredValues; // Show all filtered options without limiting to 5
+        // Skip rendering if there are no valid options after filtering
+        if (filteredValues.length === 0) {
+          return null;
+        }
+        
+        // Sort options alphabetically by name
+        const sortedValues = [...filteredValues].sort((a: any, b: any) => {
+          const nameA = (a.name || "").toLowerCase().trim();
+          const nameB = (b.name || "").toLowerCase().trim();
+          return nameA.localeCompare(nameB);
+        });
+        
+        const optionsToShow = sortedValues; // Show all filtered options sorted alphabetically
         
         // Debug logging for GradeLevel specifically
         if (code?.toLowerCase().includes('gradelevel') || field.name?.toLowerCase().includes('grade')) {
-          console.log(`🎯 GradeLevel Filter - Original: ${values.length} options, Filtered: ${filteredValues.length} options`);
-          console.log(`🎯 GradeLevel Options:`, filteredValues.map((v: any) => v.name));
+          console.log(`${values.length} options, Filtered: ${filteredValues.length} options`);
+          console.log( filteredValues.map((v: any) => v.name));
         }
         const staticValues = Array.isArray(staticFormData?.[code])
           ? staticFormData[code]
@@ -517,7 +644,11 @@ const FilterSection: React.FC<FilterSectionProps> = ({
                         )?.name ?? selectedVals
                   }
                 >
-                  {values.map((item: any) => (
+                  {[...values].sort((a: any, b: any) => {
+                    const nameA = (a.name || "").toLowerCase().trim();
+                    const nameB = (b.name || "").toLowerCase().trim();
+                    return nameA.localeCompare(nameB);
+                  }).map((item: any) => (
                     <MenuItem
                       key={item.code ?? item.name ?? item}
                       value={item.code ?? item.name ?? item}

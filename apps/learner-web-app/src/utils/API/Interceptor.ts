@@ -59,11 +59,7 @@ instance.interceptors.response.use(
 
     // Log 401 errors for debugging
     if (error?.response?.status === 401) {
-      console.log('🚨 401 Unauthorized error detected:', {
-        url: originalRequest?.url,
-        status: error?.response?.status,
-        data: error?.response?.data
-      });
+    
     }
 
     if (
@@ -72,7 +68,6 @@ instance.interceptors.response.use(
     ) {
       // Don't try to refresh token for /user/auth endpoint - let getUserId handle it
       if (error?.response?.request?.responseURL.includes('/user/auth')) {
-        console.log('🚨 401 on /user/auth - letting getUserId handle the redirect');
         return Promise.reject(error);
       }
       
@@ -83,7 +78,6 @@ instance.interceptors.response.use(
         try {
           const accessToken = await refreshToken();
           if (!accessToken) {
-            console.log('No access token available, redirecting to logout');
             window.location.href = '/logout';
             return Promise.reject(error);
           } else {
@@ -91,7 +85,6 @@ instance.interceptors.response.use(
             return instance(originalRequest);
           }
         } catch (refreshError) {
-          console.log('Token refresh failed, redirecting to logout');
           window.location.href = '/logout';
           return Promise.reject(refreshError);
         }

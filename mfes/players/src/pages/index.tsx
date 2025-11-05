@@ -42,45 +42,31 @@ const Players: React.FC<SunbirdPlayerProps> = ({
   // Get all query params once router is ready
   useEffect(() => {
     if (router.isReady) {
-      console.log("🔍 Router query params:", router.query);
-      console.log("🔍 All query keys:", Object.keys(router.query));
+     
       const queryUserId = router.query.userId as string;
       const queryTenantId = router.query.tenantId as string;
-      console.log("🔍 Query userId from URL:", queryUserId);
-      console.log("🔍 Query tenantId from URL:", queryTenantId);
-      console.log("🔍 Players MFE - localStorage userId:", localStorage.getItem("userId"));
-      console.log("🔍 Players MFE - localStorage tenantId:", localStorage.getItem("tenantId"));
-      console.log("🔍 Players MFE - localStorage token:", localStorage.getItem("token"));
-      console.log("🔍 Players MFE - All localStorage keys:", Object.keys(localStorage));
+     
       
       if (queryUserId) {
         setUserId(queryUserId);
-        console.log("🔍 Set userId from URL parameter:", queryUserId);
       } else {
         // Fallback to other sources if not in query params
         const storedUserId = localStorage.getItem("userId") || "";
-        console.log("🔍 Fallback to localStorage userId:", storedUserId);
         setUserId(storedUserId);
       }
 
       // Handle tenantId from URL parameters
       if (queryTenantId) {
         localStorage.setItem("tenantId", queryTenantId);
-        console.log("🔍 Set tenantId from URL parameter:", queryTenantId);
-        console.log("🔍 tenantId now in localStorage:", localStorage.getItem("tenantId"));
       } else {
         // Check if tenantId already exists in localStorage
         const storedTenantId = localStorage.getItem("tenantId");
-        console.log("🔍 Existing tenantId in localStorage:", storedTenantId);
         if (!storedTenantId) {
           console.warn("❌ No tenantId found in URL parameters or localStorage!");
         }
       }
     }
   }, [router.isReady, router.query.userId, router.query.tenantId]);
-  console.log("🔍 Final userId in Players component:", userId);
-  console.log("🚨🚨🚨 PLAYERS MFE INDEX PAGE LOADED - NEW VERSION 🚨🚨🚨");
-  console.log("🚨🚨🚨 IF YOU SEE THIS, THE PLAYERS MFE IS WORKING 🚨🚨🚨");
   useEffect(() => {
     if (playerConfig || !identifier) return;
 

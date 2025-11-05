@@ -212,7 +212,6 @@ const RenderCategories = React.memo(
     const componentKey = `multi-checkbox-label_${categories?.identifier}`;
     
     // Debug: Log original terms
-    console.log(`🔍 FilterForm - Category ${categories?.name} (${categories?.code}) original terms:`, categories?.terms);
     
     // Aggressive filtering for template placeholders and invalid terms
     const filteredTerms = categories?.terms?.filter((term: any) => {
@@ -238,7 +237,6 @@ const RenderCategories = React.memo(
       return isValid;
     }) || [];
     
-    console.log(`🔍 FilterForm - Category ${categories?.name} filtered terms:`, filteredTerms);
     
     const options = filteredTerms.map((term: any) => ({
       label: term.name,
@@ -250,11 +248,9 @@ const RenderCategories = React.memo(
 
     // Skip rendering if no valid terms
     if (filteredTerms.length === 0) {
-      console.log(`🔍 FilterForm - Skipping category ${categories?.name} (${categories?.code}) - no valid terms`);
       return null;
     }
 
-    console.log(`🔍 FilterForm - Rendering category ${categories?.name} (${categories?.code}) with ${filteredTerms.length} valid terms`);
 
     return (
       <FormControl

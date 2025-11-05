@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable @nx/enforce-module-boundaries */
 "use client";
 
@@ -255,31 +256,16 @@ export default function Content(props: Readonly<ContentProps>) {
           setStaticFilter(staticData);
 
           // Debug: Log framework data
-          console.log("🔍 Content MFE - Framework Data:", frameworkData);
-          console.log(
-            "🔍 Content MFE - Framework Categories:",
-            frameworkData?.framework?.categories
-          );
-          console.log(
-            "🔍 Content MFE - Framework Name:",
-            (frameworkData?.framework as any)?.name
-          );
-          console.log("🔍 Content MFE - Static Data:", staticData);
+        
 
           // Log each category with its terms
           if (frameworkData?.framework?.categories) {
             frameworkData.framework.categories.forEach(
               (category: any, index: number) => {
-                console.log(
-                  `🔍 Category ${index + 1}: ${category.name} (${
-                    category.code
-                  }) - ${category.terms?.length || 0} terms`
-                );
+             
                 if (category.terms) {
                   category.terms.forEach((term: any, termIndex: number) => {
-                    console.log(
-                      `  📝 Term ${termIndex + 1}: ${term.name} (${term.code})`
-                    );
+                 
                   });
                 }
               }
@@ -337,7 +323,26 @@ export default function Content(props: Readonly<ContentProps>) {
       const QuestionSet: any[] = [];
       let count = 0;
 
-      if (!filter.type) {
+      // Determine type - prioritize activeTab prop to ensure correct primaryCategory
+      // Tab 0 (Course): activeTab="Course" → type="Course" → primaryCategory=["Course"]
+      // Tab 1 (Content): activeTab="content" → type="Learning Resource" → primaryCategory=[all content categories]
+      let determinedType: string | undefined;
+      
+      if (props.activeTab === "Course") {
+        determinedType = "Course";
+      } else if (props.activeTab && props.activeTab !== "Course") {
+        determinedType = "Learning Resource";
+      } else {
+        // Fallback to filter.type or tab-based determination
+        determinedType = filter.type || 
+          (tabs[tabValue]?.type) || 
+          (tabs[tabValue]?.label === "Courses" || tabs[tabValue]?.label === "Course"
+            ? "Course"
+            : "Learning Resource");
+      }
+
+      if (!determinedType) {
+        console.warn('⚠️ fetchAllContent - No type determined, skipping fetch');
         return { content, QuestionSet, count };
       }
 
@@ -350,11 +355,22 @@ export default function Content(props: Readonly<ContentProps>) {
         : filter.limit;
       const adjustedOffset = filter.loadOld ? 0 : filter.offset;
 
+      // Extract type and filters separately to ensure type is passed correctly
+      const { type, filters: filterFilters, query: filterQuery, ...restFilter } = filter;
+      
+      // Log for debugging
+      console.log('🔍 fetchAllContent - props.activeTab:', props.activeTab);
+      console.log('🔍 fetchAllContent - filter.type:', filter.type);
+      console.log('🔍 fetchAllContent - tabValue:', tabValue);
+      console.log('🔍 fetchAllContent - tabs[tabValue]:', tabs[tabValue]);
+      console.log('🔍 fetchAllContent - determinedType:', determinedType);
+      
       const resultResponse = await ContentSearch({
-        ...filter,
+        type: determinedType, // Use the determined type
+        query: filterQuery || filter.query,
+        filters: filterFilters || filter.filters,
         offset: adjustedOffset,
         limit: adjustedLimit,
-        type: filter.type, // Use the filter type instead of props.contentTabs
       });
       if (resultResponse?.result?.count) {
         setTotalCount(resultResponse?.result?.count);
@@ -375,7 +391,7 @@ export default function Content(props: Readonly<ContentProps>) {
         count,
       };
     },
-    [props?._config]
+    [props?._config, props.activeTab, tabs, tabValue]
   );
 
   // Memoized track data fetching
@@ -553,22 +569,24 @@ export default function Content(props: Readonly<ContentProps>) {
   const handleLoadMore = useCallback(
     (event: React.MouseEvent) => {
       event.preventDefault();
-      const type =
-        tabs[tabValue]?.label === "Course"
-          ? ["Course"]
-          : ["Learning Resource", "Practice Question Set"];
+      // Use the type from the tab object, or fallback to checking the label
+      const type = tabs[tabValue]?.type || 
+        (tabs[tabValue]?.label === "Courses" || tabs[tabValue]?.label === "Course"
+          ? "Course"
+          : "Learning Resource");
+      
+    
       handleSetFilters({
         ...localFilters,
         offset: localFilters.offset + localFilters.limit,
         type,
       });
     },
-    [handleSetFilters, localFilters]
+    [handleSetFilters, localFilters, tabs, tabValue]
   );
 
   // UI Handlers
   const handleSearchClick = useCallback(() => {
-    console.log("🔍 Search clicked with value:", searchValue);
     sessionStorage.setItem(sessionKeys.search, searchValue);
     handleSetFilters((prev: any) => ({
       ...prev,
@@ -726,9 +744,7 @@ export default function Content(props: Readonly<ContentProps>) {
               <Button
                 variant="outlined"
                 onClick={() => {
-                  console.log("🔍 Filter button clicked!");
-                  console.log("🔍 Current filterFramework:", filterFramework);
-                  console.log("🔍 Current staticFilter:", staticFilter);
+                
                   setFilterShow(true);
                 }}
               >

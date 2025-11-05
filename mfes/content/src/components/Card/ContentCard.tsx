@@ -47,14 +47,6 @@ const ContentCard = ({
       default_img) ??
     `${AppConst.BASEPATH}/assests/images/image_ver.png`;
 
-  console.log("📋 ContentCard - Item data:", {
-    name: item?.name,
-    posterImage: item?.posterImage,
-    appIcon: item?.appIcon,
-    appicon: item?.appicon,
-    type,
-  });
-
   return (
     <CardWrap isWrap={isWrap && type === "Course"} _card={_card}>
       <CommonCard

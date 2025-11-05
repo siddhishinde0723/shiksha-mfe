@@ -42,16 +42,13 @@ export const processImageUrl = (
  * @returns Transformed image URL or fallback to logo.png
  */
 export const transformImageUrl = (imageUrl: string): string => {
-  console.log("🔄 transformImageUrl (content MFE) - Input:", imageUrl);
   if (!imageUrl) {
     console.log(
-      "🔄 transformImageUrl (content MFE) - No imageUrl, returning fallback"
     );
     return "/logo.png";
   }
 
   if (imageUrl.includes("https://sunbirdsaaspublic.blob.core.windows.net")) {
-    console.log("🔄 transformImageUrl (content MFE) - Azure URL detected");
 
     // Handle double domain pattern
     if (
@@ -59,9 +56,7 @@ export const transformImageUrl = (imageUrl: string): string => {
         "https://sunbirdsaaspublic.blob.core.windows.net/https://sunbirdsaaspublic.blob.core.windows.net"
       )
     ) {
-      console.log(
-        "🔄 transformImageUrl (content MFE) - Double domain pattern detected"
-      );
+     
       // Extract everything after the second domain
       const urlParts = imageUrl.split(
         "https://sunbirdsaaspublic.blob.core.windows.net/https://sunbirdsaaspublic.blob.core.windows.net/"
@@ -80,15 +75,11 @@ export const transformImageUrl = (imageUrl: string): string => {
         );
         // Transform to AWS S3 URL with the new pattern
         const transformedUrl = `https://s3.ap-south-1.amazonaws.com/saas-prod/content/${cleanPath}`;
-        console.log(
-          "🔄 transformImageUrl (content MFE) - Double domain transformed:",
-          transformedUrl
-        );
+       
         return transformedUrl;
       }
     } else {
       console.log(
-        "🔄 transformImageUrl (content MFE) - Single domain pattern detected"
       );
       // Handle single domain pattern
       const urlParts = imageUrl.split(
@@ -105,19 +96,13 @@ export const transformImageUrl = (imageUrl: string): string => {
         );
         // Transform to AWS S3 URL with the new pattern
         const transformedUrl = `https://s3.ap-south-1.amazonaws.com/saas-prod/content/${cleanPath}`;
-        console.log(
-          "🔄 transformImageUrl (content MFE) - Single domain transformed:",
-          transformedUrl
-        );
+      
         return transformedUrl;
       }
     }
   }
 
-  console.log(
-    "🔄 transformImageUrl (content MFE) - No transformation needed, returning original:",
-    imageUrl
-  );
+
   return imageUrl;
 };
 
@@ -128,18 +113,14 @@ export const transformImageUrl = (imageUrl: string): string => {
  * @returns The best available image URL
  */
 export const getBestImageUrl = (item?: any, baseUrl?: string): string => {
-  console.log("🔍 getBestImageUrl - Input:", { item, baseUrl });
   if (!item) {
-    console.log("🔍 getBestImageUrl - No item, returning empty string");
     return "";
   }
 
   // Try posterImage first
   if (item.posterImage) {
-    console.log("🔍 getBestImageUrl - Found posterImage:", item.posterImage);
     const transformedUrl = transformImageUrl(item.posterImage);
     const processedUrl = processImageUrl(transformedUrl, baseUrl);
-    console.log("🔍 getBestImageUrl - posterImage processed:", processedUrl);
     if (processedUrl) {
       return processedUrl;
     }
@@ -147,24 +128,19 @@ export const getBestImageUrl = (item?: any, baseUrl?: string): string => {
 
   // Try appIcon as fallback
   if (item.appIcon) {
-    console.log("🔍 getBestImageUrl - Found appIcon:", item.appIcon);
     const transformedUrl = transformImageUrl(item.appIcon);
     const processedUrl = processImageUrl(transformedUrl, baseUrl);
-    console.log("🔍 getBestImageUrl - appIcon processed:", processedUrl);
     if (processedUrl) {
       return processedUrl;
     }
   }
   if (item.appicon) {
-    console.log("🔍 getBestImageUrl - Found appicon:", item.appicon);
     const transformedUrl = transformImageUrl(item.appicon);
     const processedUrl = processImageUrl(transformedUrl, baseUrl);
-    console.log("🔍 getBestImageUrl - appicon processed:", processedUrl);
     if (processedUrl) {
       return processedUrl;
     }
   }
   // Return fallback image if no image found
-  console.log("🔍 getBestImageUrl - No image found, returning fallback");
   return "/logo.png";
 };

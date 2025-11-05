@@ -185,8 +185,31 @@
       "EXPLORE_ADDITIONAL_COURSES": "Explore Additional Courses"
     },
     "HOME": {
-      "WELCOME_TITLE": "Welcome to Swadhaar Finaccess",
+      "WELCOME_TITLE": "Welcome to Shiksha",
       "WELCOME_SUBTITLE": "Your Learning Journey begins here",
+      "MAIN_DESCRIPTION": "Learn simple, practical finance skills in your language, at your own pace",
+      "PLATFORM_DESCRIPTION": "A comprehensive platform enabling learning, capacity building, professional development, and content distribution solutions. Applicable across Education, Agriculture, Healthcare, and more.",
+      "LOGO_ALT": "Swadhaar Finaccess Logo",
+      "OUR_SOLUTIONS_TITLE": "Our Solutions",
+      "OUR_SOLUTIONS_DESC": "Empowering learning and development across multiple domains with our comprehensive platform",
+      "FEATURES": {
+        "EDUCATION": {
+          "TITLE": "Education",
+          "DESCRIPTION": "Learning solutions for institutions"
+        },
+        "AGRICULTURE": {
+          "TITLE": "Agriculture",
+          "DESCRIPTION": "Farmer capacity building"
+        },
+        "HEALTHCARE": {
+          "TITLE": "Healthcare",
+          "DESCRIPTION": "Professional development"
+        },
+        "ALL_DOMAINS": {
+          "TITLE": "All Domains",
+          "DESCRIPTION": "Custom learning solutions"
+        }
+      },
       "SIGN_UP_BUTTON": "Sign Up for Program Now!",
       "ALREADY_SIGNED_UP": "Already signed up?",
       "LOGIN_LINK": "Click here to login",
@@ -201,7 +224,7 @@
       "SIGN_IN": "Sign In"
     },
     "LOGIN": {
-      "welcome_title": "Welcome to Swadhaar Finaccess",
+      "welcome_title": "Welcome to Shiksha",
       "welcome_subtitle": "Your Learning Journey Begins here",
       "welcome_image_alt": "Smiley face",
       "qr_get_app": "Get the App",

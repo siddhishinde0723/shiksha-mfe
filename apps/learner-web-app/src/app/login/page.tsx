@@ -653,7 +653,6 @@ const LoginPage = () => {
 
       // If getUserId returns null (due to 401 redirect), exit early
       if (!userResponse) {
-        console.log('🚨 getUserId returned null, likely due to 401 redirect');
         return;
       }
 
@@ -809,7 +808,6 @@ const LoginPage = () => {
   useEffect(() => {
     const init = async () => {
       try {
-        console.log("🔍 Starting authentication check...");
 
         preserveLocalStorage();
 
@@ -819,10 +817,8 @@ const LoginPage = () => {
         const access_token = localStorageToken || cookieToken;
         const refresh_token = localStorage.getItem("refreshToken");
 
-        console.log("🔑 Token found:", !!access_token);
 
         if (access_token) {
-          console.log("✅ User already authenticated, checking for redirect URL");
 
           // Check if we have all required authentication data
           const userId = localStorage.getItem("userId");
@@ -830,7 +826,6 @@ const LoginPage = () => {
           
           // If we have all required data, redirect directly
           if (userId && tenantId) {
-            console.log("✅ All authentication data present, checking for redirect URL");
             
             // Check for redirect URL in query parameters
             if (typeof window !== "undefined") {
@@ -838,11 +833,8 @@ const LoginPage = () => {
               const redirectUrl = searchParams.get("redirectUrl");
               const activeLink = searchParams.get("activeLink");
 
-              console.log("🔗 Redirect URL:", redirectUrl);
-              console.log("🔗 Active Link:", activeLink);
 
               if (redirectUrl && redirectUrl.startsWith("/")) {
-                console.log("🚀 Redirect URL found, redirecting to:", redirectUrl);
                 // Direct redirect to the target URL without going through login flow
                 window.location.href = `${window.location.origin}${redirectUrl}${
                   activeLink ? `?activeLink=${activeLink}` : ""
@@ -852,11 +844,9 @@ const LoginPage = () => {
             }
 
             // If no redirect URL, redirect to dashboard
-            console.log("🏠 No redirect URL, redirecting to dashboard");
             window.location.href = `${window.location.origin}/dashboard?tab=1`;
             return;
           } else {
-            console.log("⚠️ Missing userId or tenantId, proceeding with full login flow");
             // If we have a token but missing userId/tenantId, proceed with full login flow
             const response = {
               result: {
@@ -869,7 +859,6 @@ const LoginPage = () => {
           }
         }
 
-        console.log("❌ No authentication token found, showing login form");
 
         // Only proceed with login form if user is not authenticated
         // Get prefilled username from URL parameters
@@ -877,7 +866,6 @@ const LoginPage = () => {
           const searchParams = new URLSearchParams(window.location.search);
           const prefilledUser = searchParams.get("prefilledUsername");
           if (prefilledUser) {
-            console.log("👤 Prefilled username:", prefilledUser);
             setPrefilledUsername(prefilledUser);
           }
         }
@@ -1031,10 +1019,8 @@ const LoginPage = () => {
         const query = new URLSearchParams(window.location.search);
         const redirectUrl = query.get("redirectUrl");
 
-        console.log("🔗 OTP Verification - Redirect URL:", redirectUrl);
 
         if (redirectUrl && redirectUrl.startsWith("/")) {
-          console.log("🚀 OTP Verification - Redirecting to:", redirectUrl);
           // For redirect URLs, call auth API and then redirect directly
           await handleSuccessfulLogin(response?.result, data, router);
         } else {
@@ -1073,7 +1059,7 @@ const LoginPage = () => {
         display="flex"
         justifyContent="center"
         alignItems="center"
-        minHeight="100vh"
+       
         sx={{
           background: "linear-gradient(135deg, #FFFDF6, #F8EFDA)",
         }}
@@ -1113,10 +1099,7 @@ const LoginPage = () => {
             display={{ xs: "none", sm: "flex" }}
             justifyContent="center"
             alignItems="center"
-            sx={{
-              minHeight: { xs: "auto", sm: "100%" },
-              py: { xs: 4, sm: 0 },
-            }}
+           
           >
             <WelcomeScreen />
           </Box>
@@ -1130,10 +1113,7 @@ const LoginPage = () => {
             alignItems="center"
             px={3}
             boxSizing="border-box"
-            sx={{
-              minHeight: { xs: "auto", sm: "100%" },
-              py: { xs: 2, sm: 0 },
-            }}
+          
           >
             {/* Welcome Message - Only visible on mobile */}
             <Box
