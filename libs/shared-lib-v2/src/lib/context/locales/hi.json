@@ -154,11 +154,13 @@
       "EXPLORE_ADDITIONAL_COURSES": "अतिरिक्त पाठ्यक्रम देखें"
     },
     "HOME": {
-      "WELCOME_TITLE": "Shiksha myLearning में आपका स्वागत है!",
+      "WELCOME_TITLE": "स्वाधार फाइनेंस में आपका स्वागत है",
+      "APP_NAME": "स्वाधार",
       "WELCOME_SUBTITLE": "यहाँ से आपकी सीखने की यात्रा शुरू होती है",
       "MAIN_DESCRIPTION": "अपनी भाषा में, अपनी गति से सरल, व्यावहारिक वित्तीय कौशल सीखें",
       "PLATFORM_DESCRIPTION": "एक व्यापक प्लेटफ़ॉर्म जो सीखने, क्षमता निर्माण, व्यावसायिक विकास और सामग्री वितरण समाधानों को सक्षम बनाता है। शिक्षा, कृषि, स्वास्थ्य सेवा और अधिक में लागू।",
       "LOGO_ALT": "स्वधार फिनएक्सेस लोगो",
+      "CHOOSE_LANGUAGE": "अपनी भाषा चुनें",
       "OUR_SOLUTIONS_TITLE": "हमारे समाधान",
       "OUR_SOLUTIONS_DESC": "हमारे व्यापक प्लेटफ़ॉर्म के साथ कई डोमेन में सीखने और विकास को सशक्त बनाना",
       "FEATURES": {
@@ -181,7 +183,7 @@
       },
       "SIGN_UP_BUTTON": "अभी प्रोग्राम के लिए साइन अप करें!",
       "ALREADY_SIGNED_UP": "पहले से साइन अप किया हुआ?",
-      "LOGIN_LINK": "लॉगिन के लिए यहाँ क्लिक करें",
+      "LOGIN_LINK": "सीखना शुरू करें",
       "GET_THE_APP": "एप्लिकेशन प्राप्त करें",
       "POINT_CAMERA": "अपना फोन कैमरा यहाँ रखें",
       "OR": "या",
@@ -195,6 +197,7 @@
       "welcome_title": "Shiksha myLearning में आपका स्वागत है!",
       "welcome_subtitle": "यहाँ से आपकी सीखने की यात्रा शुरू होती है",
       "welcome_image_alt": "मुस्कराता चेहरा",
+      "OTP_NOT_CORRECT": "अमान्य OTP। कृपया पुनः प्रयास करें।",
       "qr_get_app": "एप्लिकेशन प्राप्त करें",
       "qr_instruction": "अपना फोन कैमरा यहाँ रखें",
       "qr_image_alt": "QR कोड",
@@ -215,7 +218,16 @@
       "POINT_CAMERA": "कैमरा यहाँ रखें",
       "OR": "या",
       "SEARCH_PLAYSTORE": "\"Shiksha myLearning\" को प्लेस्टोर पर खोजें",
-      "ON_PLAYSTORE": "प्लेस्टोर पर"
+      "ON_PLAYSTORE": "प्लेस्टोर पर",
+      "otp_label": "OTP दर्ज करें",
+      "verify_otp_button": "OTP सत्यापित करें",
+      "PHONE_INSTRUCTION": "नमस्ते! जारी रखने के लिए अपने पंजीकृत फोन नंबर से लॉगिन करें।",
+      "PHONE_NUMBER": "फोन नंबर",
+      "SEND_OTP": "OTP भेजें",
+      "OTP_INSTRUCTION": "अपने फोन पर भेजे गए 6-अंकीय OTP को दर्ज करें।",
+      "SEND": "भेजें",
+      "RESEND_OTP": "OTP पुनः भेजें",
+      "SENDING": "भेजा जा रहा है..."
     },
     "L_ONE_COURSE": {
       "IN_PROGRESS_TITLE": "प्रगति पर",
@@ -254,9 +266,32 @@
       "SUB_TITLE": "हमारा विशेषज्ञ आपको जल्द ही संपर्क करेगा",
       "FOOTER_TEXT": "इस बीच, आप और पाठ्यक्रम देख सकते हैं या अपनी कौशल विकसित करना जारी रख सकते हैं!"
     },
+    "DASHBOARD": {
+      "COURSES": "पाठ्यक्रम",
+      "CONTENT": "सामग्री",
+      "GROUPS": "समूह",
+      "COURSES_SUBTITLE": "एक समय में एक पाठ्यक्रम के साथ अपने वित्तीय कौशल का निर्माण करें।",
+      "CONTENT_SUBTITLE": "व्यावहारिक धन सबक खोजें — देखें, पढ़ें और अन्वेषण करें।",
+      "GROUPS_SUBTITLE": "अध्ययन समूहों में शामिल हों और एक साथ सीखें।",
+      "FILTER_ALL": "सभी",
+      "FILTER_FOR_YOU": "आपके लिए",
+      "FILTER_BEGINNER": "शुरुआती",
+      "FILTER_INTERMEDIATE": "मध्यम",
+      "FILTER_ADVANCED": "उन्नत"
+    },
     "CONTENT": {
+      "SEARCH": "खोजें",
       "DEFAULT_IMAGE_ALT": "डिफ़ॉल्ट पाठ्यक्रम छवि",
       "FILTERS": "फ़िल्टर"
+    },
+    "GROUPS": {
+      "STUDY_GROUPS": "अध्ययन समूह",
+      "NO_CONTENT_AVAILABLE": "कोई सामग्री उपलब्ध नहीं",
+      "CONTENT_WILL_APPEAR": "इस समूह में सामग्री जोड़े जाने के बाद यहाँ दिखाई देगी",
+      "CONTENT_ITEMS_AVAILABLE": "सामग्री आइटम उपलब्ध",
+      "NO_GROUPS_AVAILABLE": "कोई समूह उपलब्ध नहीं",
+      "GROUPS_WILL_APPEAR": "समूह बनाए जाने के बाद यहाँ दिखाई देंगे",
+      "LOADING_GROUPS": "समूह लोड हो रहे हैं..."
     },
     "IN_PROGRESS": {
       "ALL_COURSES": "सभी प्रगति पर पाठ्यक्रम"

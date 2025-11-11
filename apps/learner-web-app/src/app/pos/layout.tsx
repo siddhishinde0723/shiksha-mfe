@@ -4,11 +4,11 @@ import { GlobalProvider } from "@learner/components/Provider/GlobalProvider";
 import GoogleAnalyticsTracker from "@learner/components/GoogleAnalyticsTracker/GoogleAnalyticsTracker";
 
 export const metadata = {
-  title: "Welcome to shiksha-app",
+  title: "Welcome to Swadhaar Finaccess",
   description:
     "Shiksha-app is a platform for users to learn and grow by consuming educational content",
   openGraph: {
-    title: "Welcome to shiksha-app",
+    title: "Welcome to Swadhaar Finaccess",
     description:
       "Shiksha-app is a platform for users to learn and grow by consuming educational content",
     images: [

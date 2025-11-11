@@ -36,15 +36,21 @@ const FilterComponent: React.FC<{
   );
 
   useEffect(() => {
-    setFilterCount(
-      Object?.keys(filterState.filters ?? {}).filter((e) => {
-        const filterValue = filterState.filters[e];
-        return (
-          !['limit', ...Object.keys(staticFilter ?? {})].includes(e) &&
-          !(Array.isArray(filterValue) && filterValue.length === 0)
-        );
-      }).length
-    );
+    // Calculate filter count excluding limit, staticFilter keys, and empty values
+    const activeFilters = Object?.keys(filterState.filters ?? {}).filter((e) => {
+      if (e?.toString() === 'limit') return false;
+      // Exclude staticFilter keys
+      if (staticFilter && Object.keys(staticFilter).includes(e)) return false;
+      const filterValue = filterState.filters[e];
+      // Exclude empty arrays
+      if (Array.isArray(filterValue) && filterValue.length === 0) return false;
+      // Exclude empty strings
+      if (typeof filterValue === 'string' && filterValue.trim() === '') return false;
+      // Exclude null/undefined
+      if (filterValue === null || filterValue === undefined) return false;
+      return true;
+    });
+    setFilterCount(activeFilters.length);
   }, [filterState, staticFilter]);
 
   const memoizedFilterForm = useMemo(
@@ -57,11 +63,21 @@ const FilterComponent: React.FC<{
           },
         }}
         onApply={(newFilterState: any) => {
-          setFilterCount(
-            Object?.keys(newFilterState ?? {}).filter(
-              (e) => e?.toString() != 'limit'
-            ).length
-          );
+          // Calculate filter count excluding limit, staticFilter keys, and empty values
+          const activeFilters = Object?.keys(newFilterState ?? {}).filter((e) => {
+            if (e?.toString() === 'limit') return false;
+            // Exclude staticFilter keys
+            if (staticFilter && Object.keys(staticFilter).includes(e)) return false;
+            // Exclude empty arrays
+            const value = newFilterState[e];
+            if (Array.isArray(value) && value.length === 0) return false;
+            // Exclude empty strings
+            if (typeof value === 'string' && value.trim() === '') return false;
+            // Exclude null/undefined
+            if (value === null || value === undefined) return false;
+            return true;
+          });
+          setFilterCount(activeFilters.length);
           handleFilterChange(newFilterState);
         }}
         onlyFields={onlyFields}

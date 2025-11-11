@@ -1,4 +1,3 @@
-/* eslint-disable @nx/enforce-module-boundaries */
 "use client";
 
 import React, {
@@ -10,19 +9,16 @@ import React, {
 } from "react";
 import {
   Box,
-  Grid,
   Typography,
   TextField,
   Button,
   Checkbox,
   FormControlLabel,
-  InputAdornment,
-  IconButton,
-  Paper,
   CircularProgress,
+  IconButton,
 } from "@mui/material";
-import { Visibility, VisibilityOff } from "@mui/icons-material";
-import WelcomeScreen from "@learner/components/WelcomeComponent/WelcomeScreen";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import Image from "next/image";
 import Header from "@learner/components/Header/Header";
 import { getUserId, login } from "@learner/utils/API/LoginService";
 import { checkUserExistenceWithTenant } from "@learner/utils/API/userService";
@@ -35,10 +31,6 @@ import { preserveLocalStorage } from "@learner/utils/helper";
 import { getDeviceId } from "@shared-lib-v2/DynamicForm/utils/Helper";
 import { profileComplitionCheck } from "@learner/utils/API/userService";
 import { telemetryFactory } from "@shared-lib-v2/DynamicForm/utils/telemetry";
-import Image from "next/image";
-import playstoreIcon from "../../../public/images/playstore.png";
-import prathamQRCode from "../../../public/images/prathamQR.png";
-import welcomeGIF from "../../../public/logo.png";
 import { logEvent } from "@learner/utils/googleAnalytics";
 
 // Helper function to get cookie value
@@ -80,11 +72,11 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
   onRedirectToLogin,
 }) => {
   const { t } = useTranslation();
+  const router = useRouter();
 
-  const [showPassword, setShowPassword] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
-  const [forcePasswordMode, setForcePasswordMode] = useState(false);
+  const [forcePasswordMode, setForcePasswordMode] = useState(false); // Default to OTP mode
   const [hasCheckedUser, setHasCheckedUser] = useState(false);
   const [lastCallTime, setLastCallTime] = useState(0);
   const [otpHash, setOtpHash] = useState<string>("");
@@ -111,10 +103,7 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
   };
 
   // Determine if we should show OTP mode
-  const isOtpMode =
-    prefilledUsername &&
-    isMobileNumber(prefilledUsername) &&
-    !forcePasswordMode;
+  const isOtpMode = otpSent && !forcePasswordMode;
 
   // Function to check user existence and send OTP
   const sendOtp = useCallback(
@@ -150,18 +139,36 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
         console.log("User check response:", userCheckResponse);
 
         // Check if API returned an error (like 404 - User does not exist)
-        if (
+        // Handle both cases: error in response body or error response code
+        const isErrorResponse = 
           userCheckResponse?.params?.status === "failed" ||
           userCheckResponse?.responseCode === 404 ||
-          userCheckResponse?.responseCode !== 200
-        ) {
-          console.log("User does not exist");
-          // Show error message and call the redirect handler
-          if (onRedirectToLogin) {
-            setTimeout(() => {
-              onRedirectToLogin();
-            }, 100);
+          (userCheckResponse?.responseCode !== 200 && userCheckResponse?.responseCode !== undefined && userCheckResponse?.responseCode !== null);
+        
+        if (isErrorResponse) {
+          console.log("API returned error response:", userCheckResponse);
+          // Check if it's specifically "User does not exist" error
+          const isUserNotFoundError = 
+            userCheckResponse?.params?.errmsg === "User does not exist" ||
+            userCheckResponse?.params?.err === "Not Found" ||
+            userCheckResponse?.responseCode === 404 ||
+            (userCheckResponse?.params?.status === "failed" && userCheckResponse?.responseCode === 404);
+          
+          if (isUserNotFoundError) {
+            // Show specific error message for user not found
+            showToastMessage(
+              "User does not exist. Please contact admin.",
+              "error"
+            );
+          } else {
+            // Show generic error message
+            showToastMessage(
+              "An error occurred. Please try again.",
+              "error"
+            );
           }
+          // Reset hasCheckedUser to allow user to try again with different number
+          setHasCheckedUser(false);
           return;
         }
 
@@ -172,11 +179,12 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
         if (!users || users.length === 0) {
           console.log("No users found for this mobile number");
           // Show error message for no users found
-          if (onRedirectToLogin) {
-            setTimeout(() => {
-              onRedirectToLogin();
-            }, 100);
-          }
+          showToastMessage(
+            "User does not exist. Please contact admin.",
+            "error"
+          );
+          // Reset hasCheckedUser to allow user to try again with different number
+          setHasCheckedUser(false);
           return;
         }
 
@@ -201,43 +209,57 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
             console.log("OTP hash stored:", response.result.data.hash);
           }
           setOtpSent(true);
+          // Trigger OTP mode by setting prefilledUsername
+          setFormData((prev) => ({
+            ...prev,
+            username: processedMobile,
+          }));
         } else {
           // User doesn't exist or doesn't have target tenant, show error
           console.log("User not found, showing error message");
-          if (onRedirectToLogin) {
-            setTimeout(() => {
-              onRedirectToLogin();
-            }, 100);
-          }
+          showToastMessage(
+            "User does not exist. Please contact admin.",
+            "error"
+          );
+          // Reset hasCheckedUser to allow user to try again with different number
+          setHasCheckedUser(false);
         }
       } catch (error: unknown) {
         console.error("Error in OTP flow:", error);
 
         // Check if it's a user not found error (404)
+        // Handle axios error structure: error.response.data contains the API response
         const errorResponse = error as {
           response?: {
             status?: number;
             data?: {
               responseCode?: number;
-              params?: { status?: string; errmsg?: string };
+              params?: { status?: string; errmsg?: string; err?: string };
             };
           };
         };
-        if (
+        
+        // Extract error data from axios error response
+        const errorData = errorResponse?.response?.data;
+        
+        // Check for user not found error in various formats
+        const isUserNotFoundError = 
           errorResponse?.response?.status === 404 ||
-          errorResponse?.response?.data?.responseCode === 404 ||
-          errorResponse?.response?.data?.params?.status === "failed" ||
-          errorResponse?.response?.data?.params?.errmsg ===
-            "User does not exist"
-        ) {
+          errorData?.responseCode === 404 ||
+          errorData?.params?.status === "failed" ||
+          errorData?.params?.errmsg === "User does not exist" ||
+          errorData?.params?.err === "Not Found" ||
+          (errorData?.params?.status === "failed" && errorData?.responseCode === 404);
+        
+        if (isUserNotFoundError) {
           console.log("User does not exist - showing error message");
-          // Show error message and call the redirect handler
-          if (onRedirectToLogin) {
-            // Add a small delay to ensure the error message is properly displayed
-            setTimeout(() => {
-              onRedirectToLogin();
-            }, 100);
-          }
+          // Show specific error message for user not found
+          showToastMessage(
+            "User does not exist. Please contact admin.",
+            "error"
+          );
+          // Reset hasCheckedUser to allow user to try again with different number
+          setHasCheckedUser(false);
           return;
         }
 
@@ -273,14 +295,6 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
       }
     }
   }, [prefilledUsername, sendOtp]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
 
   const handleSubmit = async () => {
     if (isOtpMode && onVerifyOtp) {
@@ -336,293 +350,430 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
     }
   };
 
+  // OTP input refs for individual boxes
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const handleOtpChange = (index: number, value: string) => {
+    if (value.length > 1) {
+      // If pasting, handle all digits
+      const digits = value.slice(0, 6).split("");
+      const newOtp = [...formData.otp.split("")];
+      digits.forEach((digit, i) => {
+        if (index + i < 6) {
+          newOtp[index + i] = digit;
+        }
+      });
+      setFormData((prev) => ({
+        ...prev,
+        otp: newOtp.join("").slice(0, 6),
+      }));
+      // Focus on the last filled box or next empty box
+      const nextIndex = Math.min(index + digits.length, 5);
+      otpRefs.current[nextIndex]?.focus();
+    } else {
+      // Single digit input
+      const newOtp = formData.otp.split("");
+      newOtp[index] = value;
+      setFormData((prev) => ({
+        ...prev,
+        otp: newOtp.join("").slice(0, 6),
+      }));
+      // Move to next box if value entered
+      if (value && index < 5) {
+        otpRefs.current[index + 1]?.focus();
+      }
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && !formData.otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleSendOtp = async () => {
+    if (formData.username && isMobileNumber(formData.username)) {
+      await sendOtp(formData.username);
+    }
+  };
+
+  const handleBack = () => {
+    if (isOtpMode) {
+      // Go back to phone number step
+      setOtpSent(false);
+      setHasCheckedUser(false);
+      setOtpHash("");
+      setFormData((prev) => ({
+        ...prev,
+        otp: "",
+      }));
+    } else {
+      // Go back to home page
+      router.push("/");
+    }
+  };
+
   return (
-    <Paper
-      elevation={3}
+    <Box
       sx={{
-        maxWidth: 400,
-        p: 3,
-        borderRadius: 2,
+        maxWidth: { xs: "100%", sm: 500 },
+        width: "100%",
+        px: { xs: 1, sm: 0 },
       }}
     >
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleSubmit();
+      {/* Back Button */}
+      <IconButton
+        onClick={handleBack}
+        sx={{
+          mb: { xs: 1, sm: 2 },
+          color: "#1F1B13",
+          "&:hover": {
+            backgroundColor: "#F5F5F5",
+          },
         }}
       >
-        <Typography
-          variant="h5"
-          sx={{
-            fontWeight: 400,
-            fontSize: "24px",
-            lineHeight: "32px",
-            letterSpacing: "0px",
-            textAlign: "center",
-            mb: 3,
-          }}
-        >
-          {isOtpMode
-            ? t("LEARNER_APP.LOGIN.login_title") || "Verify OTP"
-            : t("LEARNER_APP.LOGIN.login_title")}
-        </Typography>
+        <ArrowBackIcon />
+      </IconButton>
 
-        <TextField
-          label={t("LEARNER_APP.LOGIN.username_label")}
-          name="username"
-          value={formData.username}
-          onChange={handleChange}
-          variant="outlined"
-          fullWidth
-          margin="normal"
-          disabled={Boolean(isOtpMode)} // Disable username field in OTP mode since it's prefilled
-        />
+      {/* Login Title - H1: 24-28px */}
+      <Typography
+        sx={{
+          fontWeight: 700,
+          fontSize: { xs: "24px", sm: "26px", md: "28px" },
+          lineHeight: { xs: "32px", sm: "36px", md: "40px" },
+          color: "#1A1A1A",
+          mb: { xs: 1.5, sm: 2 },
+        }}
+      >
+        {t("LEARNER_APP.LOGIN.login_title") || "Login"}
+      </Typography>
 
-        {isOtpMode ? (
-          // OTP Mode
-          <Box>
+      {!isOtpMode ? (
+        // Phone Number Step
+        <>
+          {/* Instruction Text */}
+          <Typography
+            sx={{
+              fontWeight: 400,
+              fontSize: { xs: "14px", sm: "15px", md: "16px" },
+              lineHeight: { xs: "20px", sm: "22px", md: "24px" },
+              color: "#1A1A1A",
+              mb: { xs: 3, sm: 4 },
+            }}
+          >
+            👋 {t("LEARNER_APP.LOGIN.PHONE_INSTRUCTION") || "Hi there! Log in with your registered phone number to continue."}
+          </Typography>
+
+          {/* Phone Number Input */}
+          <Box sx={{ mb: { xs: 3, sm: 4 } }}>
+            <Typography
+              sx={{
+                fontWeight: 400,
+                fontSize: { xs: "13px", sm: "14px" },
+                color: "#1A1A1A",
+                mb: 1,
+              }}
+            >
+              {t("LEARNER_APP.LOGIN.PHONE_NUMBER") || "Phone Number"}
+            </Typography>
             <TextField
-              label={t("LEARNER_APP.LOGIN.otp_label") || "Enter OTP"}
-              name="otp"
-              type="text"
-              value={formData.otp}
-              onChange={handleChange}
-              variant="outlined"
+              name="username"
+              value={formData.username}
+              onChange={(e) => {
+                // Only allow numbers and limit to 10 digits
+                const value = e.target.value.replace(/\D/g, "").slice(0, 10);
+                setFormData((prev) => ({
+                  ...prev,
+                  username: value,
+                }));
+                // Reset hasCheckedUser when user changes the phone number
+                // This allows them to try again with a different number
+                if (hasCheckedUser) {
+                  setHasCheckedUser(false);
+                }
+              }}
+              placeholder="+91 0000000000"
               fullWidth
-              margin="normal"
-              placeholder="Enter 6-digit OTP"
               inputProps={{
-                maxLength: 6,
+                maxLength: 10,
                 pattern: "[0-9]*",
+                inputMode: "numeric",
+              }}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "4px",
+                  backgroundColor: "#F5F5F5",
+                  "& fieldset": {
+                    borderColor: "#E0E0E0",
+                  },
+                  "&:hover fieldset": {
+                    borderColor: "#E0E0E0",
+                  },
+                  "&.Mui-focused fieldset": {
+                    borderColor: "#E6873C",
+                  },
+                },
               }}
             />
-
-            {/* OTP Status and Resend */}
-            <Box
-              mt={1}
-              display="flex"
-              justifyContent="space-between"
-              alignItems="center"
-            >
-              {isSendingOtp ? (
-                <Box display="flex" alignItems="center" gap={1}>
-                  <CircularProgress size={16} />
-                  <Typography variant="body2" color="textSecondary">
-                    Sending OTP...
-                  </Typography>
-                </Box>
-              ) : otpSent ? (
-                <Typography variant="body2" color="success.main">
-                  OTP sent successfully!
-                </Typography>
-              ) : (
-                <Typography variant="body2" color="textSecondary">
-                  OTP will be sent automatically
-                </Typography>
-              )}
-
-              {otpSent && (
-                <Button
-                  variant="text"
-                  size="small"
-                  onClick={handleResendOtp}
-                  disabled={isSendingOtp}
-                >
-                  Resend OTP
-                </Button>
-              )}
-            </Box>
           </Box>
-        ) : (
-          // Password Mode
-          <TextField
-            label={t("LEARNER_APP.LOGIN.password_label")}
-            name="password"
-            type={showPassword ? "text" : "password"}
-            value={formData.password}
-            onChange={handleChange}
-            variant="outlined"
+
+          {/* Send OTP Button */}
+          <Button
+            onClick={handleSendOtp}
+            disabled={!formData.username || isSendingOtp}
             fullWidth
-            margin="normal"
-            autoComplete="new-password"
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    edge="end"
-                  >
-                    {showPassword ? <VisibilityOff /> : <Visibility />}
-                  </IconButton>
-                </InputAdornment>
-              ),
+            sx={{
+              py: { xs: 1.25, sm: 1.5 },
+              backgroundColor: "#E6873C",
+              color: "#FFFFFF",
+              fontSize: { xs: "14px", sm: "16px" },
+              fontWeight: 600,
+              textTransform: "none",
+              borderRadius: "8px",
+              mb: { xs: 4, sm: 6 },
+              "&:hover": {
+                backgroundColor: "#D6772C", // Slightly darker orange for hover
+              },
+              "&:focus": {
+                backgroundColor: "#D6772C",
+                boxShadow: "0 0 0 3px rgba(230, 135, 60, 0.2)", // 20% opacity overlay for focus
+              },
+              "&:disabled": {
+                backgroundColor: "#F5F5F5",
+                color: "#1A1A1A",
+                opacity: 0.5,
+              },
             }}
-          />
-        )}
+          >
+            {isSendingOtp ? (
+              <Box display="flex" alignItems="center" gap={1}>
+                <CircularProgress size={20} sx={{ color: "#FFFFFF" }} />
+                <span>{t("LEARNER_APP.LOGIN.SENDING") || "Sending..."}</span>
+              </Box>
+            ) : (
+              t("LEARNER_APP.LOGIN.SEND_OTP") || "SEND OTP"
+            )}
+          </Button>
 
-        <Box mt={1}>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={formData.remember}
-                onChange={handleChange}
-                name="remember"
+          {/* Pagination Dots - Step 2 (First and second dots active) */}
+          <Box
+            sx={{
+              display: "flex",
+              gap: 1,
+              alignItems: "center",
+            }}
+          >
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: "#E6873C",
+              }}
+            />
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: "#E6873C",
+              }}
+            />
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: "#E0E0E0",
+              }}
+            />
+          </Box>
+        </>
+      ) : (
+        // OTP Verification Step
+        <>
+          {/* Instruction Text */}
+          <Typography
+            sx={{
+              fontWeight: 400,
+              fontSize: { xs: "14px", sm: "15px", md: "16px" },
+              lineHeight: { xs: "20px", sm: "22px", md: "24px" },
+              color: "#1A1A1A",
+              mb: { xs: 3, sm: 4 },
+            }}
+          >
+            {t("LEARNER_APP.LOGIN.OTP_INSTRUCTION") || "Enter the 6-digit OTP sent to your phone."}
+          </Typography>
+
+          {/* OTP Label */}
+          <Typography
+            sx={{
+              fontWeight: 400,
+              fontSize: "14px",
+              color: "#1F1B13",
+              mb: 2,
+            }}
+          >
+            {t("LEARNER_APP.LOGIN.otp_label") || "OTP"}
+          </Typography>
+
+          {/* 6 Individual OTP Input Boxes */}
+          <Box
+            sx={{
+              display: "flex",
+              gap: { xs: 1, sm: 1.5 },
+              mb: { xs: 3, sm: 4 },
+              justifyContent: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            {[0, 1, 2, 3, 4, 5].map((index) => (
+              <TextField
+                key={index}
+                inputRef={(el) => {
+                  otpRefs.current[index] = el;
+                }}
+                value={formData.otp[index] || ""}
+                onChange={(e) => handleOtpChange(index, e.target.value)}
+                onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                inputProps={{
+                  maxLength: 1,
+                  pattern: "[0-9]*",
+                  style: {
+                    textAlign: "center",
+                    fontSize: "24px",
+                    fontWeight: 600,
+                  },
+                }}
+                sx={{
+                  width: { xs: 48, sm: 56 },
+                  height: { xs: 48, sm: 56 },
+                  "& .MuiOutlinedInput-root": {
+                    width: { xs: 48, sm: 56 },
+                    height: { xs: 48, sm: 56 },
+                    borderRadius: "4px",
+                    "& input": {
+                      fontSize: { xs: "20px", sm: "24px" },
+                    },
+                    "& fieldset": {
+                      borderColor: "#E0E0E0",
+                    },
+                    "&:hover fieldset": {
+                      borderColor: "#E6873C",
+                    },
+                    "&.Mui-focused fieldset": {
+                      borderColor: "#E6873C",
+                    },
+                  },
+                }}
               />
-            }
-            label={t("LEARNER_APP.LOGIN.remember_me")}
-          />
-        </Box>
-
-        <Button
-          type="submit"
-          variant="contained"
-          fullWidth
-          disabled={Boolean(isOtpMode && !otpSent)}
-          sx={{
-            mt: 3,
-            backgroundColor: "#FFC107",
-            color: "#000",
-            fontWeight: "bold",
-            "&:hover": {
-              backgroundColor: "#ffb300",
-            },
-          }}
-        >
-          {isOtpMode
-            ? t("LEARNER_APP.LOGIN.verify_otp_button") || "Verify OTP"
-            : t("LEARNER_APP.LOGIN.login_button")}
-        </Button>
-      </form>
-    </Paper>
-  );
-};
-
-const AppDownloadSection = () => {
-  const { t } = useTranslation();
-  const router = useRouter();
-
-  return (
-    <Grid
-      container
-      alignItems="center"
-      justifyContent="center"
-      maxWidth="500px"
-    >
-      {/* QR Code Section */}
-      <Grid item xs={5} sm={5} md={4}>
-        <Box
-          display="flex"
-          flexDirection="column"
-          alignItems="center"
-          justifyContent="center"
-          gap={1}
-        >
-          <Image
-            src={prathamQRCode}
-            alt={t("LEARNER_APP.LOGIN.qr_image_alt")}
-            width={120}
-            height={120}
-            style={{ objectFit: "contain" }}
-          />
-          <Box textAlign="center">
-            <Typography fontWeight={600} fontSize="14px">
-              {t("LEARNER_APP.LOGIN.GET_THE_APP")}
-            </Typography>
-            <Typography fontSize="12px" color="textSecondary">
-              {t("LEARNER_APP.LOGIN.POINT_YOUR_PHONE")}
-              <br />
-              {t("LEARNER_APP.LOGIN.POINT_CAMERA")}
-            </Typography>
+            ))}
           </Box>
-        </Box>
-      </Grid>
 
-      {/* OR Divider */}
-      <Grid
-        item
-        xs={2}
-        sm={2}
-        md={1}
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-      >
-        <Typography fontWeight={500} fontSize="14px">
-          {t("LEARNER_APP.LOGIN.OR")}
-        </Typography>
-      </Grid>
+          {/* Send Button */}
+          <Button
+            onClick={handleSubmit}
+            disabled={formData.otp.length !== 6}
+            fullWidth
+            sx={{
+              py: { xs: 1.25, sm: 1.5 },
+              backgroundColor: "#E6873C",
+              color: "#FFFFFF",
+              fontSize: { xs: "14px", sm: "16px" },
+              fontWeight: 600,
+              textTransform: "none",
+              borderRadius: "8px",
+              mb: { xs: 1.5, sm: 2 },
+              "&:hover": {
+                backgroundColor: "#D6772C", // Slightly darker orange for hover
+              },
+              "&:focus": {
+                backgroundColor: "#D6772C",
+                boxShadow: "0 0 0 3px rgba(230, 135, 60, 0.2)", // 20% opacity overlay for focus
+              },
+              "&:disabled": {
+                backgroundColor: "#F5F5F5",
+                color: "#1A1A1A",
+                opacity: 0.5,
+              },
+            }}
+          >
+            {t("LEARNER_APP.LOGIN.SEND") || "SEND"}
+          </Button>
 
-      {/* Play Store Section */}
-      <Grid item xs={5} sm={5} md={5}>
-        <Box
-          display="flex"
-          flexDirection="column"
-          alignItems="center"
-          justifyContent="center"
-          gap={1}
-          sx={{ cursor: "pointer" }}
-          onClick={() => {
-            router.push(
-              "https://play.google.com/store/apps/details?id=com.pratham.learning"
-            );
-          }}
-        >
-          <Image
-            src={playstoreIcon}
-            alt={t("LEARNER_APP.LOGIN.playstore_image_alt")}
-            width={100}
-            height={32}
-          />
-          <Box textAlign="center">
-            <Typography fontSize="12px" color="textSecondary">
-              {t("LEARNER_APP.LOGIN.SEARCH_PLAYSTORE")}
-              <br />
-              {t("LEARNER_APP.LOGIN.ON_PLAYSTORE")}
-            </Typography>
+          {/* Resend OTP Checkbox */}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "flex-end",
+              mb: { xs: 4, sm: 6 },
+            }}
+          >
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={false}
+                  onChange={handleResendOtp}
+                  sx={{
+                    color: "#E6873C",
+                    "&.Mui-checked": {
+                      color: "#E6873C",
+                    },
+                  }}
+                />
+              }
+              label={
+                <Typography
+                  sx={{
+                    fontSize: { xs: "13px", sm: "14px" },
+                    color: "#1A1A1A",
+                  }}
+                >
+                  {t("LEARNER_APP.LOGIN.RESEND_OTP") || "Resend OTP"}
+                </Typography>
+              }
+            />
           </Box>
-        </Box>
-      </Grid>
-    </Grid>
-  );
-};
 
-const WelcomeMessage = () => {
-  const { t } = useTranslation();
-
-  return (
-    <Box display="flex" flexDirection="column" alignItems="center" mb={2}>
-      <Image
-        src={welcomeGIF}
-        alt={t("LEARNER_APP.LOGIN.welcome_image_alt")}
-        width={120}
-        height={120}
-        style={{ marginBottom: "24px" }}
-      />
-
-      <Typography
-        fontWeight={400}
-        fontSize={{ xs: "24px", sm: "32px" }}
-        lineHeight={{ xs: "32px", sm: "40px" }}
-        letterSpacing="0px"
-        textAlign="center"
-        sx={{ verticalAlign: "middle" }}
-      >
-        {t("LEARNER_APP.LOGIN.welcome_title")}
-      </Typography>
-      <Typography
-        fontWeight={400}
-        fontSize={{ xs: "18px", sm: "22px" }}
-        lineHeight={{ xs: "24px", sm: "28px" }}
-        letterSpacing="0px"
-        textAlign="center"
-        sx={{ verticalAlign: "middle" }}
-        mb={2}
-      >
-        {t("LEARNER_APP.LOGIN.welcome_subtitle")}
-      </Typography>
+          {/* Pagination Dots - Step 3 */}
+          <Box
+            sx={{
+              display: "flex",
+              gap: 1,
+              alignItems: "center",
+            }}
+          >
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: "#E6873C",
+              }}
+            />
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: "#E6873C",
+              }}
+            />
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: "#E6873C",
+              }}
+            />
+          </Box>
+        </>
+      )}
     </Box>
   );
 };
+
 
 const LoginPage = () => {
   const router = useRouter();
@@ -717,8 +868,15 @@ const LoginPage = () => {
             label: "Login Button Clicked",
           });
 
-          // Redirect to learner dashboard with tab=1
-          window.location.href = `${window.location.origin}/dashboard?tab=1`;
+          // Check for redirect path stored by AuthGuard
+          const redirectAfterLogin = sessionStorage.getItem("redirectAfterLogin");
+          if (redirectAfterLogin && redirectAfterLogin.startsWith("/")) {
+            sessionStorage.removeItem("redirectAfterLogin");
+            window.location.href = `${window.location.origin}${redirectAfterLogin}`;
+          } else {
+            // Redirect to learner dashboard with tab=1
+            window.location.href = `${window.location.origin}/dashboard?tab=0`;
+          }
           return;
         }
 
@@ -844,7 +1002,7 @@ const LoginPage = () => {
             }
 
             // If no redirect URL, redirect to dashboard
-            window.location.href = `${window.location.origin}/dashboard?tab=1`;
+            window.location.href = `${window.location.origin}/dashboard?tab=0`;
             return;
           } else {
             // If we have a token but missing userId/tenantId, proceed with full login flow
@@ -1061,7 +1219,7 @@ const LoginPage = () => {
         alignItems="center"
        
         sx={{
-          background: "linear-gradient(135deg, #FFFDF6, #F8EFDA)",
+          // background: "linear-gradient(135deg, #FFFDF6, #F8EFDA)",
         }}
       >
         <CircularProgress />
@@ -1081,51 +1239,34 @@ const LoginPage = () => {
         flexDirection="column"
         sx={{
           wordBreak: "break-word",
-          background: "linear-gradient(135deg, #FFFDF6, #F8EFDA)",
+          backgroundColor: "#FFFFFF",
+          minHeight: "100vh",
         }}
       >
         {/* Fixed Header */}
         <Header />
 
-        {/* Main Content: Split screen */}
+        {/* Main Content: Two Column Layout */}
         <Box
-          flex={1}
-          display="flex"
-          flexDirection={{ xs: "column", sm: "row" }}
+          sx={{
+            flex: 1,
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+            pt: { xs: 9, sm: 11 },
+            minHeight: "calc(100vh - 80px)",
+          }}
         >
-          {/* Left: Welcome Screen - Hidden on mobile */}
+          {/* Left Column - Login Form */}
           <Box
-            flex={1}
-            display={{ xs: "none", sm: "flex" }}
-            justifyContent="center"
-            alignItems="center"
-           
+            sx={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: { xs: "flex-start", md: "center" },
+              px: { xs: 2, sm: 3, md: 4, lg: 6 },
+              py: { xs: 2, sm: 4 },
+            }}
           >
-            <WelcomeScreen />
-          </Box>
-
-          {/* Right: Login Component */}
-          <Box
-            flex={1}
-            display="flex"
-            flexDirection="column"
-            justifyContent="center"
-            alignItems="center"
-            px={3}
-            boxSizing="border-box"
-          
-          >
-            {/* Welcome Message - Only visible on mobile */}
-            <Box
-              display={{ xs: "flex", sm: "none" }}
-              justifyContent="center"
-              alignItems="center"
-              width="100%"
-              mb={1}
-            >
-              <WelcomeMessage />
-            </Box>
-
             {showLoginForm && (
               <LoginComponent
                 onLogin={handleLogin}
@@ -1143,16 +1284,54 @@ const LoginPage = () => {
                 }}
               />
             )}
+          </Box>
 
-            {/* App Download Section - Only visible on mobile */}
+          {/* Right Column - Logo */}
+          <Box
+            sx={{
+              flex: 1,
+              display: { xs: "none", md: "flex" },
+              alignItems: "center",
+              justifyContent: "center",
+              px: 4,
+              py: 4,
+            }}
+          >
             <Box
-              display={{ xs: "flex", sm: "none" }}
-              justifyContent="center"
-              alignItems="center"
-              width="100%"
-              mt={4}
+              sx={{
+                width: "100%",
+                height: "80%",
+                backgroundColor: "#F5F5F5",
+                border: "1px solid #E0E0E0",
+                borderRadius: "8px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
             >
-              <AppDownloadSection />
+              {/* Logo */}
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "100%",
+                  height: "100%",
+                  p: 4,
+                }}
+              >
+                <Image
+                  src="/logo.png"
+                  alt="Swadhaar Logo"
+                  width={300}
+                  height={300}
+                  style={{ 
+                    objectFit: "contain",
+                    maxWidth: "100%",
+                    height: "auto",
+                  }}
+                />
+              </Box>
             </Box>
           </Box>
         </Box>

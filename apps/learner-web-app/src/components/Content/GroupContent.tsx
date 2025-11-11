@@ -11,7 +11,14 @@ import {
   IconButton,
 } from "@mui/material";
 import { ArrowBack, Description } from "@mui/icons-material";
-import { CommonCard } from "@shared-lib";
+import { CommonCard, ContentItem, useTranslation } from "@shared-lib";
+import dynamic from "next/dynamic";
+
+// Dynamically import ContentCard from content microfrontend
+const ContentCard = dynamic(
+  () => import("@content-mfes/components/Card/ContentCard").then((mod) => mod.default || (() => null)),
+  { ssr: false }
+);
 import { getGroupContentDetails } from "@learner/utils/API/GroupService";
 import { trackingData } from "@content-mfes/services/TrackingService";
 import { getUserCertificates } from "@content-mfes/services/Certificate";
@@ -20,12 +27,14 @@ interface GroupContentItem {
   id: string;
   title: string;
   description: string;
+  keywords?: string[];
   type: "video" | "document" | "quiz" | "assignment" | "course";
   duration?: string;
   progress?: number;
   imageUrl?: string;
   isCompleted?: boolean;
   difficulty?: "beginner" | "intermediate" | "advanced";
+  mimeType?: string;
 }
 
 interface GroupContentProps {
@@ -34,6 +43,8 @@ interface GroupContentProps {
   onBack: () => void;
   onContentClick?: (content: GroupContentItem) => void;
   isLoading?: boolean;
+  groupMemberCount?: number;
+  groupContentCount?: number;
 }
 
 const LIMIT = 10;
@@ -48,7 +59,10 @@ const GroupContent: React.FC<GroupContentProps> = ({
   onBack,
   onContentClick,
   isLoading = false,
+  groupMemberCount = 0,
+  groupContentCount = 0,
 }) => {
+  const { t } = useTranslation();
   const [content, setContent] = useState<GroupContentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [trackData, setTrackData] = useState<Record<string, unknown>[]>([]);
@@ -142,6 +156,7 @@ const GroupContent: React.FC<GroupContentProps> = ({
             id: String(item.identifier || item.id || ""),
             title: String(item.name || item.title || "Untitled Content"),
             description: String(item.description || item.summary || ""),
+            keywords: Array.isArray(item.keywords) ? item.keywords : [],
             type: (item.mimeType === "application/vnd.ekstep.content-collection"
               ? "course"
               : item.mimeType === "application/vnd.ekstep.ecml-archive"
@@ -307,20 +322,22 @@ const GroupContent: React.FC<GroupContentProps> = ({
 
   const handleContentClick = (contentItem: GroupContentItem) => {
     if (onContentClick) {
+      // Use existing mimeType if available, otherwise map from type
+      // Match the same logic as course/content tabs - use supported mimeTypes
+      const mimeTypeMap: Record<string, string> = {
+        video: "video/mp4", // Use a supported video mimeType (video/mp4 is in SUPPORTED_MIME_TYPES)
+        document: "application/vnd.ekstep.html-archive",
+        quiz: "application/vnd.sunbird.questionset",
+        course: "application/vnd.ekstep.content-collection",
+        assignment: "application/vnd.ekstep.html-archive",
+      };
+
       const transformedContent = {
         ...contentItem,
         mimeType:
-          contentItem.type === "video"
-            ? "application/vnd.ekstep.video"
-            : contentItem.type === "document"
-            ? "application/vnd.ekstep.html-archive"
-            : contentItem.type === "quiz"
-            ? "application/vnd.sunbird.questionset"
-            : contentItem.type === "course"
-            ? "application/vnd.ekstep.content-collection"
-            : contentItem.type === "assignment"
-            ? "application/vnd.ekstep.html-archive"
-            : "application/vnd.ekstep.html-archive",
+          contentItem.mimeType ||
+          mimeTypeMap[contentItem.type] ||
+          "application/vnd.ekstep.html-archive",
         identifier: contentItem.id,
         name: contentItem.title,
         posterImage: contentItem.imageUrl,
@@ -366,7 +383,7 @@ const GroupContent: React.FC<GroupContentProps> = ({
             },
           }}
         >
-          Groups
+          {t("LEARNER_APP.DASHBOARD.GROUPS") || "Groups"}
         </Link>
         <Typography variant="body2" color="text.primary">
           {groupName}
@@ -383,14 +400,14 @@ const GroupContent: React.FC<GroupContentProps> = ({
             variant="h4"
             sx={{
               fontWeight: 600,
-              color: "#1F1B13",
+              color: "#1A1A1A",
               mb: 1,
             }}
           >
             {groupName}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            {content.length} content items available
+            {content.length} {t("LEARNER_APP.GROUPS.CONTENT_ITEMS_AVAILABLE") || "content items available"}
           </Typography>
         </Box>
       </Box>
@@ -408,54 +425,92 @@ const GroupContent: React.FC<GroupContentProps> = ({
         >
           <Description sx={{ fontSize: 64, color: "text.secondary" }} />
           <Typography variant="h6" color="text.secondary">
-            No content available
+            {t("LEARNER_APP.GROUPS.NO_CONTENT_AVAILABLE") || "No content available"}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Content will appear here once it&apos;s added to this group
+            {t("LEARNER_APP.GROUPS.CONTENT_WILL_APPEAR") || "Content will appear here once it's added to this group"}
           </Typography>
         </Box>
       ) : (
-        <Grid container spacing={{ xs: 1, sm: 1, md: 2 }}>
+        <Grid container spacing={{ xs: 3, sm: 3, md: 4 }}>
           {content.map((item) => {
             const itemTrackData = trackData.find(
               (track: Record<string, unknown>) => track.courseId === item.id
             );
             console.log(`Rendering card for ${item.id}:`, itemTrackData);
 
+            // Map GroupContentItem to ContentItem format for ContentCard
+            // Use the same mimeType mapping logic as in handleContentClick
+            const mimeTypeMap: Record<string, string> = {
+              video: "video/mp4", // Use a supported video mimeType
+              document: "application/vnd.ekstep.html-archive",
+              quiz: "application/vnd.sunbird.questionset",
+              course: "application/vnd.ekstep.content-collection",
+              assignment: "application/vnd.ekstep.html-archive",
+            };
+
+            const contentItem: ContentItem = {
+              identifier: item.id,
+              name: item.title,
+              mimeType: item.mimeType || mimeTypeMap[item.type] || "application/vnd.ekstep.html-archive",
+              posterImage: item.imageUrl || "",
+              appIcon: item.imageUrl || "",
+              description: item.description,
+              keywords: item.keywords || [],
+              gradeLevel: [],
+              language: [],
+              artifactUrl: "",
+              contentType: item.type,
+              // Add duration if available
+              duration: item.duration,
+            } as ContentItem;
+
             return (
-              <Grid item xs={6} sm={6} md={4} lg={3} xl={2.4} key={item.id}>
-                <CommonCard
-                  title={item.title}
-                  image={item.imageUrl || ""}
-                  content={null}
-                  actions={null}
-                  orientation="horizontal"
-                  item={{
-                    identifier: item.id,
-                    name: item.title,
-                    mimeType: item.type,
-                    posterImage: item.imageUrl || "",
-                    description: item.description,
-                    gradeLevel: [],
-                    language: [],
-                    artifactUrl: "",
-                    appIcon: "",
-                    contentType: item.type,
-                  }}
-                  type={item.type}
-                  TrackData={trackData}
-                  onClick={() => handleContentClick(item)}
-                  _card={{
-                    _contentParentText: {
-                      sx: { height: item.type !== "course" ? "50px" : "60px" },
-                    },
-                    sx: {
-                      height: "100%",
-                      display: "flex",
-                      flexDirection: "column",
-                    },
-                  }}
-                />
+              <Grid item xs={6} sm={6} md={3} lg={3} xl={3} key={item.id}>
+                {ContentCard ? (
+                  <ContentCard
+                    item={contentItem}
+                    type={item.type === "course" ? "Course" : "Learning Resource"}
+                    default_img="/images/image_ver.png"
+                    handleCardClick={(content: ContentItem) => handleContentClick(item)}
+                    trackData={trackData as []}
+                    _card={{
+                      sx: {
+                        height: "100%",
+                        backgroundColor: "#FFFFFF",
+                        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.08)",
+                        borderRadius: "10px",
+                        "&:hover": {
+                          boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.12)",
+                          borderColor: "#E6873C",
+                          transform: "translateY(-2px)",
+                        },
+                      },
+                    }}
+                  />
+                ) : (
+                  <CommonCard
+                    title={item.title}
+                    image={item.imageUrl || ""}
+                    content={null}
+                    actions={null}
+                    orientation="horizontal"
+                    item={contentItem}
+                    type={item.type}
+                    TrackData={trackData}
+                    onClick={() => handleContentClick(item)}
+                    _card={{
+                      _contentParentText: {
+                        sx: { height: item.type !== "course" ? "50px" : "60px" },
+                      },
+                      sx: {
+                        height: "100%",
+                        display: "flex",
+                        flexDirection: "column",
+                      },
+                    }}
+                  />
+                )}
               </Grid>
             );
           })}

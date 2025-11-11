@@ -60,19 +60,13 @@ const GroupsManager: React.FC<GroupsManagerProps> = ({ isLoading = false }) => {
     console.log("Content clicked:", content);
 
     try {
-      // Get current URL for activeLink
+      // Get current URL for activeLink (include tab parameter)
       const activeLinkUrl = window.location.pathname + window.location.search;
 
-      // Use centralized SUPPORTED_MIME_TYPES from helper.ts
-
-      // Content types that should go to content details (not player)
-      const CONTENT_DETAILS_TYPES = [
-        "application/vnd.ekstep.content-collection",
-      ];
-
       // Map content type to MIME type for checking
+      // Match the same logic as in course/content tabs
       const mimeTypeMap: Record<string, string> = {
-        video: "application/vnd.ekstep.video",
+        video: "video/mp4", // Use a supported video mimeType
         document: "application/vnd.ekstep.html-archive",
         quiz: "application/vnd.sunbird.questionset",
         course: "application/vnd.ekstep.content-collection",
@@ -80,33 +74,30 @@ const GroupsManager: React.FC<GroupsManagerProps> = ({ isLoading = false }) => {
       };
 
       const mimeType =
-        mimeTypeMap[content.type] ||
         content.mimeType ||
+        mimeTypeMap[content.type] ||
         "application/vnd.ekstep.html-archive";
 
-      if (CONTENT_DETAILS_TYPES.includes(mimeType)) {
-        // Navigate to content details for course/collection content
-        const contentDetailsUrl = `/content-details/${
-          content.id
-        }?activeLink=${encodeURIComponent(activeLinkUrl)}`;
-        router.push(contentDetailsUrl);
-      } else if (SUPPORTED_MIME_TYPES.includes(mimeType)) {
+      // Match the exact logic from course/content tabs (List.tsx):
+      // If mimeType is in SUPPORTED_MIME_TYPES -> go to player
+      // Otherwise -> go to content details (courses/collections are not in SUPPORTED_MIME_TYPES)
+      if (SUPPORTED_MIME_TYPES.includes(mimeType)) {
         // Navigate to player for supported content types
         const playerUrl = `/player/${
-          content.id
+          content.id || content.identifier
         }?activeLink=${encodeURIComponent(activeLinkUrl)}`;
         router.push(playerUrl);
       } else {
-        // Navigate to content details for unsupported content types
+        // Navigate to content details for courses/collections and unsupported content types
         const contentDetailsUrl = `/content-details/${
-          content.id
+          content.id || content.identifier
         }?activeLink=${encodeURIComponent(activeLinkUrl)}`;
         router.push(contentDetailsUrl);
       }
     } catch (error) {
       console.error("Failed to handle content click:", error);
       // Fallback to content details page
-      router.push(`/content-details/${content.id}`);
+      router.push(`/content-details/${content.id || content.identifier}`);
     }
   };
 
@@ -122,7 +113,8 @@ const GroupsManager: React.FC<GroupsManagerProps> = ({ isLoading = false }) => {
             onBack={handleBackToList}
             onContentClick={handleContentClick}
             isLoading={isLoading}
-            
+            groupMemberCount={selectedGroup.memberCount}
+            groupContentCount={selectedGroup.contentCount}
           />
         )
       )}

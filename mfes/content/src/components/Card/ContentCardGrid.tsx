@@ -26,7 +26,8 @@ const ContentCardGrid = memo((props: ContentCardGridProps) => {
 
  return (
    <Box {..._subBox} sx={{ ...(_subBox?.sx ?? {}) }}>
-     <Grid container spacing={{ xs: 1, sm: 1, md: 2 }} {..._containerGrid}>
+     {/* Spacing: 24-32px between cards (using 3 = 24px, 4 = 32px) */}
+     <Grid container spacing={{ xs: 3, sm: 3, md: 4 }} {..._containerGrid}>
        {props.contentData?.map((item: any, index: number) => (
          <Grid
            key={`${item?.identifier}-${index}`}
@@ -34,9 +35,9 @@ const ContentCardGrid = memo((props: ContentCardGridProps) => {
            item
            xs={6}
            sm={6}
-           md={4}
+           md={3}
            lg={3}
-           xl={2.4}
+           xl={3}
            {..._grid}
          >
            <ContentCard

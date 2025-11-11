@@ -3,19 +3,24 @@
 import React, { useState, useEffect } from "react";
 import {
   Box,
-  Card,
-  CardContent,
   Typography,
   Grid,
   CircularProgress,
-  Stack,
 } from "@mui/material";
-import { Group, School } from "@mui/icons-material";
+import { Group } from "@mui/icons-material";
+import { useTranslation, ContentItem } from "@shared-lib";
+import dynamic from "next/dynamic";
 import {
   getMyCohorts,
   transformCohortToGroup,
   getGroupContentCount,
 } from "@learner/utils/API/GroupService";
+
+// Dynamically import ContentCard from content microfrontend
+const ContentCard = dynamic(
+  () => import("@content-mfes/components/Card/ContentCard").then((mod) => mod.default || (() => null)),
+  { ssr: false }
+);
 
 interface CohortData {
   cohortStatus?: string;
@@ -42,6 +47,7 @@ interface GroupsProps {
 }
 
 const Groups: React.FC<GroupsProps> = ({ onGroupClick, isLoading = false }) => {
+  const { t } = useTranslation();
   const [groups, setGroups] = useState<GroupItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -121,7 +127,7 @@ const Groups: React.FC<GroupsProps> = ({ onGroupClick, isLoading = false }) => {
       >
         <CircularProgress />
         <Typography variant="body2" color="text.secondary">
-          Loading groups...
+          {t("LEARNER_APP.GROUPS.LOADING_GROUPS") || "Loading groups..."}
         </Typography>
       </Box>
     );
@@ -141,10 +147,10 @@ const Groups: React.FC<GroupsProps> = ({ onGroupClick, isLoading = false }) => {
       >
         <Group sx={{ fontSize: 64, color: "text.secondary" }} />
         <Typography variant="h6" color="text.secondary">
-          No groups available
+          {t("LEARNER_APP.GROUPS.NO_GROUPS_AVAILABLE") || "No groups available"}
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Groups will appear here once they are created
+          {t("LEARNER_APP.GROUPS.GROUPS_WILL_APPEAR") || "Groups will appear here once they are created"}
         </Typography>
       </Box>
     );
@@ -157,73 +163,106 @@ const Groups: React.FC<GroupsProps> = ({ onGroupClick, isLoading = false }) => {
         sx={{
           mb: 3,
           fontWeight: 500,
-          color: "#1F1B13",
+          color: "#1A1A1A",
         }}
       >
-        Study Groups
+        {t("LEARNER_APP.GROUPS.STUDY_GROUPS") || "Study Groups"}
       </Typography>
 
-      <Grid container spacing={3}>
-        {groups.map((group) => (
-          <Grid item xs={12} sm={6} md={4} key={group.id}>
-            <Card
-              sx={{
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                cursor: "pointer",
-                transition: "all 0.3s ease",
-                "&:hover": {
-                  transform: "translateY(-4px)",
-                  boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
-                },
-              }}
-              onClick={() => handleGroupClick(group)}
-            >
-              <CardContent
-                sx={{ flex: 1, display: "flex", flexDirection: "column", p: 3 }}
-              >
-                <Typography
-                  variant="h6"
-                  sx={{
-                    fontWeight: 600,
-                    mb: 2,
-                    color: "#1F1B13",
-                    lineHeight: 1.3,
-                    wordBreak: "break-word",
-                    overflowWrap: "break-word",
-                    hyphens: "auto",
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    minHeight: "2.6em", // Ensure consistent height for 2 lines
+      {/* Spacing: 24-32px between cards */}
+      <Grid container spacing={{ xs: 3, sm: 3, md: 4 }}>
+        {groups.map((group) => {
+          // Map GroupItem to ContentItem format for ContentCard
+          // Format description to include content count if description is missing
+          const description = group.description || 
+            (group.contentCount > 0 
+              ? `${group.contentCount} ${group.contentCount === 1 ? "content" : "contents"} available`
+              : "No content available");
+          
+          const contentItem: ContentItem = {
+            identifier: group.id,
+            name: group.name,
+            mimeType: "application/vnd.ekstep.content-collection",
+            posterImage: group.imageUrl || "",
+            appIcon: group.imageUrl || "",
+            description: description,
+            keywords: [],
+            gradeLevel: [],
+            language: [],
+            artifactUrl: "",
+            contentType: "Course",
+            // Format mimeTypesCount to show content count in metadata
+            // The ContentCard will parse this and display it in the metadata section
+            // We use a format that will be recognized as content items
+            mimeTypesCount: group.contentCount > 0 
+              ? JSON.stringify({
+                  "application/vnd.ekstep.content-collection": group.contentCount,
+                })
+              : undefined,
+            // Add a custom property to indicate this is a group for custom rendering if needed
+            // This can be used to customize the metadata display
+          } as ContentItem & { isGroup?: boolean; groupContentCount?: number };
+          
+          // Add group-specific properties
+          (contentItem as any).isGroup = true;
+          (contentItem as any).groupContentCount = group.contentCount;
+          (contentItem as any).groupMemberCount = group.memberCount;
+
+          return (
+            <Grid item xs={6} sm={6} md={3} lg={3} xl={3} key={group.id}>
+              {ContentCard ? (
+                <ContentCard
+                  item={contentItem}
+                  type="Course"
+                  default_img="/images/image_ver.png"
+                  handleCardClick={() => handleGroupClick(group)}
+                  trackData={[]}
+                  _card={{
+                    sx: {
+                      height: "100%",
+                      backgroundColor: "#FFFFFF",
+                      boxShadow: "0 1px 3px rgba(0, 0, 0, 0.08)",
+                      border: "1px solid #E0E0E0",
+                      borderRadius: "10px",
+                      "&:hover": {
+                        boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.12)",
+                        borderColor: "#E6873C",
+                        transform: "translateY(-2px)",
+                      },
+                    },
                   }}
-                  title={group.name} // Show full name on hover
+                />
+              ) : (
+                <Box
+                  sx={{
+                    p: 2,
+                    border: "1px solid #E0E0E0",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                    "&:hover": {
+                      boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.1)",
+                    },
+                  }}
+                  onClick={() => handleGroupClick(group)}
                 >
-                  {group.name}
-                </Typography>
-
-                <Stack direction="row" spacing={2} sx={{ mt: "auto" }}>
-                  {/* <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                   <People sx={{ fontSize: 16, color: 'text.secondary' }} />
-                   <Typography variant="body2" color="text.secondary">
-                     {group.memberCount} members
-                   </Typography>
-                 </Box> */}
-
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <School sx={{ fontSize: 16, color: "text.secondary" }} />
-                    <Typography variant="body2" color="text.secondary">
-                      {group.contentCount} contents
-                    </Typography>
-                  </Box>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 600,
+                      mb: 1,
+                      color: "#1A1A1A",
+                    }}
+                  >
+                    {group.name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {group.contentCount} contents
+                  </Typography>
+                </Box>
+              )}
+            </Grid>
+          );
+        })}
       </Grid>
     </Box>
   );

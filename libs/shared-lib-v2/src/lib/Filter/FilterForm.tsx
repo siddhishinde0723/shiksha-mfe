@@ -99,10 +99,10 @@ export function FilterForm({
   const [showMore, setShowMore] = useState([]);
 
   // Memoize props to avoid unnecessary re-renders and effect triggers
-  const memoizedOrginalFormData = React.useMemo(() => orginalFormData, []);
-  const memoizedStaticFilter = React.useMemo(() => staticFilter, []);
-  const memoizedOnlyFields = React.useMemo(() => onlyFields, []);
-  const memoizedFilterFramework = React.useMemo(() => filterFramework, []);
+  const memoizedOrginalFormData = React.useMemo(() => orginalFormData, [orginalFormData]);
+  const memoizedStaticFilter = React.useMemo(() => staticFilter, [staticFilter]);
+  const memoizedOnlyFields = React.useMemo(() => onlyFields, [onlyFields]);
+  const memoizedFilterFramework = React.useMemo(() => filterFramework, [filterFramework]);
   useEffect(() => {
     const fetchData = async (noFilter = true) => {
       const instantId =
@@ -196,6 +196,24 @@ export function FilterForm({
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Reset formData when orginalFormData changes (e.g., when filters are cleared)
+  useEffect(() => {
+    if (filterData.length > 0 && !loading) {
+      const mergedData = {
+        ...memoizedOrginalFormData,
+        ...memoizedStaticFilter,
+      };
+      const { updatedFilters: dormNewData, updatedFilterValue } =
+        replaceOptionsWithAssoc({
+          filterValue: mergedData,
+          filtersFields: filterData,
+          onlyFields: memoizedOnlyFields,
+        });
+      setFormData(updatedFilterValue);
+      setRenderForm(dormNewData);
+    }
+  }, [memoizedOrginalFormData, memoizedStaticFilter, filterData, memoizedOnlyFields, loading]);
 
   const handleFilter = (filterValue: any) => {
     const formattedPayload = formatPayload(filterValue ?? formData);
@@ -387,10 +405,49 @@ function replaceOptionsWithAssoc({
   onlyFields: any;
 }) {
   const updatedFilters = JSON.parse(JSON.stringify(filtersFields));
-
+  
+  // First pass: Collect all associations from ALL selected filters
+  const allMergedAssociations: Record<string, any[]> = {};
+  
   for (let i = 0; i < updatedFilters.length; i++) {
     const currentFilter = filtersFields[i];
     const selectedValues = filterValue[currentFilter.code];
+    if (Array.isArray(selectedValues) && selectedValues.length > 0) {
+      const newfilterValue = selectedValues.map(
+        (item: any) => item?.code ?? item
+      );
+      const selectedOptions = currentFilter?.options?.filter(
+        (opt: any) =>
+          newfilterValue.includes(opt.code) || newfilterValue.includes(opt.name)
+      );
+      selectedOptions?.forEach((opt: any) => {
+        if (opt.associations) {
+          Object.entries(opt.associations).forEach(
+            ([assocKey, assocOptions]: any) => {
+              if (!allMergedAssociations[assocKey]) {
+                allMergedAssociations[assocKey] = [];
+              }
+              assocOptions.forEach((assocOpt: any) => {
+                if (
+                  !allMergedAssociations[assocKey].some(
+                    (o) => o.code === assocOpt.code
+                  )
+                ) {
+                  allMergedAssociations[assocKey].push(assocOpt);
+                }
+              });
+            }
+          );
+        }
+      });
+    }
+  }
+
+  // Second pass: Update filter options using merged associations from all selected filters
+  for (let i = 0; i < updatedFilters.length; i++) {
+    const currentFilter = filtersFields[i];
+    const selectedValues = filterValue[currentFilter.code];
+    
     if (Array.isArray(selectedValues) && selectedValues.length > 0) {
       const newfilterValue = selectedValues.map(
         (item: any) => item?.code ?? item
@@ -425,28 +482,27 @@ function replaceOptionsWithAssoc({
         const nextFilterIndex = updatedFilters.findIndex(
           (f: any, idx: number) => f.old_code === assocKey && idx > i
         );
-        // remove unwanted filterValue using options
-        if (filterValue?.[`se_${assocKey}s`]) {
-          filterValue[`se_${assocKey}s`] = filterValue[
-            `se_${assocKey}s`
-          ].filter((item: any) =>
-            assocOptions.find(
-              (sub) =>
-                sub.code === (item.code ?? item.name ?? item) ||
-                sub.name === (item.code ?? item.name ?? item) ||
-                sub === (item.code ?? item.name ?? item)
-            )
-          );
-        }
+        
         if (nextFilterIndex !== -1) {
+          // Use merged associations from ALL selected filters for this category
+          // This ensures that if multiple mediums are selected, all their associated subjects are available
+          const allAssociationsForKey = allMergedAssociations[assocKey] || assocOptions;
+          
+          // Update available options for the associated filter based on associations
           // Sort associated options alphabetically by name
-          const sortedAssocOptions = [...assocOptions].sort((a: any, b: any) => {
+          const sortedAssocOptions = [...allAssociationsForKey].sort((a: any, b: any) => {
             const nameA = (a.name || "").toLowerCase().trim();
             const nameB = (b.name || "").toLowerCase().trim();
             return nameA.localeCompare(nameB);
           });
           updatedFilters[nextFilterIndex].options = sortedAssocOptions;
+          
+          // IMPORTANT: Do NOT filter out selected values based on associations
+          // Preserve ALL selected values regardless of associations - let users select independently
+          // The selected values will remain in filterValue and be sent to the API
         }
+        // Note: We no longer filter filterValue based on associations
+        // All selected values are preserved regardless of association rules
       });
     }
   }

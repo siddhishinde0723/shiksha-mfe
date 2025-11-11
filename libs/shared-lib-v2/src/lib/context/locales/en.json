@@ -185,11 +185,13 @@
       "EXPLORE_ADDITIONAL_COURSES": "Explore Additional Courses"
     },
     "HOME": {
-      "WELCOME_TITLE": "Welcome to Shiksha",
+      "WELCOME_TITLE": "Welcome to Swadhaar Finaccess",
+      "APP_NAME": "Swadhaar",
       "WELCOME_SUBTITLE": "Your Learning Journey begins here",
       "MAIN_DESCRIPTION": "Learn simple, practical finance skills in your language, at your own pace",
       "PLATFORM_DESCRIPTION": "A comprehensive platform enabling learning, capacity building, professional development, and content distribution solutions. Applicable across Education, Agriculture, Healthcare, and more.",
       "LOGO_ALT": "Swadhaar Finaccess Logo",
+      "CHOOSE_LANGUAGE": "Choose your language",
       "OUR_SOLUTIONS_TITLE": "Our Solutions",
       "OUR_SOLUTIONS_DESC": "Empowering learning and development across multiple domains with our comprehensive platform",
       "FEATURES": {
@@ -212,7 +214,7 @@
       },
       "SIGN_UP_BUTTON": "Sign Up for Program Now!",
       "ALREADY_SIGNED_UP": "Already signed up?",
-      "LOGIN_LINK": "Click here to login",
+      "LOGIN_LINK": "Start Learning",
       "GET_THE_APP": "Get the App",
       "POINT_CAMERA": "Point your phone camera here",
       "OR": "OR",
@@ -231,6 +233,7 @@
       "qr_instruction": "Point your phone \n camera here",
       "qr_image_alt": "QR Code",
       "or": "OR",
+      "OTP_NOT_CORRECT": "Invalid OTP. Please try again.",
       "playstore_image_alt": "Get it on Google Play",
       "playstore_instruction": "Search “Shiksha myLearning” on Playstore",
       "login_title": "Login",
@@ -248,7 +251,14 @@
       "SEARCH_PLAYSTORE": "Search “Shiksha myLearning” on Playstore",
       "ON_PLAYSTORE": "on Playstore",
       "otp_label": "Enter OTP",
-      "verify_otp_button": "Verify OTP"
+      "verify_otp_button": "Verify OTP",
+      "PHONE_INSTRUCTION": "Hi there! Log in with your registered phone number to continue.",
+      "PHONE_NUMBER": "Phone Number",
+      "SEND_OTP": "SEND OTP",
+      "OTP_INSTRUCTION": "Enter the 6-digit OTP sent to your phone.",
+      "SEND": "SEND",
+      "RESEND_OTP": "Resend OTP",
+      "SENDING": "Sending..."
     },
     "L_ONE_COURSE": {
       "IN_PROGRESS_TITLE": "In Progress",
@@ -287,9 +297,32 @@
       "SUB_TITLE": "Our expert will reach out to you soon",
       "FOOTER_TEXT": "In the meantime, feel free to explore more courses or continue building your skills!"
     },
+    "DASHBOARD": {
+      "COURSES": "Courses",
+      "CONTENT": "Content",
+      "GROUPS": "Groups",
+      "COURSES_SUBTITLE": "Build your financial skills, one course at a time.",
+      "CONTENT_SUBTITLE": "Discover practical money lessons — watch, read, and explore.",
+      "GROUPS_SUBTITLE": "Join study groups and learn together.",
+      "FILTER_ALL": "All",
+      "FILTER_FOR_YOU": "For You",
+      "FILTER_BEGINNER": "Beginner",
+      "FILTER_INTERMEDIATE": "Intermediate",
+      "FILTER_ADVANCED": "Advanced"
+    },
     "CONTENT": {
+      "SEARCH": "Search",
       "DEFAULT_IMAGE_ALT": "Default course image",
       "FILTERS": "Filters"
+    },
+    "GROUPS": {
+      "STUDY_GROUPS": "Study Groups",
+      "NO_CONTENT_AVAILABLE": "No content available",
+      "CONTENT_WILL_APPEAR": "Content will appear here once it's added to this group",
+      "CONTENT_ITEMS_AVAILABLE": "content items available",
+      "NO_GROUPS_AVAILABLE": "No groups available",
+      "GROUPS_WILL_APPEAR": "Groups will appear here once they are created",
+      "LOADING_GROUPS": "Loading groups..."
     },
     "IN_PROGRESS": {
       "ALL_COURSES": "All In Progress Courses"

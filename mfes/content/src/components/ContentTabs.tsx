@@ -41,7 +41,6 @@ const RenderTabContent = memo(
   }) => {
     const { t } = useTranslation();
     const { _box, _tabs } = _config ?? {};
-
     return (
       <Box sx={{ width: "100%", ...(_box?.sx ?? {}) }}>
         {tabs?.length !== undefined && tabs?.length > 1 && (

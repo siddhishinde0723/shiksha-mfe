@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Alert, Box, Typography, Container, Grid, Button, Skeleton, Paper, Chip, Avatar, Divider } from "@mui/material";
+import { Alert, Box, Typography, Container, Grid, Button, Skeleton, Paper, Chip, Avatar, Divider, IconButton } from "@mui/material";
 import Layout from "../../components/Layout";
 import UserProfileCard from "@learner/components/UserProfileCard/UserProfileCard";
 import CourseCertificateCard from "@learner/components/CourseCertificateCard/CourseCertificateCard";
 import { courseWiseLernerList } from "@shared-lib-v2/utils/CertificateService/coursesCertificates";
-import { CertificateModal, get } from "@shared-lib";
+import { CertificateModal, get, useTranslation } from "@shared-lib";
 import { useRouter } from "next/navigation";
 import { checkAuth } from "@shared-lib-v2/utils/AuthService";
 import InfoIcon from "@mui/icons-material/Info";
@@ -14,11 +14,15 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SchoolIcon from "@mui/icons-material/School";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import AccountCircle from "@mui/icons-material/AccountCircle";
 
 import { baseurl } from "@learner/utils/API/EndUrls";
 import { Info } from "@mui/icons-material";
 import { showToastMessage } from "@learner/components/ToastComponent/Toastify";
 import { transformImageUrl } from "@learner/utils/imageUtils";
+import Image from "next/image";
+import ProfileMenu from "../../components/ProfileMenu/ProfileMenu";
+import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal";
 
 type FilterDetails = {
   status?: string[];
@@ -27,6 +31,9 @@ type FilterDetails = {
 };
 const ProfilePage = () => {
   const router = useRouter();
+  const { t, language, setLanguage } = useTranslation();
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
 
   const [filters] = useState<FilterDetails>({
     status: ["completed", "viewCertificate"],
@@ -247,13 +254,153 @@ const ProfilePage = () => {
     courseData: courseData,
   });
 
+  const handleProfileClick = () => {
+    router.push("/profile");
+    setAnchorEl(null);
+  };
+
+  const handleLogoutClick = () => {
+    setLogoutModalOpen(true);
+    setAnchorEl(null);
+  };
+
+  const performLogout = () => {
+    router.push("/logout");
+  };
+
   return (
-    <Layout>
+    <Layout
+      onlyHideElements={["footer", "topBar"]}
+    >
+      {/* Custom Header with Logo and Language */}
+      <Box
+        sx={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: "white",
+          zIndex: 1000,
+          borderBottom: "1px solid #E0E0E0",
+        }}
+      >
+        {/* Top Header Bar */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            px: { xs: 2, sm: 3 },
+            py: { xs: 1.5, sm: 2 },
+          }}
+        >
+          {/* Logo and Brand Name */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: { xs: 0.5, sm: 1 },
+            }}
+          >
+            <Box
+              sx={{
+                width: { xs: 28, sm: 32 },
+                height: { xs: 28, sm: 32 },
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Image
+                src="/logo.png"
+                alt="Swadhaar"
+                width={60}
+                height={60}
+                style={{ objectFit: "contain" }}
+              />
+            </Box>
+            <Typography
+              sx={{
+                fontWeight: 400,
+                marginLeft: { xs: 1, sm: 2 },
+                fontSize: { xs: "16px", sm: "20px" },
+                lineHeight: "28px",
+                color: "#1A1A1A",
+              }}
+            >
+              {t("LEARNER_APP.HOME.APP_NAME") || "Swadhaar"}
+            </Typography>
+          </Box>
+
+          {/* Language Buttons and Profile */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+            }}
+          >
+            <Button
+              onClick={() => setLanguage("en")}
+              sx={{
+                minWidth: "auto",
+                px: 2,
+                py: 0.75,
+                backgroundColor: language === "en" ? "#E6873C" : "#E0E0E0",
+                color: language === "en" ? "#FFFFFF" : "#666666",
+                fontSize: "14px",
+                fontWeight: 400,
+                textTransform: "none",
+                borderRadius: "4px",
+                "&:hover": {
+                  backgroundColor: language === "en" ? "#E6873C" : "#D0D0D0",
+                },
+              }}
+            >
+              ENGLISH
+            </Button>
+            <Button
+              onClick={() => setLanguage("hi")}
+              sx={{
+                minWidth: "auto",
+                px: 2,
+                py: 0.75,
+                backgroundColor: language === "hi" ? "#E6873C" : "#E0E0E0",
+                color: language === "hi" ? "#FFFFFF" : "#666666",
+                fontSize: "14px",
+                fontWeight: 400,
+                textTransform: "none",
+                borderRadius: "4px",
+                "&:hover": {
+                  backgroundColor: language === "hi" ? "#E6873C" : "#D0D0D0",
+                },
+              }}
+            >
+              हिन्दी
+            </Button>
+            {/* Profile Icon Button */}
+            <IconButton
+              onClick={(e) => setAnchorEl(e.currentTarget)}
+              sx={{
+                color: "#1A1A1A",
+                "&:hover": {
+                  backgroundColor: "rgba(230, 135, 60, 0.1)",
+                },
+              }}
+            >
+              <AccountCircle sx={{ fontSize: { xs: 28, sm: 32 } }} />
+            </IconButton>
+          </Box>
+        </Box>
+      </Box>
+
       {/* Hero Section with Gradient Background */}
       <Box
         sx={{
-            background: '#F8EFDA',
+          background: '#FFFFFF',
           py: 4,
+          pt: { xs: 12, sm: 14 },
           position: 'relative',
           overflow: 'hidden',
         }}
@@ -279,13 +426,13 @@ const ProfilePage = () => {
               startIcon={<ArrowBackIcon />}
               onClick={() => router.push("/dashboard")}
               sx={{
-                color: "#1F1B13",
-                borderColor: "rgba(31,27,19,0.3)",
+                color: "#1A1A1A",
+                borderColor: "rgba(26,26,26,0.3)",
                 backgroundColor: "rgba(255,255,255,0.8)",
                 backdropFilter: "blur(10px)",
                 "&:hover": {
                   backgroundColor: "rgba(255,255,255,0.9)",
-                  borderColor: "rgba(31,27,19,0.5)",
+                  borderColor: "rgba(26,26,26,0.5)",
                 },
               }}
             >
@@ -294,7 +441,7 @@ const ProfilePage = () => {
           </Box>
 
           {/* Profile Header */}
-          <Box sx={{ textAlign: 'center', color: '#1F1B13', mb: 4 }}>
+          <Box sx={{ textAlign: 'center', color: '#1A1A1A', mb: 4 }}>
             <Typography
               variant="h2"
               fontWeight={700}
@@ -329,7 +476,7 @@ const ProfilePage = () => {
                   backdropFilter: 'blur(10px)',
                   border: '1px solid rgba(0,0,0,0.1)',
                   borderRadius: 3,
-                  color: '#1F1B13',
+                  color: '#1A1A1A',
                 }}
               >
                 <SchoolIcon sx={{ fontSize: 32, mb: 1, opacity: 0.9 }} />
@@ -350,7 +497,7 @@ const ProfilePage = () => {
                   backdropFilter: 'blur(10px)',
                   border: '1px solid rgba(0,0,0,0.1)',
                   borderRadius: 3,
-                  color: '#1F1B13',
+                  color: '#1A1A1A',
                 }}
               >
                 <EmojiEventsIcon sx={{ fontSize: 32, mb: 1, opacity: 0.9 }} />
@@ -390,9 +537,9 @@ const ProfilePage = () => {
                 {/* Section Header */}
                 <Box
                   sx={{
-                    background: '#F8EFDA',
+                    background: '#F5F5F5',
                     p: 3,
-                    color: '#1F1B13',
+                    color: '#1A1A1A',
                   }}
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -410,8 +557,8 @@ const ProfilePage = () => {
                   <Chip
                     label={`${courseData.length} Certificate${courseData.length !== 1 ? 's' : ''}`}
                     sx={{
-                      backgroundColor: 'rgba(31,27,19,0.1)',
-                      color: '#1F1B13',
+                      backgroundColor: 'rgba(26,26,26,0.1)',
+                      color: '#1A1A1A',
                       fontWeight: 600,
                     }}
                   />
@@ -516,6 +663,26 @@ const ProfilePage = () => {
         certificateId={certificateId}
         open={showCertificate}
         setOpen={setShowCertificate}
+      />
+
+      <ProfileMenu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={() => setAnchorEl(null)}
+        onProfileClick={handleProfileClick}
+        onLogout={() => handleLogoutClick()}
+      />
+
+      {/* Logout Confirmation Modal */}
+      <ConfirmationModal
+        modalOpen={logoutModalOpen}
+        message="Are you sure you want to logout?"
+        handleAction={performLogout}
+        buttonNames={{
+          primary: "Logout",
+          secondary: "Cancel",
+        }}
+        handleCloseModal={() => setLogoutModalOpen(false)}
       />
     </Layout>
   );

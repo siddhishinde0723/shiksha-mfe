@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable no-empty */
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable @nx/enforce-module-boundaries */
 "use client";
@@ -164,11 +166,54 @@ export default function Content(props: Readonly<ContentProps>) {
   useEffect(() => {
     if (props.filters) {
       setLocalFilters((prev) => {
+        // Extract query separately to ensure it's properly handled
+        const incomingQuery = (props.filters as any)?.query;
+        const incomingOffset = (props.filters as any)?.offset;
+        const incomingLimit = (props.filters as any)?.limit;
+        
+        console.log("🔍 Content List: Received filters from props:", {
+          incomingQuery,
+          prevQuery: prev.query,
+          allFilters: props.filters
+        });
+        
         // Only update if filters actually changed to prevent unnecessary re-renders
-        const newFilters = { ...prev, ...props.filters, loadOld: false };
-        if (JSON.stringify(prev) === JSON.stringify(newFilters)) {
+        const newFilters = { 
+          ...prev, 
+          ...props.filters, 
+          loadOld: false,
+          // Ensure query is properly set - prioritize incoming query
+          query: incomingQuery !== undefined ? incomingQuery : prev.query,
+          offset: incomingOffset !== undefined ? incomingOffset : (incomingQuery !== prev.query ? 0 : prev.offset),
+          limit: incomingLimit !== undefined ? incomingLimit : prev.limit,
+        };
+        
+        // Check if query specifically changed, as it's critical for search
+        const queryChanged = prev.query !== newFilters.query;
+        const filtersChanged = JSON.stringify({
+          ...prev,
+          query: undefined,
+          offset: undefined,
+          limit: undefined,
+        }) !== JSON.stringify({
+          ...newFilters,
+          query: undefined,
+          offset: undefined,
+          limit: undefined,
+        });
+        
+        console.log("🔍 Content List: Query changed?", queryChanged, "New query:", newFilters.query);
+        
+        if (!queryChanged && !filtersChanged && prev.offset === newFilters.offset && prev.limit === newFilters.limit) {
           return prev; // No change, return same object to prevent re-render
         }
+        
+        // Reset offset when query changes
+        if (queryChanged) {
+          newFilters.offset = 0;
+          console.log("🔍 Content List: Reset offset to 0 due to query change");
+        }
+        
         return newFilters;
       });
     }
@@ -232,9 +277,7 @@ export default function Content(props: Readonly<ContentProps>) {
                     const isValid = !hasTemplate && isLive;
 
                     if (!isValid) {
-                      console.log(
-                        `🚫 Content MFE - Filtering out term: ${term.name} (${term.code}) - Template: ${hasTemplate}, Live: ${isLive}`
-                      );
+                     
                     }
 
                     return isValid;
@@ -359,12 +402,7 @@ export default function Content(props: Readonly<ContentProps>) {
       const { type, filters: filterFilters, query: filterQuery, ...restFilter } = filter;
       
       // Log for debugging
-      console.log('🔍 fetchAllContent - props.activeTab:', props.activeTab);
-      console.log('🔍 fetchAllContent - filter.type:', filter.type);
-      console.log('🔍 fetchAllContent - tabValue:', tabValue);
-      console.log('🔍 fetchAllContent - tabs[tabValue]:', tabs[tabValue]);
-      console.log('🔍 fetchAllContent - determinedType:', determinedType);
-      
+     
       const resultResponse = await ContentSearch({
         type: determinedType, // Use the determined type
         query: filterQuery || filter.query,
@@ -482,6 +520,8 @@ export default function Content(props: Readonly<ContentProps>) {
 
       try {
         const response = await fetchAllContent(localFilters);
+        console.log("siddhi:response",response)
+
         if (!response || !isMounted) return;
         const newContentData = [
           ...(response.content ?? []),
@@ -808,7 +848,7 @@ export default function Content(props: Readonly<ContentProps>) {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, [hasMoreData, isLoading, handleLoadMore]);
-
+console.log("contentData siddhi",contentData)
   return (
     <LayoutPage
       isLoadingChildren={isInitialLoad}

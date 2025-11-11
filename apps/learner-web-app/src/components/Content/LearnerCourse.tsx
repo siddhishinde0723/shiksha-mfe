@@ -6,11 +6,8 @@ import {
   Close as CloseIcon,
   FilterAltOutlined,
   FilterList,
-  Search,
 } from "@mui/icons-material";
-import SearchComponent from "./SearchComponent";
 import FilterComponent from "./FilterComponent";
-import { gredientStyle } from "@learner/utils/style";
 import { logEvent } from "@learner/utils/googleAnalytics";
 
 interface LearnerCourseProps {
@@ -50,8 +47,28 @@ export default memo(function LearnerCourse({
   const { t } = useTranslation();
   const { staticFilter, filterFramework } = _content ?? {};
   useEffect(() => {
-    setFilterState(_content?.filters ?? {});
-  }, [_content?.filters, _content?.searchParams]);
+    // Update filterState when _content changes, including query/searchParams
+    const currentQuery = _content?.query || _content?.searchParams || "";
+    console.log("🔍 LearnerCourse: _content.query changed:", currentQuery);
+    setFilterState((prevState: any) => {
+      // Check if query actually changed
+      if (prevState.query === currentQuery && 
+          JSON.stringify(prevState.filters) === JSON.stringify(_content?.filters ?? {})) {
+        return prevState; // No change, return same object to prevent re-render
+      }
+      
+      const newFilters = {
+        ...prevState,
+        ...(_content?.filters ?? {}),
+        query: currentQuery,
+        limit: _content?.limit || prevState.limit || 10,
+        offset: prevState.query !== currentQuery ? 0 : (prevState.offset || 0), // Reset offset when query changes
+      };
+      
+      console.log("🔍 LearnerCourse: Updated filterState with query:", newFilters.query);
+      return newFilters;
+    });
+  }, [_content?.filters, _content?.searchParams, _content?.query]);
 
   const handleTabChange = useCallback((tab: any) => {
     const type = tab === "Course" ? "Course" : "Learning Resource";
@@ -120,12 +137,11 @@ export default memo(function LearnerCourse({
           sx={{
             position: "sticky",
             top: 0,
-            bgcolor: "",
+            bgcolor: "#FFFFFF",
             px: { xs: 1, md: 4 },
             py: { xs: 1, md: 2 },
             zIndex: 1,
           }}
-          style={gredientStyle}
         >
           <Box
             display="flex"
@@ -151,7 +167,7 @@ export default memo(function LearnerCourse({
               sx={{
                 display: "flex",
                 flexDirection: "row",
-                justifyContent: "space-between",
+                justifyContent: "flex-end",
                 alignItems: "center",
                 gap: 1,
               }}
@@ -207,10 +223,6 @@ export default memo(function LearnerCourse({
                   </Typography>
                 </Button>
               </Box>
-              <SearchComponent
-                onSearch={handleSearchClick}
-                value={filterState?.query}
-              />
             </Box>
             <Box
               sx={{
@@ -323,7 +335,7 @@ export default memo(function LearnerCourse({
                 sx={{
                   display: "flex",
                   flexDirection: "row",
-                  justifyContent: "space-between",
+                  justifyContent: "flex-end",
                   gap: 2,
                 }}
               >
@@ -379,12 +391,6 @@ export default memo(function LearnerCourse({
                     </Typography>
                   </Button>
                 </Box>
-                <ButtonToggale icon={<Search />} _button={{ color: "primary" }}>
-                  <SearchComponent
-                    onSearch={handleSearchClick}
-                    value={filterState?.query}
-                  />
-                </ButtonToggale>
               </Box>
             </Box>
           )}
@@ -413,6 +419,9 @@ export default memo(function LearnerCourse({
             }}
             filters={{
               ...filterState,
+              query: filterState.query || _content?.query || "",
+              offset: filterState.offset || 0,
+              limit: filterState.limit || 10,
               filters: {
                 ...filterState.filters,
                 ...staticFilter,

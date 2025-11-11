@@ -1,9 +1,8 @@
-"use client";
+'use client';
 
-import React, { useLayoutEffect, useState } from 'react';
+import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { checkAuth } from '@shared-lib-v2/utils/AuthService';
-import Layout from '@learner/components/Layout';
+import Layout from "@learner/components/Layout";
 import { Box, Button, Typography, IconButton } from '@mui/material';
 import { AccountCircle } from '@mui/icons-material';
 import Image from 'next/image';
@@ -12,30 +11,18 @@ import ProfileMenu from '@learner/components/ProfileMenu/ProfileMenu';
 import ConfirmationModal from '@learner/components/ConfirmationModal/ConfirmationModal';
 import { useRouter } from 'next/navigation';
 
-const Player = dynamic(() => import('@learner/components/Content/Player'), {
-  ssr: false,
-});
+const ContentDetails = dynamic(
+  () => import('@learner/components/Content/Player'),
+  {
+    ssr: false,
+  }
+);
 
-const App: React.FC = () => {
+const ContentPlayerClient: React.FC = () => {
   const router = useRouter();
   const { t, language, setLanguage } = useTranslation();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
-
-  // Immediate authentication check and redirect
-  useLayoutEffect(() => {
-    if (typeof window !== "undefined" && !checkAuth()) {
-      const currentPath = window.location.pathname + window.location.search;
-      if (
-        currentPath !== "/login" &&
-        currentPath !== "/login-simple" &&
-        !currentPath.startsWith("/login")
-      ) {
-        sessionStorage.setItem("redirectAfterLogin", currentPath);
-      }
-      window.location.replace("/login");
-    }
-  }, []);
 
   const handleProfileClick = () => {
     router.push("/profile");
@@ -50,11 +37,6 @@ const App: React.FC = () => {
   const performLogout = () => {
     router.push("/logout");
   };
-
-  // Don't render content if not authenticated
-  if (typeof window !== "undefined" && !checkAuth()) {
-    return null;
-  }
 
   return (
     <Layout onlyHideElements={["footer", "topBar"]}>
@@ -200,7 +182,7 @@ const App: React.FC = () => {
           pb: 4,
         }}
       >
-        <Player userIdLocalstorageName="userId" />
+        <ContentDetails />
       </Box>
 
       <ProfileMenu
@@ -226,4 +208,5 @@ const App: React.FC = () => {
   );
 };
 
-export default App;
+export default ContentPlayerClient;
+
