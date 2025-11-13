@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable no-empty */
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable @nx/enforce-module-boundaries */
 "use client";
@@ -232,9 +234,7 @@ export default function Content(props: Readonly<ContentProps>) {
                     const isValid = !hasTemplate && isLive;
 
                     if (!isValid) {
-                      console.log(
-                        `🚫 Content MFE - Filtering out term: ${term.name} (${term.code}) - Template: ${hasTemplate}, Live: ${isLive}`
-                      );
+                     
                     }
 
                     return isValid;
@@ -359,12 +359,7 @@ export default function Content(props: Readonly<ContentProps>) {
       const { type, filters: filterFilters, query: filterQuery, ...restFilter } = filter;
       
       // Log for debugging
-      console.log('🔍 fetchAllContent - props.activeTab:', props.activeTab);
-      console.log('🔍 fetchAllContent - filter.type:', filter.type);
-      console.log('🔍 fetchAllContent - tabValue:', tabValue);
-      console.log('🔍 fetchAllContent - tabs[tabValue]:', tabs[tabValue]);
-      console.log('🔍 fetchAllContent - determinedType:', determinedType);
-      
+     
       const resultResponse = await ContentSearch({
         type: determinedType, // Use the determined type
         query: filterQuery || filter.query,
@@ -482,6 +477,8 @@ export default function Content(props: Readonly<ContentProps>) {
 
       try {
         const response = await fetchAllContent(localFilters);
+        console.log("siddhi:response",response)
+
         if (!response || !isMounted) return;
         const newContentData = [
           ...(response.content ?? []),
@@ -808,7 +805,7 @@ export default function Content(props: Readonly<ContentProps>) {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, [hasMoreData, isLoading, handleLoadMore]);
-
+console.log("contentData siddhi",contentData)
   return (
     <LayoutPage
       isLoadingChildren={isInitialLoad}

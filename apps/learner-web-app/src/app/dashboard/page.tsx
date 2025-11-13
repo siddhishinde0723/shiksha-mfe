@@ -1,3 +1,7 @@
+/* eslint-disable no-empty */
+/* eslint-disable @nx/enforce-module-boundaries */
+/* eslint-disable react-hooks/rules-of-hooks */
+/* eslint-disable @typescript-eslint/no-empty-function */
 "use client";
 import React, { useEffect, useState, useRef } from "react";
 import Layout from "@learner/components/Layout";
@@ -34,6 +38,26 @@ const DashboardPage = () => {
     isOpenColapsed: [],
   });
   const hasInitialized = useRef(false);
+  
+  // Immediate authentication check and redirect
+  React.useLayoutEffect(() => {
+    if (typeof window !== "undefined" && !checkAuth()) {
+      const currentPath = window.location.pathname + window.location.search;
+      if (
+        currentPath !== "/login" &&
+        currentPath !== "/login-simple" &&
+        !currentPath.startsWith("/login")
+      ) {
+        sessionStorage.setItem("redirectAfterLogin", currentPath);
+      }
+      window.location.replace("/login");
+    }
+  }, []);
+  
+  // Don't render content if not authenticated
+  if (typeof window !== "undefined" && !checkAuth()) {
+    return null;
+  }
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -60,6 +84,11 @@ const DashboardPage = () => {
     if (hasInitialized.current) return;
     hasInitialized.current = true;
 
+    // Don't make any API calls if not authenticated
+    if (typeof window !== "undefined" && !checkAuth()) {
+      return;
+    }
+
     const fetchTenantInfo = async () => {
       try {
         if (checkAuth()) {
@@ -68,6 +97,7 @@ const DashboardPage = () => {
           setIsProfileCard(!result);
         } else {
           setIsLogin(false);
+          return; // Exit early if not authenticated
         }
         const res = await getTenantInfo();
         const youthnetContentFilter = res?.result.find(

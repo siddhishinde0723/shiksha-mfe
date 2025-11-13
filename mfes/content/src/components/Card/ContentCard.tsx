@@ -4,11 +4,11 @@ import { CommonCard, ContentItem } from "@shared-lib";
 import AppConst from "../../utils/AppConst/AppConst";
 import { getBestImageUrl } from "../../utils/imageUtils";
 import { StatusIcon } from "../CommonCollapse";
-import Description from "./Description";
 
 // Extended ContentItem interface to include lowercase appicon
 interface ExtendedContentItem extends ContentItem {
   appicon?: string;
+  keywords?: string[];
 }
 
 const ContentCard = ({
@@ -27,7 +27,6 @@ const ContentCard = ({
   trackData?: [];
 }) => {
   const { isWrap } = _card ?? {};
-
   if (_card?.cardComponent) {
     return (
       <CardWrap isWrap={isWrap && type === "Course"} _card={_card}>
@@ -47,31 +46,44 @@ const ContentCard = ({
       default_img) ??
     `${AppConst.BASEPATH}/assests/images/image_ver.png`;
 
+  // Debug: Log keywords from item
+  console.log("📋 ContentCard - Item keywords:", {
+    hasItem: !!item,
+    hasKeywords: !!item?.keywords,
+    keywords: item?.keywords,
+    keywordsType: typeof item?.keywords,
+    keywordsIsArray: Array.isArray(item?.keywords),
+    keywordsLength: Array.isArray(item?.keywords) ? item.keywords.length : 0,
+    itemKeys: item ? Object.keys(item) : [],
+  });
+
   return (
     <CardWrap isWrap={isWrap && type === "Course"} _card={_card}>
       <CommonCard
         title={(item?.name || "").trim()}
         image={finalImageUrl}
+        description={item?.description || ""}
         content={null}
-        actions={
-          <StatusIcon
-            showMimeTypeIcon
-            mimeType={item?.mimeType}
-            _icon={{
-              isShowText: true,
-              _box: {
-                py: "7px",
-                px: "8px",
-                borderRadius: "10px",
-                borderWidth: "1px",
-                borderStyle: "solid",
-                borderColor: "#79747E",
-              },
-            }}
-          />
-        }
+        actions={<StatusIcon
+          showMimeTypeIcon
+          mimeType={item?.mimeType}
+          _icon={{
+            isShowText: true,
+            _box: {
+              py: "7px",
+              px: "8px",
+              borderRadius: "10px",
+              borderWidth: "1px",
+              borderStyle: "solid",
+              borderColor: "#79747E",
+            },
+          }} />}
         orientation="horizontal"
-        item={item}
+        item={{
+          ...item,
+          // Explicitly preserve keywords from the API response
+          keywords: (item as any)?.keywords || item?.keywords || [],
+        } as ExtendedContentItem & { keywords: string[] }}
         TrackData={trackData}
         type={type}
         onClick={(e: any) => handleCardClick(item, e)}
@@ -83,8 +95,7 @@ const ContentCard = ({
             ..._card?.sx,
           },
           ..._card,
-        }}
-      />
+        }}      />
     </CardWrap>
   );
 };

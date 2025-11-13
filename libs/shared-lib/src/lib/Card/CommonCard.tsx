@@ -7,7 +7,7 @@ import CardActions from "@mui/material/CardActions";
 import Avatar from "@mui/material/Avatar";
 import Typography from "@mui/material/Typography";
 import { red } from "@mui/material/colors";
-import { Box, Button } from "@mui/material";
+import { Box, Button, Chip, Stack } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
 import { CircularProgressWithLabel } from "../Progress/CircularProgressWithLabel";
@@ -94,6 +94,7 @@ export interface ContentItem {
   mimeType: string;
   description: string;
   posterImage: string;
+  keywords?: string[];
   leafNodes?: any[];
   children?: any[];
 }
@@ -149,6 +150,9 @@ export const CommonCard: React.FC<CommonCardProps> = ({
   type,
   onClick,
 }) => {
+  // Get keywords from item - check both direct access and type casting
+  const itemKeywordsForLog = (item as any)?.keywords || item?.keywords;
+  
   console.log("🎯 CommonCard - Props received:", {
     title,
     image,
@@ -157,8 +161,18 @@ export const CommonCard: React.FC<CommonCardProps> = ({
       name: item?.name,
       posterImage: item?.posterImage,
       appIcon: item?.appIcon,
-      appicon: item?.appicon
+      appicon: item?.appicon,
     },
+    keywords: {
+      direct: item?.keywords,
+      casted: (item as any)?.keywords,
+      final: itemKeywordsForLog,
+      hasKeywords: !!itemKeywordsForLog,
+      keywordsType: typeof itemKeywordsForLog,
+      keywordsIsArray: Array.isArray(itemKeywordsForLog),
+      keywordsLength: Array.isArray(itemKeywordsForLog) ? itemKeywordsForLog.length : 0,
+    },
+    itemKeys: item ? Object.keys(item) : [],
     type
   });
 
@@ -214,11 +228,6 @@ export const CommonCard: React.FC<CommonCardProps> = ({
       <Box sx={{ position: "relative", width: "100%" }}>
         {(() => {
           const finalImageUrl = transformImageUrl(image || '');
-          console.log("🖼️ CommonCard - Input image:", image);
-          console.log("🖼️ CommonCard - Image type:", typeof image);
-          console.log("🖼️ CommonCard - Image length:", image?.length);
-          console.log("🖼️ CommonCard - Final image URL:", finalImageUrl);
-          console.log("🖼️ CommonCard - Testing logo URL:", '/logo.png');
           return (
             <CardMedia
               component="img"
@@ -358,36 +367,137 @@ export const CommonCard: React.FC<CommonCardProps> = ({
           </Typography>
         }
       />
-      {content && (
+      {(() => {
+        // Check if we should show keywords section
+        const itemKeywords = (item as any)?.keywords || item?.keywords;
+        const hasKeywords = itemKeywords && Array.isArray(itemKeywords) && itemKeywords.length > 0;
+        const hasContent = content && typeof content === "string" && content !== "keywords";
+        
+        // Debug: Log condition check
+        console.log("🔎 CommonCard - Keywords section condition:", {
+          itemKeywords,
+          hasKeywords,
+          hasContent,
+          shouldShow: hasKeywords || hasContent,
+        });
+        
+        return hasKeywords || hasContent;
+      })() && (
         <CardContent
           sx={{
-            display: "flex",
-            paddingBottom: 0,
-            paddingTop: 0,
-            paddingX: 0,
-            overflow: "hidden",
-            maxWidth: "100%",
+            paddingBottom: "12px !important",
+            paddingTop: "8px !important",
+            paddingX: "16px",
             "&:last-child": {
-              paddingBottom: 0,
+              paddingBottom: "12px",
             },
-            // height: '50px',
           }}
         >
-          <Box sx={{ display: "flex", gap: 1 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             <Typography
+              variant="body2"
               sx={{
-                display: "-webkit-box",
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: "vertical",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
+                fontSize: "12px",
+                fontWeight: 600,
+                color: "#666",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
               }}
             >
-              <span style={{ fontSize: "14px", fontWeight: 700 }}>
-                Description:
-              </span>{" "}
-              {content}
+              Keywords
             </Typography>
+            {(() => {
+              // Parse keywords from item.keywords first, then from content
+              let keywordsArray: string[] = [];
+              
+              // Get keywords from item - check multiple possible paths
+              const itemKeywords = (item as any)?.keywords || item?.keywords;
+              
+              // Debug: Log to check if keywords exist
+              console.log("🔍 CommonCard - Checking keywords:", {
+                hasItem: !!item,
+                itemType: typeof item,
+                itemKeys: item ? Object.keys(item) : [],
+                hasKeywords: !!item?.keywords,
+                hasItemKeywords: !!itemKeywords,
+                keywordsType: typeof itemKeywords,
+                keywordsValue: itemKeywords,
+                keywordsIsArray: Array.isArray(itemKeywords),
+                keywordsLength: Array.isArray(itemKeywords) ? itemKeywords.length : 0,
+                content: content,
+              });
+              
+              // Priority 1: Use item.keywords if available
+              if (itemKeywords && Array.isArray(itemKeywords) && itemKeywords.length > 0) {
+                keywordsArray = itemKeywords;
+                console.log("✅ Using item.keywords:", keywordsArray);
+              } 
+              // Priority 2: Parse from content string if it contains commas
+              else if (typeof content === "string" && content.includes(",") && content !== "keywords") {
+                keywordsArray = content.split(",").map((k) => k.trim()).filter(Boolean);
+                console.log("✅ Using content (comma-separated):", keywordsArray);
+              } 
+              // Priority 3: Single keyword from content string (but not "keywords")
+              else if (typeof content === "string" && content.trim() && content !== "keywords") {
+                keywordsArray = [content.trim()].filter(Boolean);
+                console.log("✅ Using content (single):", keywordsArray);
+              }
+              
+              console.log("📊 Final keywordsArray:", keywordsArray);
+              
+              if (keywordsArray.length === 0) {
+                console.log("❌ No keywords found, returning null");
+                return null;
+              }
+              
+              return (
+                <Stack
+                  direction="row"
+                  spacing={0.5}
+                  sx={{
+                    flexWrap: "wrap",
+                    gap: 0.5,
+                  }}
+                >
+                  {keywordsArray.slice(0, 5).map((keyword, index) => (
+                    <Chip
+                      key={`keyword-${index}-${keyword}`}
+                      label={keyword}
+                      size="small"
+                      sx={{
+                        fontSize: "11px",
+                        height: "24px",
+                        backgroundColor: "#F3EDF7",
+                        color: "#6750A4",
+                        fontWeight: 500,
+                        borderRadius: "12px",
+                        "& .MuiChip-label": {
+                          padding: "0 8px",
+                        },
+                      }}
+                    />
+                  ))}
+                  {keywordsArray.length > 5 && (
+                    <Chip
+                      key="keyword-more"
+                      label={`+${keywordsArray.length - 5} more`}
+                      size="small"
+                      sx={{
+                        fontSize: "11px",
+                        height: "24px",
+                        backgroundColor: "#E6E6E6",
+                        color: "#666",
+                        fontWeight: 500,
+                        borderRadius: "12px",
+                        "& .MuiChip-label": {
+                          padding: "0 8px",
+                        },
+                      }}
+                    />
+                  )}
+                </Stack>
+              );
+            })()}
           </Box>
         </CardContent>
       )}

@@ -1,3 +1,5 @@
+/* eslint-disable no-useless-escape */
+/* eslint-disable @nx/enforce-module-boundaries */
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -128,8 +130,21 @@ const PlayerWithMobileCheck: React.FC = () => {
             return;
           }
           
-          // Regular player URL without mobile number, redirect to proper route
-          console.log("Regular player URL, redirecting to proper route");
+          // Regular player URL without mobile number - check authentication first
+          console.log("Regular player URL, checking authentication");
+          const isAuthenticated = checkAuth();
+          
+          if (!isAuthenticated) {
+            console.log("User not authenticated, redirecting to login");
+            const identifier = Array.isArray(slug) ? slug[0] : slug;
+            const currentPath = `/player/${identifier}${window.location.search}`;
+            sessionStorage.setItem("redirectAfterLogin", currentPath);
+            window.location.replace("/login");
+            return;
+          }
+          
+          // User is authenticated, redirect to proper route
+          console.log("User authenticated, redirecting to proper route");
           const identifier = Array.isArray(slug) ? slug[0] : slug;
           window.location.href = `/player/${identifier}`;
         }

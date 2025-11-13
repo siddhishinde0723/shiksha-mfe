@@ -40,6 +40,7 @@ const UnitCard = ({
       <CommonCard
         minheight="100%"
         title={(item?.name || "").trim()}
+        description={item?.description ?? ""}
         image={
           transformImageUrl(item?.posterImage || item?.appIcon) ||
           (default_img ?? `${AppConst.BASEPATH}/assests/images/image_ver.png`)

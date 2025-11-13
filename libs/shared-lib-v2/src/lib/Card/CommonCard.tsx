@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 "use client";
 
 import * as React from "react";
@@ -9,7 +10,7 @@ import CardActions from "@mui/material/CardActions";
 import Avatar from "@mui/material/Avatar";
 import Typography from "@mui/material/Typography";
 import { red } from "@mui/material/colors";
-import { Box, LinearProgress, useTheme } from "@mui/material";
+import { Box, LinearProgress, useTheme, Chip } from "@mui/material";
 import { CircularProgressWithLabel } from "../Progress/CircularProgressWithLabel";
 import SpeakableText from "../textToSpeech/SpeakableText";
 import { capitalize } from "lodash";
@@ -87,6 +88,7 @@ export interface ContentItem {
   mimeType: string;
   description: string;
   posterImage: string;
+  keywords?: string[];
   leafNodes?: any[];
   children?: any[];
 }
@@ -108,6 +110,7 @@ interface CommonCardProps {
   type: string;
   onClick?: (e: any) => void;
   _card?: any;
+  description:any;
 }
 
 interface StatuPorps {
@@ -153,6 +156,8 @@ export const CommonCard: React.FC<CommonCardProps> = ({
   onClick,
   _card,
 }) => {
+  console.log("content:siddhi", content);
+  console.log("image:siddhi", title);
   const [statusBar, setStatusBar] = React.useState<StatuPorps>();
   const { t } = useTranslation();
   React.useEffect(() => {
@@ -296,10 +301,10 @@ export const CommonCard: React.FC<CommonCardProps> = ({
           <CardContent
             sx={{
               pt: 0.5,
-              pb: "0 !important",
+              pb: "8px !important",
               px: 0,
               "&:last-child": {
-                paddingBottom: 0,
+                paddingBottom: "8px",
               },
             }}
           >
@@ -332,6 +337,85 @@ export const CommonCard: React.FC<CommonCardProps> = ({
           </CardContent>
         )}
       </Box>
+      {/* Keywords Section - Outside content box to prevent overlapping */}
+      {(() => {
+        // Get keywords from item
+        const itemKeywords = (item as any)?.keywords || item?.keywords;
+        const hasKeywords = itemKeywords && Array.isArray(itemKeywords) && itemKeywords.length > 0;
+        
+        if (!hasKeywords) return null;
+        
+        // Show only first 5 keywords
+        const keywordsToShow = itemKeywords.slice(0, 5);
+        const remainingCount = itemKeywords.length - 5;
+        
+        return (
+          <CardContent
+            sx={{
+              pt: "8px !important",
+              pb: "12px !important",
+              px: "16px !important",
+              "&:last-child": {
+                paddingBottom: "12px",
+              },
+            }}
+          >
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            
+              <Box
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "8px",
+                  rowGap: "8px",
+                  alignItems: "flex-start",
+                }}
+              >
+                {keywordsToShow.map((keyword: string, index: number) => (
+                  <Chip
+                    key={`keyword-${index}-${keyword}`}
+                    label={keyword}
+                    size="small"
+                    sx={{
+                      fontSize: "11px",
+                      height: "26px",
+                      backgroundColor: "#F3EDF7",
+                      color: "#6750A4",
+                      fontWeight: 500,
+                      borderRadius: "12px",
+                      margin: 0,
+                      "& .MuiChip-label": {
+                        padding: "0 10px",
+                        whiteSpace: "nowrap",
+                      },
+                    }}
+                  />
+                ))}
+                {remainingCount > 0 && (
+                  <Chip
+                    key="keyword-more"
+                    label={`+${remainingCount} more`}
+                    size="small"
+                    sx={{
+                      fontSize: "11px",
+                      height: "26px",
+                      backgroundColor: "#E6E6E6",
+                      color: "#666",
+                      fontWeight: 500,
+                      borderRadius: "12px",
+                      margin: 0,
+                      "& .MuiChip-label": {
+                        padding: "0 10px",
+                        whiteSpace: "nowrap",
+                      },
+                    }}
+                  />
+                )}
+              </Box>
+            </Box>
+          </CardContent>
+        );
+      })()}
       {children && <CardContent>{children}</CardContent>}
       {actions && (
         <CardActions sx={{ p: 2, pt: "14px" }}>

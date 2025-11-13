@@ -20,6 +20,7 @@ interface GroupContentItem {
   id: string;
   title: string;
   description: string;
+  keywords?: string[];
   type: "video" | "document" | "quiz" | "assignment" | "course";
   duration?: string;
   progress?: number;
@@ -142,6 +143,7 @@ const GroupContent: React.FC<GroupContentProps> = ({
             id: String(item.identifier || item.id || ""),
             title: String(item.name || item.title || "Untitled Content"),
             description: String(item.description || item.summary || ""),
+            keywords: Array.isArray(item.keywords) ? item.keywords : [],
             type: (item.mimeType === "application/vnd.ekstep.content-collection"
               ? "course"
               : item.mimeType === "application/vnd.ekstep.ecml-archive"
@@ -427,6 +429,7 @@ const GroupContent: React.FC<GroupContentProps> = ({
                 <CommonCard
                   title={item.title}
                   image={item.imageUrl || ""}
+                  description={item.description || ""}
                   content={null}
                   actions={null}
                   orientation="horizontal"
@@ -436,6 +439,7 @@ const GroupContent: React.FC<GroupContentProps> = ({
                     mimeType: item.type,
                     posterImage: item.imageUrl || "",
                     description: item.description,
+                    keywords: item.keywords || [],
                     gradeLevel: [],
                     language: [],
                     artifactUrl: "",

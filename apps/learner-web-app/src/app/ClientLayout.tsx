@@ -1,9 +1,12 @@
+/* eslint-disable no-empty */
+/* eslint-disable @nx/enforce-module-boundaries */
 "use client";
 
 import React, { useEffect } from "react";
 import { FontSizeProvider } from "../context/FontSizeContext";
 import { UnderlineLinksProvider } from "../context/UnderlineLinksContext";
 import { telemetryFactory } from "@shared-lib-v2/DynamicForm/utils/telemetry";
+import AuthGuard from "../components/AuthGuard/AuthGuard";
 
 export default function ClientLayout({
   children,
@@ -73,8 +76,10 @@ export default function ClientLayout({
   }, []);
 
   return (
-    <FontSizeProvider>
-      <UnderlineLinksProvider>{children}</UnderlineLinksProvider>
-    </FontSizeProvider>
+    <AuthGuard>
+      <FontSizeProvider>
+        <UnderlineLinksProvider>{children}</UnderlineLinksProvider>
+      </FontSizeProvider>
+    </AuthGuard>
   );
 }

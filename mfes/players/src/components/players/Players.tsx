@@ -279,9 +279,9 @@ const SunbirdPlayers = ({
         />
       );
     case "application/vnd.sunbird.questionset":
-      console.log("Routing to QuML Player");
+      console.log("Routing to QuML Player siddhi");
       return (
-        <TekdiQuMLPlayer
+        <SunbirdQuMLPlayer
           playerConfig={playerConfig}
           relatedData={{ courseId, unitId, userId }}
           configFunctionality={configFunctionality}

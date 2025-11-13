@@ -264,8 +264,7 @@ export const ContentSearch = async ({
     
     // Check if this is a Course type (tab=0: Course tab)
     const isCourse = normalizedType === 'course' || normalizedType === 'courses';
-    
-    // Define content categories (excluding "Course")
+
     const CONTENT_CATEGORIES = [
       'Content Playlist',
       'Digital Textbook',
@@ -278,47 +277,33 @@ export const ContentSearch = async ({
       'Teacher Resource',
       'Exam Question'
     ];
-    
-    // For Course tab (tab=0): only "Course" category
-    // For Content tab (tab=1): all content categories (excluding "Course")
     const primaryCategory = isCourse
       ? ['Course']
       : CONTENT_CATEGORIES;
-
-    // Log for debugging (always log in development to help diagnose issues)
-    console.log('🔍 ContentSearch - Type:', type);
-    console.log('🔍 ContentSearch - Normalized Type:', normalizedType);
-    console.log('🔍 ContentSearch - Is Course:', isCourse);
-    console.log('🔍 ContentSearch - PrimaryCategory:', primaryCategory);
-    console.log('🔍 ContentSearch - PrimaryCategory length:', primaryCategory.length);
     
     // Axios request configuration
     const data = {
       request: {
         filters: {
-          // identifier: 'do_114228944942358528173',
-          // identifier: 'do_1141652605790289921389',
-          //need below after login user channel for dynamic load content
-          // channel: '0135656861912678406',
           ...cleanedFilters,
           status: ['live'],
           primaryCategory,
           channel: localStorage.getItem('channelId'),
         },
-        fields: [
-          'name',
-          'appIcon',
-          'description',
-          'posterImage',
-          'mimeType',
-          'identifier',
-          'resourceType',
-          'primaryCategory',
-          'contentType',
-          'trackable',
-          'children',
-          'leafNodes',
-        ],
+        // fields: [
+        //   'name',
+        //   'appIcon',
+        //   'description',
+        //   'posterImage',
+        //   'mimeType',
+        //   'identifier',
+        //   'resourceType',
+        //   'primaryCategory',
+        //   'contentType',
+        //   'trackable',
+        //   'children',
+        //   'leafNodes',
+        // ],
         query,
         limit,
         offset,

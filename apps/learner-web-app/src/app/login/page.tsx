@@ -717,8 +717,15 @@ const LoginPage = () => {
             label: "Login Button Clicked",
           });
 
-          // Redirect to learner dashboard with tab=1
-          window.location.href = `${window.location.origin}/dashboard?tab=1`;
+          // Check for redirect path stored by AuthGuard
+          const redirectAfterLogin = sessionStorage.getItem("redirectAfterLogin");
+          if (redirectAfterLogin && redirectAfterLogin.startsWith("/")) {
+            sessionStorage.removeItem("redirectAfterLogin");
+            window.location.href = `${window.location.origin}${redirectAfterLogin}`;
+          } else {
+            // Redirect to learner dashboard with tab=1
+            window.location.href = `${window.location.origin}/dashboard?tab=1`;
+          }
           return;
         }
 
