@@ -258,6 +258,10 @@ const DashboardPage = () => {
   }, []);
 
   const handleTabChange = (tab: string) => {
+    if (tab === "attendance") {
+      router.push("/attandence");
+      return;
+    }
     setActiveTab(tab);
 
     // Update URL with tab parameter
@@ -340,6 +344,7 @@ const DashboardPage = () => {
           <Tab label="Courses" value="Course" />
           <Tab label="Content" value="content" />
           <Tab label="Groups" value="groups" />
+          <Tab label="Attendance" value="attendance" />
         </Tabs>
         <Grid container style={gredientStyle}>
           <Grid item xs={12}>

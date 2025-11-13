@@ -28,6 +28,16 @@ export const API_ENDPOINTS = {
   cohortSearch: `${baseurl}/cohort/search`,
   contentCreate: `${baseurl}/tracking/content/create`,
   myCohortsRead: (userId: string) => `${baseurl}/user/read/${userId}`,
+  attendanceList: `${baseurl}/account/attendance/list`,
+  attendanceCreate: `${baseurl}/attendance/create`,
+  bulkAttendance: `${baseurl}/account/attendance/bulkAttendance`,
+  cohortMemberList: `${baseurl}/cohortmember/list`,
+  cohortMemberUpdate: (membershipId: string | number) =>
+    `${baseurl}/cohortmember/update/${membershipId}`,
+  cohortMemberBulkCreate: `${baseurl}/cohortmember/bulkCreate`,
+  cohortHierarchy: (cohortId: string) =>
+    `${baseurl}/cohort/cohortHierarchy/${cohortId}`,
+  myCohorts: (userId: string) => `${baseurl}/cohort/mycohorts/${userId}`,
 };
 
 // Interface API endpoints

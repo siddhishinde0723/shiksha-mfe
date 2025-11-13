@@ -30,7 +30,6 @@ import { sendOTP, verifyOTP } from "@learner/utils/API/OtPService";
 import { showToastMessage } from "@learner/components/ToastComponent/Toastify";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "@shared-lib";
-import { getAcademicYear } from "@learner/utils/API/AcademicYearService";
 import { preserveLocalStorage } from "@learner/utils/helper";
 import { getDeviceId } from "@shared-lib-v2/DynamicForm/utils/Helper";
 import { profileComplitionCheck } from "@learner/utils/API/userService";
@@ -40,6 +39,10 @@ import playstoreIcon from "../../../public/images/playstore.png";
 import prathamQRCode from "../../../public/images/prathamQR.png";
 import welcomeGIF from "../../../public/logo.png";
 import { logEvent } from "@learner/utils/googleAnalytics";
+import {
+  ensureAcademicYearForTenant,
+  getTenantInfo,
+} from "@learner/utils/API/ProgramService";
 
 // Helper function to get cookie value
 const getCookieValue = (name: string): string | null => {
@@ -678,11 +681,8 @@ const LoginPage = () => {
           localStorage.setItem("tenantId", tenantId);
           localStorage.setItem("userProgram", tenantName);
           await profileComplitionCheck();
-          if (tenantName === "YouthNet") {
-            const academicYearResponse = await getAcademicYear();
-            if (academicYearResponse[0]?.id) {
-              localStorage.setItem("academicYearId", academicYearResponse[0]?.id);
-            }
+          if (tenantId) {
+            await ensureAcademicYearForTenant(tenantId);
           }
           const telemetryInteract = {
             context: { env: "sign-in", cdata: [] },
