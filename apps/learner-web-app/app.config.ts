@@ -7,6 +7,6 @@ if (!tenantId && typeof window !== 'undefined') {
   );
 }
 
-export const ShowSelfAttendance = false;
+export const ShowSelfAttendance = true;
 
 export const AttendanceAPILimit = 300;

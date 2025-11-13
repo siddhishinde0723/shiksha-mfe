@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   LayoutProps,
   Layout,
@@ -52,7 +52,7 @@ const getClubStyleNavConfig = ({
     {
       title: t("LEARNER_APP.COMMON.PROFILE"),
       icon: <AccountCircleOutlined sx={{ width: 28, height: 28 }} />,
-      to: () => setAnchorEl(true),
+      to: () => handleProfileMenuOpen(),
       isActive: currentPage === "/profile",
       customStyle: getLinkStyle(currentPage === "/profile"),
     },
@@ -151,7 +151,7 @@ const NAV_CONFIG: Record<
     navLinks.push({
       title: t("LEARNER_APP.COMMON.PROFILE"),
       icon: <AccountCircleOutlined sx={{ width: 28, height: 28 }} />,
-      to: () => setAnchorEl(true),
+      to: () => handleProfileMenuOpen(),
       isActive: currentPage === "/profile",
       customStyle: getLinkStyle(currentPage === "/profile"),
     });
@@ -204,6 +204,7 @@ const App: React.FC<LayoutProps> = ({ children, ...props }) => {
   );
   const [anchorEl, setAnchorEl] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState<boolean>(false);
+  const profileButtonRef = useRef<HTMLButtonElement>(null);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -214,6 +215,16 @@ const App: React.FC<LayoutProps> = ({ children, ...props }) => {
       router.push("/profile");
     }
     handleClose();
+  };
+  const handleProfileMenuOpen = (event?: React.MouseEvent<HTMLElement>) => {
+    // For desktop, try to open menu if we have an anchor
+    // For mobile or if no event, directly navigate
+    if (event && !isMobile) {
+      setAnchorEl(event.currentTarget);
+    } else {
+      // Directly navigate to profile
+      handleProfileClick();
+    }
   };
   const handleLogoutClick = () => router.push("/logout");
   const handleLogoutModal = () => setModalOpen(true);

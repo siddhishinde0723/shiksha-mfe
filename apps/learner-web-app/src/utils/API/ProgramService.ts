@@ -135,50 +135,44 @@ export const ensureAcademicYearForTenant = async (
   }
 
   try {
-    const tenantResponse = await getTenantInfo();
+    // Call academic years list API with tenantId
+    const { getAcademicYear } = await import("./AcademicYearService");
+    const academicYearsResponse = await getAcademicYear(tenantId);
 
-    const tenantsArray =
-      TENANT_RESULT_KEYS.reduce<any[]>(
-        (acc, key) =>
-          acc.length
-            ? acc
-            : Array.isArray(tenantResponse?.[key])
-            ? tenantResponse[key]
-            : Array.isArray(tenantResponse?.[key]?.result)
-            ? tenantResponse[key].result
-            : [],
-        []
-      ) || [];
-
-    const tenantRecord = findTenantRecord(tenantsArray, tenantId);
-
-    if (!tenantRecord) {
+    if (!academicYearsResponse || !Array.isArray(academicYearsResponse)) {
       console.warn(
-        "ensureAcademicYearForTenant: Tenant not found for tenantId",
-        tenantId
+        "ensureAcademicYearForTenant: Invalid academic years response",
+        academicYearsResponse
       );
       return null;
     }
 
-    const { academicYearId, academicYearList } =
-      extractAcademicYearDetails(tenantRecord);
+    // Find active academic year or use the first one
+    const activeAcademicYear =
+      academicYearsResponse.find((year: any) => year.isActive === true) ||
+      academicYearsResponse[0];
 
-    if (academicYearList.length) {
-      localStorage.setItem(
-        "academicYearList",
-        JSON.stringify(academicYearList)
+    if (!activeAcademicYear || !activeAcademicYear.id) {
+      console.warn(
+        "ensureAcademicYearForTenant: No valid academic year found",
+        academicYearsResponse
       );
+      return null;
     }
 
-    if (academicYearId) {
-      localStorage.setItem("academicYearId", academicYearId);
-      return academicYearId;
-    }
-    console.warn(
-      "ensureAcademicYearForTenant: Unable to resolve academic year for tenant",
-      tenantId
-    );
-    return null;
+    // Store academic year list
+    const academicYearList = academicYearsResponse.map((year: any) => ({
+      id: year.id,
+      name: year.session || `${year.startDate} - ${year.endDate}`,
+      startDate: year.startDate,
+      endDate: year.endDate,
+      isActive: year.isActive,
+    }));
+
+    localStorage.setItem("academicYearList", JSON.stringify(academicYearList));
+    localStorage.setItem("academicYearId", activeAcademicYear.id);
+
+    return activeAcademicYear.id;
   } catch (error) {
     console.error("Failed to ensure academic year for tenant", error);
     return null;

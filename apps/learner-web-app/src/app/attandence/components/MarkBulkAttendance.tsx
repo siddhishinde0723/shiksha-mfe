@@ -14,13 +14,14 @@ import {
   TableCell,
   TableHead,
   TableRow,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
   CircularProgress,
   Stack,
+  Chip,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
 import {
   bulkAttendance,
 } from "@learner/utils/API/services/AttendanceService";
@@ -139,41 +140,111 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle sx={{ display: "flex", justifyContent: "space-between" }}>
-        <Typography variant="h6" component="span">
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: "16px",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+        },
+      }}
+    >
+      <DialogTitle
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "24px",
+          borderBottom: "2px solid rgba(0,0,0,0.08)",
+          backgroundColor: "#fffdf7",
+        }}
+      >
+        <Typography
+          variant="h6"
+          component="span"
+          sx={{ fontWeight: 700, fontSize: "20px", color: "#1F1B13" }}
+        >
           Mark Attendance
         </Typography>
-        <IconButton size="small" onClick={onClose}>
+        <IconButton
+          size="small"
+          onClick={onClose}
+          sx={{
+            color: "#666",
+            "&:hover": {
+              backgroundColor: "rgba(0,0,0,0.05)",
+            },
+          }}
+        >
           <CloseIcon />
         </IconButton>
       </DialogTitle>
-      <DialogContent dividers>
+      <DialogContent dividers sx={{ padding: "24px", backgroundColor: "#fff" }}>
         <Stack
           direction={{ xs: "column", sm: "row" }}
           justifyContent="space-between"
           alignItems={{ xs: "flex-start", sm: "center" }}
           gap={2}
-          mb={2}
+          mb={3}
         >
-          <Box>
-            <Typography variant="body2" color="text.secondary">
-              Total learners: {rows.length}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Present: {totalPresent} | Absent: {totalAbsent}
-            </Typography>
-            {dropoutCount > 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                Dropouts: {dropoutCount}
-              </Typography>
-            ) : null}
+          <Box
+            sx={{
+              display: "flex",
+              gap: 2,
+              flexWrap: "wrap",
+            }}
+          >
+            <Chip
+              label={`Total: ${rows.length}`}
+              sx={{
+                backgroundColor: "#f5f5f5",
+                fontWeight: 600,
+                fontSize: "13px",
+              }}
+            />
+            <Chip
+              label={`Present: ${totalPresent}`}
+              sx={{
+                backgroundColor: "rgba(76, 175, 80, 0.1)",
+                color: "#4caf50",
+                fontWeight: 600,
+                fontSize: "13px",
+              }}
+            />
+            <Chip
+              label={`Absent: ${totalAbsent}`}
+              sx={{
+                backgroundColor: "rgba(244, 67, 54, 0.1)",
+                color: "#f44336",
+                fontWeight: 600,
+                fontSize: "13px",
+              }}
+            />
+            {dropoutCount > 0 && (
+              <Chip
+                label={`Dropouts: ${dropoutCount}`}
+                sx={{
+                  backgroundColor: "rgba(158, 158, 158, 0.1)",
+                  color: "#9e9e9e",
+                  fontWeight: 600,
+                  fontSize: "13px",
+                }}
+              />
+            )}
           </Box>
           <Stack direction="row" spacing={1}>
             <Button
               variant="outlined"
               size="small"
               onClick={() => handleBulkAction("")}
+              sx={{
+                borderRadius: "8px",
+                textTransform: "none",
+                fontWeight: 500,
+              }}
             >
               Clear All
             </Button>
@@ -181,6 +252,17 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
               variant="outlined"
               size="small"
               onClick={() => handleBulkAction("present")}
+              sx={{
+                borderRadius: "8px",
+                textTransform: "none",
+                fontWeight: 500,
+                borderColor: "#4caf50",
+                color: "#4caf50",
+                "&:hover": {
+                  borderColor: "#4caf50",
+                  backgroundColor: "rgba(76, 175, 80, 0.1)",
+                },
+              }}
             >
               Mark All Present
             </Button>
@@ -188,49 +270,172 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
               variant="outlined"
               size="small"
               onClick={() => handleBulkAction("absent")}
+              sx={{
+                borderRadius: "8px",
+                textTransform: "none",
+                fontWeight: 500,
+                borderColor: "#f44336",
+                color: "#f44336",
+                "&:hover": {
+                  borderColor: "#f44336",
+                  backgroundColor: "rgba(244, 67, 54, 0.1)",
+                },
+              }}
             >
               Mark All Absent
             </Button>
           </Stack>
         </Stack>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell align="center">Attendance</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.userId}>
-                <TableCell>
-                  <Typography variant="body2">{row.name}</Typography>
-                  {row.memberStatus === "dropout" ? (
-                    <Typography variant="caption" color="error">
-                      Dropout
-                    </Typography>
-                  ) : null}
-                </TableCell>
-                <TableCell align="center">
-                  <ToggleButtonGroup
-                    exclusive
-                    value={row.attendance}
-                    onChange={(_, value) =>
-                      handleAttendanceChange(
-                        row.userId,
-                        value ?? ""
-                      )
-                    }
-                    size="small"
-                  >
-                    <ToggleButton value="present">Present</ToggleButton>
-                    <ToggleButton value="absent">Absent</ToggleButton>
-                  </ToggleButtonGroup>
-                </TableCell>
+        <Box
+          sx={{
+            border: "1px solid rgba(0,0,0,0.1)",
+            borderRadius: "12px",
+            overflow: "hidden",
+          }}
+        >
+          <Table size="small">
+            <TableHead>
+              <TableRow
+                sx={{
+                  backgroundColor: "#fffdf7",
+                  "& .MuiTableCell-head": {
+                    fontWeight: 700,
+                    fontSize: "14px",
+                    color: "#1F1B13",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    borderBottom: "2px solid rgba(253, 190, 22, 0.3)",
+                  },
+                }}
+              >
+                <TableCell>Name</TableCell>
+                <TableCell align="center">Attendance</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHead>
+            <TableBody>
+              {rows.map((row, index) => (
+                <TableRow
+                  key={row.userId}
+                  sx={{
+                    "&:hover": {
+                      backgroundColor: "rgba(253, 190, 22, 0.05)",
+                    },
+                    "&:last-child td": {
+                      borderBottom: "none",
+                    },
+                    borderBottom:
+                      index < rows.length - 1
+                        ? "1px solid rgba(0,0,0,0.08)"
+                        : "none",
+                  }}
+                >
+                  <TableCell sx={{ padding: "16px 20px" }}>
+                    <Typography
+                      variant="body2"
+                      sx={{ fontWeight: 600, fontSize: "15px", color: "#1F1B13" }}
+                    >
+                      {row.name}
+                    </Typography>
+                    {row.memberStatus === "dropout" && (
+                      <Chip
+                        label="Dropout"
+                        size="small"
+                        sx={{
+                          marginTop: "4px",
+                          backgroundColor: "rgba(244, 67, 54, 0.1)",
+                          color: "#f44336",
+                          fontSize: "11px",
+                          height: "20px",
+                        }}
+                      />
+                    )}
+                  </TableCell>
+                  <TableCell align="center" sx={{ padding: "16px 20px" }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        gap: 2,
+                        alignItems: "center",
+                      }}
+                    >
+                      <IconButton
+                        onClick={() => handleAttendanceChange(row.userId, "present")}
+                        sx={{
+                          color:
+                            row.attendance === "present"
+                              ? "#4caf50"
+                              : "rgba(0,0,0,0.3)",
+                          backgroundColor:
+                            row.attendance === "present"
+                              ? "rgba(76, 175, 80, 0.1)"
+                              : "transparent",
+                          border:
+                            row.attendance === "present"
+                              ? "2px solid #4caf50"
+                              : "2px solid rgba(0,0,0,0.2)",
+                          borderRadius: "50%",
+                          width: "44px",
+                          height: "44px",
+                          transition: "all 0.2s",
+                          "&:hover": {
+                            backgroundColor:
+                              row.attendance === "present"
+                                ? "rgba(76, 175, 80, 0.2)"
+                                : "rgba(76, 175, 80, 0.1)",
+                            borderColor: "#4caf50",
+                            transform: "scale(1.1)",
+                          },
+                        }}
+                      >
+                        <CheckCircleIcon
+                          sx={{
+                            fontSize: "28px",
+                          }}
+                        />
+                      </IconButton>
+                      <IconButton
+                        onClick={() => handleAttendanceChange(row.userId, "absent")}
+                        sx={{
+                          color:
+                            row.attendance === "absent"
+                              ? "#f44336"
+                              : "rgba(0,0,0,0.3)",
+                          backgroundColor:
+                            row.attendance === "absent"
+                              ? "rgba(244, 67, 54, 0.1)"
+                              : "transparent",
+                          border:
+                            row.attendance === "absent"
+                              ? "2px solid #f44336"
+                              : "2px solid rgba(0,0,0,0.2)",
+                          borderRadius: "50%",
+                          width: "44px",
+                          height: "44px",
+                          transition: "all 0.2s",
+                          "&:hover": {
+                            backgroundColor:
+                              row.attendance === "absent"
+                                ? "rgba(244, 67, 54, 0.2)"
+                                : "rgba(244, 67, 54, 0.1)",
+                            borderColor: "#f44336",
+                            transform: "scale(1.1)",
+                          },
+                        }}
+                      >
+                        <CancelIcon
+                          sx={{
+                            fontSize: "28px",
+                          }}
+                        />
+                      </IconButton>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Box>
         {dropoutMemberList?.length ? (
           <Box mt={2}>
             <Typography variant="subtitle2" gutterBottom>
@@ -242,16 +447,48 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
           </Box>
         ) : null}
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button color="inherit" onClick={onClose}>
+      <DialogActions
+        sx={{
+          px: 3,
+          pb: 3,
+          pt: 2,
+          borderTop: "2px solid rgba(0,0,0,0.08)",
+          backgroundColor: "#fffdf7",
+        }}
+      >
+        <Button
+          color="inherit"
+          onClick={onClose}
+          sx={{
+            borderRadius: "8px",
+            textTransform: "none",
+            fontWeight: 600,
+            padding: "10px 24px",
+            "&:hover": {
+              backgroundColor: "rgba(0,0,0,0.05)",
+            },
+          }}
+        >
           Cancel
         </Button>
         <Button
           variant="contained"
           onClick={handleSave}
           disabled={!rows.length || loading}
+          sx={{
+            borderRadius: "8px",
+            textTransform: "none",
+            fontWeight: 600,
+            padding: "10px 32px",
+            boxShadow: "0 4px 12px rgba(251, 188, 19, 0.4)",
+            "&:hover": {
+              boxShadow: "0 6px 16px rgba(251, 188, 19, 0.5)",
+              transform: "translateY(-1px)",
+            },
+            transition: "all 0.2s",
+          }}
         >
-          {loading ? <CircularProgress size={20} /> : "Save"}
+          {loading ? <CircularProgress size={20} color="inherit" /> : "Save"}
         </Button>
       </DialogActions>
     </Dialog>

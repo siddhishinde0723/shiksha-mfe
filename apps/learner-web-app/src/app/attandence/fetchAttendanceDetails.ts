@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-empty-object-type */
 import { attendanceStatusList } from "@learner/utils/API/services/AttendanceService";
 import {
   AttendanceStatusListProps,

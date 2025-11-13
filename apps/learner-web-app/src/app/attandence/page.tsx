@@ -50,25 +50,23 @@ import { fetchAttendanceDetails } from "./fetchAttendanceDetails";
 import LocationModal from "./LocationModal";
 import useGeolocation from "./useGeoLocation";
 import { ensureAcademicYearForTenant } from "../../utils/API/ProgramService";
+import Layout from "@learner/components/Layout";
+import { AccountCircleOutlined } from "@mui/icons-material";
+import ProfileMenu from "../../components/ProfileMenu/ProfileMenu";
+import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal";
+import { usePathname } from "next/navigation";
+import { gredientStyle } from "@learner/utils/style";
 
-const DashboardContainer = styled(Box)({
+const DashboardContainer = styled(Box)(({ theme }) => ({
   minHeight: "100vh",
   backgroundColor: "#f5f5f5",
   marginRight: "20px",
-});
-
-const HeaderBox = styled(Box)({
-  display: "flex",
-  justifyContent: "center",
-});
-
-const HeaderContent = styled(Box)(({ theme }) => ({
-  display: "flex",
-  width: "100%",
-  justifyContent: "space-between",
-  alignItems: "center",
-  backgroundColor: (theme.palette.warning as any).A400,
-  padding: "1rem 1.5rem",
+  [theme.breakpoints.down("sm")]: {
+    marginRight: "0",
+  },
+  [theme.breakpoints.between("sm", "md")]: {
+    marginRight: "10px",
+  },
 }));
 
 const MainContent = styled(Box)({
@@ -85,23 +83,48 @@ const ContentWrapper = styled(Box)({
 
 const StatusCard = styled(Card)(({ theme }) => ({
   height: "100%",
-  borderRadius: "8px",
-  boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-  border: "1px solid #e0e0e0",
+  borderRadius: "12px",
+  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+  border: "1px solid rgba(0,0,0,0.08)",
+  backgroundColor: "#fff",
+  transition: "transform 0.2s, box-shadow 0.2s",
+  "&:hover": {
+    transform: "translateY(-4px)",
+    boxShadow: "0 8px 20px rgba(0,0,0,0.15)",
+  },
   "& .MuiCardContent-root": {
-    padding: "16px",
+    padding: "20px",
   },
 }));
 
-const CalendarContainer = styled(Box)({
-  marginTop: "16px",
-});
+const CalendarContainer = styled(Box)(({ theme }) => ({
+  marginTop: "20px",
+  padding: "16px 20px",
+  backgroundColor: "#fffdf7",
+  borderRadius: "12px",
+  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+  [theme.breakpoints.down("md")]: {
+    marginTop: "12px",
+    padding: "12px 8px",
+    borderRadius: "8px",
+  },
+  [theme.breakpoints.between("sm", "md")]: {
+    padding: "14px 16px",
+  },
+}));
 
-const HorizontalCalendarScroll = styled(Box)({
+const HorizontalCalendarScroll = styled(Box)(({ theme }) => ({
   display: "flex",
   overflowX: "auto",
   gap: "8px",
   padding: "8px 0",
+  [theme.breakpoints.down("sm")]: {
+    gap: "6px",
+    padding: "6px 0",
+  },
+  [theme.breakpoints.between("sm", "md")]: {
+    gap: "7px",
+  },
   "&::-webkit-scrollbar": {
     height: "4px",
   },
@@ -116,41 +139,72 @@ const HorizontalCalendarScroll = styled(Box)({
   "&::-webkit-scrollbar-thumb:hover": {
     background: "#a8a8a8",
   },
-});
+}));
 
 const CalendarCell = styled(Box)(({ theme }) => ({
   position: "relative",
-  height: "3.5rem",
-  width: "3rem",
-  minWidth: "3rem",
-  padding: "4px",
+  height: "4rem",
+  width: "3.5rem",
+  minWidth: "3.5rem",
+  padding: "6px",
   overflow: "hidden",
   fontSize: "0.875em",
-  border: `1px solid ${(theme.palette.warning as any).A100}`,
-  borderRadius: "4px",
+  border: `2px solid ${(theme.palette.warning as any).A100}`,
+  borderRadius: "8px",
   cursor: "pointer",
-  transition: "0.25s ease-out",
+  backgroundColor: "#fff",
+  boxShadow: "0 2px 4px rgba(0,0,0,0.08)",
+  transition: "all 0.2s ease-out",
   display: "flex",
   flexDirection: "column",
   justifyContent: "flex-start",
   alignItems: "center",
-  backgroundColor: "#fff",
+  [theme.breakpoints.down("sm")]: {
+    height: "3rem",
+    width: "2.5rem",
+    minWidth: "2.5rem",
+    padding: "4px",
+    fontSize: "0.75em",
+    borderRadius: "6px",
+  },
+  [theme.breakpoints.between("sm", "md")]: {
+    height: "3.5rem",
+    width: "3rem",
+    minWidth: "3rem",
+    padding: "5px",
+    fontSize: "0.8em",
+  },
   "&:hover": {
+    transform: "translateY(-2px)",
+    boxShadow: "0 4px 8px rgba(0,0,0,0.12)",
+    borderColor: (theme.palette.warning as any).A200,
     backgroundColor: "#f5f5f5",
+    [theme.breakpoints.down("md")]: {
+      transform: "none",
+    },
   },
 }));
 
-const DateNumber = styled(Typography)({
-  fontSize: "0.875em",
-  fontWeight: "500",
+const DateNumber = styled(Typography)(({ theme }) => ({
+  fontSize: "1em",
+  fontWeight: "600",
   lineHeight: 1,
   marginTop: "2px",
-});
+  color: "#1F1B13",
+  [theme.breakpoints.down("sm")]: {
+    fontSize: "0.85em",
+    marginTop: "1px",
+  },
+  [theme.breakpoints.between("sm", "md")]: {
+    fontSize: "0.9em",
+  },
+}));
 
 const SimpleTeacherDashboard = () => {
   const theme = useTheme();
-  const [classId, setClassId] = useState("1");
-  const [yearSelect, setYearSelect] = useState("2025-2026");
+  const [classId, setClassId] = useState("");
+  const [yearSelect, setYearSelect] = useState("");
+  const [academicYearList, setAcademicYearList] = useState<Array<any>>([]);
   const [cohortsData, setCohortsData] = useState<Array<ICohort>>([]);
   const [centersData, setCentersData] = useState<Array<any>>([]);
   const [batchesData, setBatchesData] = useState<Array<any>>([]);
@@ -196,7 +250,11 @@ const SimpleTeacherDashboard = () => {
     };
   }>({});
   const router = useRouter();
+  const pathname = usePathname();
   const { getLocation } = useGeolocation();
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+  const [firstName, setFirstName] = useState("");
 
   const today = new Date();
   const currentMonth = today.toLocaleString("default", {
@@ -241,9 +299,33 @@ const SimpleTeacherDashboard = () => {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const storedTenantId = localStorage.getItem("tenantId");
-      if (storedTenantId) {
-        ensureAcademicYearForTenant(storedTenantId);
+      // Check if academicYearList already exists in localStorage
+      const existingAcademicYearList = JSON.parse(
+        localStorage.getItem("academicYearList") || "[]"
+      );
+      if (existingAcademicYearList.length > 0) {
+        setAcademicYearList(existingAcademicYearList);
+        const activeYear = existingAcademicYearList.find(
+          (year: any) => year.isActive
+        );
+        if (activeYear) {
+          setYearSelect(activeYear.name);
+        }
+      } else if (storedTenantId) {
+        ensureAcademicYearForTenant(storedTenantId).then(() => {
+          const academicYearListData = JSON.parse(
+            localStorage.getItem("academicYearList") || "[]"
+          );
+          setAcademicYearList(academicYearListData);
+          const activeYear = academicYearListData.find(
+            (year: any) => year.isActive
+          );
+          if (activeYear) {
+            setYearSelect(activeYear.name);
+          }
+        });
       }
+      setFirstName(localStorage.getItem("firstName") || "");
     }
     const initializeDashboard = async () => {
       if (typeof window !== "undefined" && window.localStorage) {
@@ -272,17 +354,23 @@ const SimpleTeacherDashboard = () => {
       await getUserDetails(userId, true);
       if (response && response.length > 0) {
         setCohortsData(response);
-        setClassId(response[0]?.cohortId || "");
-        const centers = response.map((center: any) => ({
-          centerId: center.cohortId,
-          centerName: center.cohortName,
-          childData: center.childData || [],
-        }));
+        
+        // Filter centers: items with parentId === null (SCHOOL type)
+        const centers = response
+          .filter((item: any) => item.parentId === null && item.type === "SCHOOL")
+          .map((center: any) => ({
+            centerId: center.cohortId,
+            centerName: center.cohortName,
+            childData: center.childData || [],
+          }));
+        
         setCentersData(centers);
+        
         if (centers.length > 0) {
           const defaultCenter = centers[0];
           setSelectedCenterId(defaultCenter.centerId);
 
+          // Extract batches from childData
           const batches = defaultCenter.childData.map((batch: any) => ({
             batchId: batch.cohortId,
             batchName: batch.name,
@@ -290,8 +378,21 @@ const SimpleTeacherDashboard = () => {
           }));
           setBatchesData(batches);
 
+          // Set default batch if available
           if (batches.length > 0) {
             setClassId(batches[0].batchId);
+          } else {
+            setClassId("");
+          }
+        } else {
+          // If no centers, check if there are direct cohorts (batches without parent)
+          const directCohorts = response.filter(
+            (item: any) => item.type === "COHORT" && item.parentId !== null
+          );
+          if (directCohorts.length > 0) {
+            setClassId(directCohorts[0].cohortId);
+          } else {
+            setClassId("");
           }
         }
       }
@@ -937,6 +1038,20 @@ const SimpleTeacherDashboard = () => {
     }
   };
 
+  const handleProfileClick = () => {
+    router.push("/profile");
+    setAnchorEl(null);
+  };
+
+  const handleLogoutClick = () => {
+    setLogoutModalOpen(true);
+    setAnchorEl(null);
+  };
+
+  const performLogout = () => {
+    router.push("/logout");
+  };
+
   const handleTopTabChange = (
     _: React.SyntheticEvent,
     value: string
@@ -956,136 +1071,240 @@ const SimpleTeacherDashboard = () => {
     }
   };
   return (
-    <DashboardContainer>
-      <HeaderBox>
-        <HeaderContent>
-          <Typography
-            textAlign={"left"}
-            fontSize={"22px"}
-            m={"1.5rem 1.2rem 0.8rem"}
-            color={(theme?.palette?.warning as any)?.["300"]}
-          >
-            Attendance
-          </Typography>
-          <Select
-            value={yearSelect}
-            onChange={handleChangeYear}
-            size="small"
-            sx={{
-              backgroundColor: "white",
-              borderRadius: "8px",
-              fontWeight: 500,
-              "& .MuiSelect-select": {
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-              },
-            }}
-          >
-            <MenuItem value="2025-2026">2025-2026</MenuItem>
-          </Select>
-        </HeaderContent>
-      </HeaderBox>
+    <Layout
+      _topAppBar={{
+        navLinks: [
+          {
+            title: "Profile",
+            icon: <AccountCircleOutlined sx={{ width: 28, height: 28 }} />,
+            to: (e: React.MouseEvent<HTMLElement>) =>
+              setAnchorEl(e.currentTarget),
+            isActive: pathname === "/profile",
+            customStyle: {
+              backgroundColor:
+                pathname === "/profile" ? "#e0f7fa" : "transparent",
+              borderRadius: 8,
+            },
+          },
+        ],
+      }}
+    >
       <Box
         sx={{
-          backgroundColor: "#fff",
-          px: "2.5rem",
-          pb: 1,
+          height: 24,
+          display: "flex",
+          alignItems: "center",
+          py: "36px",
+          px: "34px",
+          bgcolor: "#fff",
         }}
       >
+        <Typography
+          variant="body1"
+          component="h2"
+          gutterBottom
+          sx={{
+            fontWeight: 500,
+            color: "#1F1B13",
+            textTransform: "capitalize",
+          }}
+        >
+          <span role="img" aria-label="wave">
+            👋
+          </span>
+          Welcome, {firstName}!
+        </Typography>
+        <Select
+          value={yearSelect || ""}
+          onChange={handleChangeYear}
+          size="small"
+          displayEmpty
+          sx={{
+            backgroundColor: "white",
+            borderRadius: "8px",
+            fontWeight: 500,
+            "& .MuiSelect-select": {
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+            },
+          }}
+        >
+          {academicYearList.length === 0 ? (
+            <MenuItem value="" disabled>
+              Loading...
+            </MenuItem>
+          ) : (
+            academicYearList.map((year: any) => (
+              <MenuItem key={year.id} value={year.name}>
+                {year.name}
+                {year.isActive && (
+                  <span style={{ color: "green", marginLeft: "6px" }}>
+                    (Active)
+                  </span>
+                )}
+              </MenuItem>
+            ))
+          )}
+        </Select>
+      </Box>
+      <Box>
         <Tabs
           value="attendance"
           onChange={handleTopTabChange}
-          aria-label="Attendance navigation tabs"
+          aria-label="Dashboard Tabs"
         >
           <Tab label="Courses" value="Course" />
           <Tab label="Content" value="content" />
           <Tab label="Groups" value="groups" />
           <Tab label="Attendance" value="attendance" />
         </Tabs>
-      </Box>
-
-      <MainContent>
+        <Grid container style={gredientStyle}>
+          <Grid item xs={12}>
+            <DashboardContainer>
+              <MainContent>
         <ContentWrapper>
           <Box>
             <Box
               display={"flex"}
               flexDirection={"column"}
-              padding={"1.5rem 2.2rem 1rem 1.2rem"}
+              padding={{ xs: "1rem 1rem 1rem 1rem", md: "2rem 2.5rem 1.5rem 1.5rem" }}
+              sx={{
+                backgroundColor: "#fffdf7",
+                borderRadius: "12px 12px 0 0",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+              }}
             >
               <Box
                 display={"flex"}
+                flexDirection={{ xs: "column", md: "row" }}
                 justifyContent={"space-between"}
-                alignItems={"center"}
+                alignItems={{ xs: "flex-start", md: "center" }}
                 marginBottom={"16px"}
-                marginRight={"25px"}
+                marginRight={{ xs: 0, md: "25px" }}
+                gap={{ xs: 2, md: 0 }}
               >
                 <Typography
                   variant="h2"
-                  sx={{ fontSize: "14px" }}
-                  color={(theme.palette.warning as any)["300"]}
-                  fontWeight={"500"}
+                  sx={{
+                    fontSize: { xs: "18px", md: "20px" },
+                    fontWeight: "700",
+                    color: "#1F1B13",
+                    letterSpacing: "0.3px",
+                  }}
                 >
                   Day-Wise Attendance
                 </Typography>
-                {centersData.length > 0 && (
-                  <Box sx={{ padding: "0 1.2rem 1rem" }}>
-                    <FormControl
-                      fullWidth
-                      size="small"
-                      sx={{ maxWidth: "200px" }}
-                    >
-                      <InputLabel>Center</InputLabel>
-                      <Select
-                        value={selectedCenterId}
-                        label="Center"
-                        onChange={handleCenterChange}
-                        disabled={loading}
+                <Box
+                  sx={{
+                    display: "flex",
+                    gap: { xs: "0.5rem", md: "1rem" },
+                    alignItems: "center",
+                    flexDirection: { xs: "column", sm: "row" },
+                    width: { xs: "100%", md: "auto" },
+                  }}
+                >
+                  {/* Center Selection */}
+                  {centersData.length > 0 && (
+                    <Box sx={{ width: { xs: "100%", sm: "auto" } }}>
+                      <FormControl
+                        fullWidth
+                        size="small"
+                        sx={{
+                          minWidth: { xs: "100%", sm: "150px" },
+                          maxWidth: { xs: "100%", md: "200px" },
+                          backgroundColor: "white",
+                          borderRadius: "8px",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                          "& .MuiOutlinedInput-root": {
+                            "&:hover fieldset": {
+                              borderColor: (theme.palette.warning as any)?.["A200"] || "#fdbe16",
+                            },
+                            "&.Mui-focused fieldset": {
+                              borderColor: (theme.palette.warning as any)?.["A200"] || "#fdbe16",
+                            },
+                          },
+                        }}
                       >
-                        {centersData.map((center) => (
-                          <MenuItem
-                            key={center.centerId}
-                            value={center.centerId}
-                          >
-                            {center.centerName}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Box>
-                )}
+                        <InputLabel>Center</InputLabel>
+                        <Select
+                          value={selectedCenterId}
+                          label="Center"
+                          onChange={handleCenterChange}
+                          disabled={loading}
+                        >
+                          {centersData.map((center) => (
+                            <MenuItem
+                              key={center.centerId}
+                              value={center.centerId}
+                            >
+                              {center.centerName}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Box>
+                  )}
 
-                {batchesData.length > 0 && (
-                  <Box sx={{ padding: "0 1.2rem 1rem" }}>
-                    <FormControl
-                      fullWidth
-                      size="small"
-                      sx={{ maxWidth: "200px" }}
-                    >
-                      <InputLabel>Batch</InputLabel>
-                      <Select
-                        value={classId}
-                        label="Batch"
-                        onChange={handleBatchChange}
-                        disabled={loading || !selectedCenterId}
+                  {/* Batch Selection */}
+                  {batchesData.length > 0 && (
+                    <Box sx={{ width: { xs: "100%", sm: "auto" } }}>
+                      <FormControl
+                        fullWidth
+                        size="small"
+                        sx={{
+                          minWidth: { xs: "100%", sm: "150px" },
+                          maxWidth: { xs: "100%", md: "200px" },
+                          backgroundColor: "white",
+                          borderRadius: "8px",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                          "& .MuiOutlinedInput-root": {
+                            "&:hover fieldset": {
+                              borderColor: (theme.palette.warning as any)?.["A200"] || "#fdbe16",
+                            },
+                            "&.Mui-focused fieldset": {
+                              borderColor: (theme.palette.warning as any)?.["A200"] || "#fdbe16",
+                            },
+                          },
+                        }}
                       >
-                        {batchesData.map((batch) => (
-                          <MenuItem key={batch.batchId} value={batch.batchId}>
-                            {batch.batchName}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Box>
-                )}
+                        <InputLabel>Batch</InputLabel>
+                        <Select
+                          value={classId}
+                          label="Batch"
+                          onChange={handleBatchChange}
+                          disabled={loading || !selectedCenterId}
+                        >
+                          {batchesData.map((batch) => (
+                            <MenuItem key={batch.batchId} value={batch.batchId}>
+                              {batch.batchName}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Box>
+                  )}
+                </Box>
 
                 <Box
                   display={"flex"}
                   sx={{
                     cursor: "pointer",
                     color: theme.palette.secondary.main,
-                    gap: "4px",
+                    gap: { xs: "4px", sm: "6px", md: "8px" },
                     alignItems: "center",
+                    backgroundColor: "white",
+                    padding: { xs: "6px 12px", sm: "7px 14px", md: "8px 16px" },
+                    borderRadius: { xs: "6px", md: "8px" },
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                    border: "1px solid rgba(0,0,0,0.05)",
+                    transition: "all 0.2s",
+                    width: { xs: "100%", sm: "auto" },
+                    justifyContent: { xs: "space-between", sm: "flex-start" },
+                    "&:hover": {
+                      boxShadow: "0 4px 8px rgba(0,0,0,0.15)",
+                      transform: { xs: "none", md: "translateY(-1px)" },
+                    },
                   }}
                   onClick={handleCalendarClick}
                 >
@@ -1095,15 +1314,27 @@ const SimpleTeacherDashboard = () => {
                       e.stopPropagation();
                       handlePreviousMonth();
                     }}
-                    sx={{ minWidth: "auto", padding: "4px" }}
+                    sx={{
+                      minWidth: "auto",
+                      padding: { xs: "2px 4px", md: "4px 8px" },
+                      color: "#1F1B13",
+                      fontWeight: "600",
+                      fontSize: { xs: "16px", sm: "17px", md: "18px" },
+                      "&:hover": {
+                        backgroundColor: "rgba(253, 190, 22, 0.1)",
+                      },
+                    }}
                   >
                     ‹
                   </Button>
                   <Typography
-                    style={{
-                      fontWeight: "500",
-                      minWidth: "100px",
+                    sx={{
+                      fontWeight: "600",
+                      minWidth: { xs: "auto", sm: "120px", md: "140px" },
                       textAlign: "center",
+                      fontSize: { xs: "13px", sm: "14px", md: "15px" },
+                      color: "#1F1B13",
+                      flex: { xs: 1, sm: "none" },
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1118,12 +1349,27 @@ const SimpleTeacherDashboard = () => {
                       e.stopPropagation();
                       handleNextMonth();
                     }}
-                    sx={{ minWidth: "auto", padding: "4px" }}
+                    sx={{
+                      minWidth: "auto",
+                      padding: { xs: "2px 4px", md: "4px 8px" },
+                      color: "#1F1B13",
+                      fontWeight: "600",
+                      fontSize: { xs: "16px", sm: "17px", md: "18px" },
+                      "&:hover": {
+                        backgroundColor: "rgba(253, 190, 22, 0.1)",
+                      },
+                    }}
                   >
                     ›
                   </Button>
                   <CalendarMonthIcon
-                    sx={{ fontSize: "12px", ml: 0.5, cursor: "pointer" }}
+                    sx={{
+                      fontSize: { xs: "14px", sm: "15px", md: "16px" },
+                      ml: { xs: 0, sm: 0.5 },
+                      cursor: "pointer",
+                      color: "#1F1B13",
+                      display: { xs: "none", sm: "block" },
+                    }}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleCalendarClick();
@@ -1162,11 +1408,13 @@ const SimpleTeacherDashboard = () => {
                       >
                         <Typography
                           sx={{
-                            fontSize: "0.7em",
-                            fontWeight: "600",
-                            color: "#666",
+                            fontSize: { xs: "0.65em", sm: "0.7em", md: "0.75em" },
+                            fontWeight: "700",
+                            color: isToday ? "#fdbe16" : "#1F1B13",
                             lineHeight: 1,
-                            marginBottom: "2px",
+                            marginBottom: { xs: "2px", md: "4px" },
+                            textTransform: "uppercase",
+                            letterSpacing: { xs: "0.3px", md: "0.5px" },
                           }}
                         >
                           {isToday ? "Today" : dayData.day}
@@ -1175,8 +1423,16 @@ const SimpleTeacherDashboard = () => {
                           onClick={() => handleDateClick(dayData.dateString)}
                           sx={{
                             backgroundColor: isSelected
-                              ? theme.palette.primary.light
+                              ? "#fbbc13"
+                              : isToday
+                              ? "#fffdf7"
                               : "#fff",
+                            borderColor: isSelected
+                              ? "#fbbc13"
+                              : isToday
+                              ? "#fdbe16"
+                              : (theme.palette.warning as any).A100,
+                            borderWidth: isSelected || isToday ? "2px" : "1px",
                           }}
                         >
                           <DateNumber variant="body2">
@@ -1189,9 +1445,9 @@ const SimpleTeacherDashboard = () => {
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                width: "20px",
-                                height: "20px",
-                                marginTop: "2px",
+                                width: { xs: "16px", sm: "18px", md: "20px" },
+                                height: { xs: "16px", sm: "18px", md: "20px" },
+                                marginTop: { xs: "1px", md: "2px" },
                               }}
                             >
                               <CircularProgress
@@ -1202,6 +1458,8 @@ const SimpleTeacherDashboard = () => {
                                 sx={{
                                   color: "#4caf50",
                                   position: "absolute",
+                                  width: { xs: "16px", sm: "18px", md: "20px" },
+                                  height: { xs: "16px", sm: "18px", md: "20px" },
                                   "& .MuiCircularProgress-circle": {
                                     strokeLinecap: "round",
                                   },
@@ -1217,28 +1475,47 @@ const SimpleTeacherDashboard = () => {
               </CalendarContainer>
             </Box>
 
-            <Box sx={{ padding: "0 20px" }}>
+            <Box sx={{ padding: { xs: "0 10px", sm: "0 15px", md: "0 20px" } }}>
               <Divider sx={{ borderBottomWidth: "0.1rem" }} />
             </Box>
           </Box>
           <Box
+            sx={{
+              display: "flex",
+              gap: 2,
+              margin: { xs: "15px 10px", md: "20px 35px 20px 25px" },
+              flexWrap: { xs: "wrap", md: "nowrap" },
+            }}
+          >
+          <Box
             height={"auto"}
-            width={"auto"}
-            padding={"1rem"}
-            borderRadius={"1rem"}
-            bgcolor={"#4A4640"}
+            flex={1}
+            minWidth={{ xs: "100%", md: 0 }}
+            padding={{ xs: "1rem 1.5rem", md: "1.5rem 2rem" }}
+            borderRadius={"16px"}
+            bgcolor={"#E8E8E8"}
             textAlign={"left"}
-            margin={"15px 35px 15px 25px"}
-            sx={{ opacity: classId === "all" ? 0.5 : 1 }}
+            sx={{
+              opacity: classId === "all" ? 0.5 : 1,
+              boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
+              transition: "transform 0.2s, box-shadow 0.2s",
+              background: "linear-gradient(135deg, #E8E8E8 0%, #F5F5F5 100%)",
+              "&:hover": {
+                transform: { xs: "none", md: "translateY(-3px)" },
+                boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
+              },
+            }}
             justifyContent={"space-between"}
             display={"flex"}
-            alignItems={"center"}
+            flexDirection={{ xs: "column", sm: "row" }}
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            gap={{ xs: 2, sm: 0 }}
           >
             <Box display="flex" alignItems="center" gap="12px">
               {currentAttendance !== "notMarked" &&
                 currentAttendance !== "futureDate" && (
                   <>
-                    <Box sx={{ width: "30px", height: "30px" }}>
+                    <Box sx={{ width: { xs: "24px", sm: "28px", md: "30px" }, height: { xs: "24px", sm: "28px", md: "30px" } }}>
                       <CircularProgressbar
                         value={
                           attendanceData?.numberOfCohortMembers &&
@@ -1262,9 +1539,10 @@ const SimpleTeacherDashboard = () => {
                     <Box>
                       <Typography
                         sx={{
-                          fontSize: "12px",
-                          fontWeight: "600",
-                          color: "#F4F4F4",
+                          fontSize: { xs: "12px", sm: "13px", md: "14px" },
+                          fontWeight: "700",
+                          color: "#1F1B13",
+                          letterSpacing: "0.3px",
                         }}
                         variant="h6"
                       >
@@ -1280,11 +1558,12 @@ const SimpleTeacherDashboard = () => {
                       </Typography>
                       <Typography
                         sx={{
-                          fontSize: "12px",
-                          fontWeight: "600",
-                          color: "#F4F4F4",
+                          fontSize: { xs: "11px", sm: "12px", md: "13px" },
+                          fontWeight: "500",
+                          color: "#666",
+                          marginTop: "2px",
                         }}
-                        variant="h6"
+                        variant="body2"
                       >
                         ({attendanceData.presentCount}/
                         {attendanceData.numberOfCohortMembers} present)
@@ -1295,9 +1574,10 @@ const SimpleTeacherDashboard = () => {
               {currentAttendance === "notMarked" && (
                 <Typography
                   sx={{
-                    color: (theme.palette.warning as any).A400,
+                    color: "#666",
+                    fontWeight: "500",
                   }}
-                  fontSize={"0.8rem"}
+                  fontSize={"0.9rem"}
                 >
                   Not started
                 </Typography>
@@ -1305,9 +1585,9 @@ const SimpleTeacherDashboard = () => {
               {currentAttendance === "futureDate" && (
                 <Typography
                   sx={{
-                    color: (theme.palette.warning as any)["300"],
+                    color: "#666",
                   }}
-                  fontSize={"0.8rem"}
+                  fontSize={"0.9rem"}
                   fontStyle={"italic"}
                   fontWeight={"500"}
                 >
@@ -1320,10 +1600,18 @@ const SimpleTeacherDashboard = () => {
               variant="contained"
               color="primary"
               sx={{
-                minWidth: "84px",
-                height: "2.5rem",
-                padding: theme.spacing(1),
-                fontWeight: "500",
+                minWidth: { xs: "100%", sm: "100px", md: "120px" },
+                height: { xs: "2.25rem", sm: "2.5rem", md: "2.75rem" },
+                padding: { xs: theme.spacing(1), sm: theme.spacing(1.25), md: theme.spacing(1.5) },
+                fontWeight: "600",
+                fontSize: { xs: "12px", sm: "13px", md: "14px" },
+                borderRadius: { xs: "6px", md: "8px" },
+                boxShadow: "0 4px 12px rgba(251, 188, 19, 0.4)",
+                "&:hover": {
+                  boxShadow: "0 6px 16px rgba(251, 188, 19, 0.5)",
+                  transform: { xs: "none", md: "translateY(-1px)" },
+                },
+                transition: "all 0.2s",
               }}
               disabled={classId === "all"}
               onClick={handleRemoteSession}
@@ -1334,25 +1622,37 @@ const SimpleTeacherDashboard = () => {
           {ShowSelfAttendance && (
             <Box
               height={"auto"}
-              width={"auto"}
-              padding={"1rem"}
-              borderRadius={"1rem"}
-              bgcolor={"#4A4640"}
+              flex={1}
+              minWidth={{ xs: "100%", md: 0 }}
+              padding={{ xs: "1rem 1.5rem", md: "1.5rem 2rem" }}
+              borderRadius={"16px"}
+              bgcolor={"#E8E8E8"}
               textAlign={"left"}
-              margin={"15px 35px 15px 25px"}
-              sx={{ opacity: classId === "all" ? 0.5 : 1 }}
+              sx={{
+                opacity: classId === "all" ? 0.5 : 1,
+                boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
+                transition: "transform 0.2s, box-shadow 0.2s",
+                background: "linear-gradient(135deg, #E8E8E8 0%, #F5F5F5 100%)",
+                "&:hover": {
+                  transform: { xs: "none", md: "translateY(-3px)" },
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
+                },
+              }}
               justifyContent={"space-between"}
               display={"flex"}
-              alignItems={"center"}
+              flexDirection={{ xs: "column", sm: "row" }}
+              alignItems={{ xs: "flex-start", sm: "center" }}
+              gap={{ xs: 2, sm: 0 }}
             >
               <Box display="flex" alignItems="center" gap="12px">
                 {selfAttendanceData?.length > 0 ? (
                   <Box display={"flex"} alignItems={"center"}>
                     <Typography
                       sx={{
-                        color: (theme.palette.warning as any).A400,
+                        color: "#1F1B13",
+                        fontWeight: "600",
+                        fontSize: { xs: "0.85rem", sm: "0.9rem", md: "0.95rem" },
                       }}
-                      fontSize={"0.9rem"}
                     >
                       {selfAttendanceData[0]?.attendance?.toLowerCase() ===
                       ATTENDANCE_ENUM.PRESENT
@@ -1385,9 +1685,10 @@ const SimpleTeacherDashboard = () => {
                 ) : (
                   <Typography
                     sx={{
-                      color: (theme.palette.warning as any).A400,
+                      color: "#666",
+                      fontWeight: "500",
                     }}
-                    fontSize={"0.8rem"}
+                    fontSize={"0.9rem"}
                   >
                     Not Marked For Self
                   </Typography>
@@ -1398,10 +1699,18 @@ const SimpleTeacherDashboard = () => {
                 variant="contained"
                 color="primary"
                 sx={{
-                  minWidth: "84px",
-                  height: "2.5rem",
-                  padding: theme.spacing(1),
-                  fontWeight: "500",
+                  minWidth: { xs: "100%", sm: "100px", md: "120px" },
+                  height: { xs: "2.25rem", sm: "2.5rem", md: "2.75rem" },
+                  padding: { xs: theme.spacing(1), sm: theme.spacing(1.25), md: theme.spacing(1.5) },
+                  fontWeight: "600",
+                  fontSize: { xs: "12px", sm: "12px", md: "13px" },
+                  borderRadius: { xs: "6px", md: "8px" },
+                  boxShadow: "0 4px 12px rgba(251, 188, 19, 0.4)",
+                  "&:hover": {
+                    boxShadow: "0 6px 16px rgba(251, 188, 19, 0.5)",
+                    transform: "translateY(-1px)",
+                  },
+                  transition: "all 0.2s",
                 }}
                 disabled={classId === "all"}
                 onClick={() => {
@@ -1418,24 +1727,36 @@ const SimpleTeacherDashboard = () => {
               </Button>
             </Box>
           )}
+          </Box>
           <Box
             sx={{
-              padding: "1rem 1.2rem",
+              padding: { xs: "1rem", md: "1.5rem 1.5rem" },
+              backgroundColor: "#fffdf7",
+              borderRadius: "12px",
+              margin: { xs: "0 10px 15px", md: "0 20px 20px" },
+              boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
             }}
           >
             <Box
-              mb={2}
+              mb={3}
               sx={{
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "flex-start",
+                paddingBottom: "12px",
+                borderBottom: "2px solid rgba(253, 190, 22, 0.2)",
               }}
             >
               <Box>
-                <Typography variant="body2" fontWeight="600" color="#333">
+                <Typography
+                  variant="h6"
+                  fontWeight="700"
+                  color="#1F1B13"
+                  sx={{ fontSize: "18px", mb: 0.5 }}
+                >
                   Overview
                 </Typography>
-                <Typography variant="caption" color="#666">
+                <Typography variant="body2" color="#666" sx={{ fontSize: "13px" }}>
                   Last 7 Days {dateRange}
                 </Typography>
               </Box>
@@ -1449,13 +1770,21 @@ const SimpleTeacherDashboard = () => {
                   style={{
                     color: "#1890ff",
                     textDecoration: "none",
-                    fontWeight: "500",
+                    fontWeight: "600",
                     display: "flex",
                     alignItems: "center",
                     cursor: "pointer",
+                    fontSize: "14px",
+                    transition: "color 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = "#40a9ff";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = "#1890ff";
                   }}
                 >
-                  More Details
+                  More Details →
                 </a>
               </Link>
             </Box>
@@ -1467,20 +1796,34 @@ const SimpleTeacherDashboard = () => {
                   <>
                     <Grid item xs={12} md={4}>
                       <StatusCard>
-                        <CardContent sx={{ pt: 0 }}>
+                        <CardContent sx={{ pt: 2 }}>
                           <Box textAlign="center" mb={2} p={2}>
-                            <Typography fontSize={"13px"} color="#000000">
+                            <Typography
+                              fontSize={"14px"}
+                              fontWeight="600"
+                              color="#1F1B13"
+                              sx={{ mb: 1.5, textTransform: "uppercase", letterSpacing: "0.5px" }}
+                            >
                               Center Attendance
                             </Typography>
                             <Typography
-                              fontWeight="500"
-                              color="rgb(124, 118, 111)"
-                              sx={{ fontSize: "16px", lineHeight: 1 }}
+                              fontWeight="700"
+                              color="#4caf50"
+                              sx={{ fontSize: "28px", lineHeight: 1.2, mb: 0.5 }}
                             >
                               {cohortPresentPercentage === "No Attendance"
                                 ? cohortPresentPercentage
                                 : `${cohortPresentPercentage}%`}
                             </Typography>
+                            {cohortPresentPercentage !== "No Attendance" && (
+                              <Typography
+                                variant="caption"
+                                color="#666"
+                                sx={{ fontSize: "11px" }}
+                              >
+                                Overall attendance
+                              </Typography>
+                            )}
                           </Box>
                         </CardContent>
                       </StatusCard>
@@ -1488,15 +1831,20 @@ const SimpleTeacherDashboard = () => {
 
                     <Grid item xs={12} md={8}>
                       <StatusCard>
-                        <CardContent sx={{ pt: 0 }}>
+                        <CardContent sx={{ pt: 2 }}>
                           <Box textAlign="center" mb={2} p={2}>
-                            <Typography fontSize={"13px"} color="#000000">
+                            <Typography
+                              fontSize={"14px"}
+                              fontWeight="600"
+                              color="#1F1B13"
+                              sx={{ mb: 1.5, textTransform: "uppercase", letterSpacing: "0.5px" }}
+                            >
                               Low Attendance Learners
                             </Typography>
                             <Typography
                               fontWeight="500"
                               color="rgb(124, 118, 111)"
-                              sx={{ fontSize: "16px", lineHeight: 1 }}
+                              sx={{ fontSize: "15px", lineHeight: 1.6 }}
                             >
                               {Array.isArray(lowAttendanceLearnerList) &&
                               lowAttendanceLearnerList.length > 0 ? (
@@ -1520,7 +1868,7 @@ const SimpleTeacherDashboard = () => {
                                           style={{
                                             color: "#1890ff",
                                             textDecoration: "none",
-                                            fontWeight: "500",
+                                            fontWeight: "600",
                                             cursor: "pointer",
                                           }}
                                         >
@@ -1531,7 +1879,15 @@ const SimpleTeacherDashboard = () => {
                                   )}
                                 </>
                               ) : (
-                                "No Learners with Low Attendance"
+                                <Typography
+                                  sx={{
+                                    color: "#4caf50",
+                                    fontWeight: "500",
+                                    fontStyle: "italic",
+                                  }}
+                                >
+                                  No Learners with Low Attendance
+                                </Typography>
                               )}
                             </Typography>
                           </Box>
@@ -1719,7 +2075,25 @@ const SimpleTeacherDashboard = () => {
           </Box>
         </ModalComponent>
       )}
-    </DashboardContainer>
+            </DashboardContainer>
+          </Grid>
+        </Grid>
+      </Box>
+      <ProfileMenu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={() => setAnchorEl(null)}
+        onProfileClick={handleProfileClick}
+        onLogout={handleLogoutClick}
+      />
+      <ConfirmationModal
+        modalOpen={logoutModalOpen}
+        handleCloseModal={() => setLogoutModalOpen(false)}
+        handleAction={performLogout}
+        message="Are you sure you want to logout?"
+        buttonNames={{ primary: "Logout", secondary: "Cancel" }}
+      />
+    </Layout>
   );
 };
 
