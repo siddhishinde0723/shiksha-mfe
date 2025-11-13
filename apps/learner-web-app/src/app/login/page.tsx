@@ -12,8 +12,6 @@ import {
   Typography,
   TextField,
   Button,
-  Checkbox,
-  FormControlLabel,
   CircularProgress,
   IconButton,
 } from "@mui/material";
@@ -81,6 +79,8 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
   const [lastCallTime, setLastCallTime] = useState(0);
   const [otpHash, setOtpHash] = useState<string>("");
   const hasInitializedRef = useRef(false);
+  const [resendTimer, setResendTimer] = useState(0);
+  const [resendAttempts, setResendAttempts] = useState(0);
   const [formData, setFormData] = useState({
     username: "",
     password: "",
@@ -209,6 +209,8 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
             console.log("OTP hash stored:", response.result.data.hash);
           }
           setOtpSent(true);
+          // Start 120 second timer when first entering OTP step
+          setResendTimer(120);
           // Trigger OTP mode by setting prefilledUsername
           setFormData((prev) => ({
             ...prev,
@@ -269,8 +271,18 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
         setIsSendingOtp(false);
       }
     },
-    [isSendingOtp, hasCheckedUser, lastCallTime, onRedirectToLogin]
+    [isSendingOtp, hasCheckedUser, lastCallTime]
   );
+
+  // Timer countdown effect for resend OTP
+  useEffect(() => {
+    if (resendTimer > 0) {
+      const timer = setTimeout(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendTimer]);
 
   // Set prefilled username if provided and send OTP if it's a mobile number
   useEffect(() => {
@@ -341,12 +353,59 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
     }
   };
 
-  const handleResendOtp = () => {
+  const handleResendOtp = async () => {
+    // Check if resend attempts limit reached
+    if (resendAttempts >= 2) {
+      showToastMessage(
+        "Maximum resend attempts reached. Please try again later.",
+        "error"
+      );
+      return;
+    }
+
+    // Check if timer is still active
+    if (resendTimer > 0) {
+      return;
+    }
+
     if (formData.username && isMobileNumber(formData.username)) {
-      setHasCheckedUser(false); // Reset the flag to allow resend
-      setOtpHash(""); // Reset the hash
-      setOtpSent(false); // Reset OTP sent status
-      sendOtp(formData.username);
+      setResendTimer(120); // Start 120 second timer
+      setResendAttempts((prev) => prev + 1); // Increment attempt count
+      
+      // Reset the flag to allow resend but keep OTP mode active
+      setHasCheckedUser(false);
+      
+      // Call sendOtp directly without resetting otpSent
+      const processedMobile = processMobileNumber(formData.username);
+      setIsSendingOtp(true);
+      
+      try {
+        const response = await sendOTP({
+          mobile: processedMobile,
+          reason: "login",
+        });
+
+        console.log("OTP resent successfully:", response);
+        // Store the new hash for OTP verification
+        if (response?.result?.data?.hash) {
+          setOtpHash(response.result.data.hash);
+          console.log("New OTP hash stored:", response.result.data.hash);
+        }
+        // Clear the OTP input so user can enter new OTP
+        setFormData((prev) => ({
+          ...prev,
+          otp: "",
+        }));
+        showToastMessage("OTP resent successfully", "success");
+      } catch (error) {
+        console.error("Error resending OTP:", error);
+        showToastMessage("Failed to resend OTP. Please try again.", "error");
+        // Decrement attempt count on error so user can retry
+        setResendAttempts((prev) => Math.max(0, prev - 1));
+      } finally {
+        setIsSendingOtp(false);
+        setHasCheckedUser(true);
+      }
     }
   };
 
@@ -354,9 +413,12 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const handleOtpChange = (index: number, value: string) => {
-    if (value.length > 1) {
+    // Filter out non-numeric characters
+    const numericValue = value.replace(/\D/g, "");
+    
+    if (numericValue.length > 1) {
       // If pasting, handle all digits
-      const digits = value.slice(0, 6).split("");
+      const digits = numericValue.slice(0, 6).split("");
       const newOtp = [...formData.otp.split("")];
       digits.forEach((digit, i) => {
         if (index + i < 6) {
@@ -371,16 +433,18 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
       const nextIndex = Math.min(index + digits.length, 5);
       otpRefs.current[nextIndex]?.focus();
     } else {
-      // Single digit input
-      const newOtp = formData.otp.split("");
-      newOtp[index] = value;
-      setFormData((prev) => ({
-        ...prev,
-        otp: newOtp.join("").slice(0, 6),
-      }));
-      // Move to next box if value entered
-      if (value && index < 5) {
-        otpRefs.current[index + 1]?.focus();
+      // Single digit input - only allow if it's a number
+      if (numericValue || value === "") {
+        const newOtp = formData.otp.split("");
+        newOtp[index] = numericValue;
+        setFormData((prev) => ({
+          ...prev,
+          otp: newOtp.join("").slice(0, 6),
+        }));
+        // Move to next box if value entered
+        if (numericValue && index < 5) {
+          otpRefs.current[index + 1]?.focus();
+        }
       }
     }
   };
@@ -388,6 +452,39 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
   const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
     if (e.key === "Backspace" && !formData.otp[index] && index > 0) {
       otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData("text");
+    // Filter out non-numeric characters
+    const numericValue = pastedData.replace(/\D/g, "");
+    
+    if (numericValue.length > 0) {
+      // Take only first 6 digits
+      const digits = numericValue.slice(0, 6).split("");
+      const newOtp = new Array(6).fill("");
+      
+      // Fill the OTP array with pasted digits
+      digits.forEach((digit, i) => {
+        if (i < 6) {
+          newOtp[i] = digit;
+        }
+      });
+      
+      setFormData((prev) => ({
+        ...prev,
+        otp: newOtp.join(""),
+      }));
+      
+      // Focus on the last filled box or the last box if all 6 digits are pasted
+      const nextIndex = Math.min(digits.length - 1, 5);
+      if (nextIndex >= 0) {
+        setTimeout(() => {
+          otpRefs.current[nextIndex]?.focus();
+        }, 0);
+      }
     }
   };
 
@@ -403,6 +500,8 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
       setOtpSent(false);
       setHasCheckedUser(false);
       setOtpHash("");
+      setResendTimer(0);
+      setResendAttempts(0); // Reset resend attempts when going back
       setFormData((prev) => ({
         ...prev,
         otp: "",
@@ -636,14 +735,21 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
                 value={formData.otp[index] || ""}
                 onChange={(e) => handleOtpChange(index, e.target.value)}
                 onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                onPaste={handleOtpPaste}
                 inputProps={{
                   maxLength: 1,
                   pattern: "[0-9]*",
+                  inputMode: "numeric",
                   style: {
                     textAlign: "center",
                     fontSize: "24px",
                     fontWeight: 600,
                   },
+                }}
+                onInput={(e) => {
+                  // Additional validation to prevent non-numeric input
+                  const target = e.target as HTMLInputElement;
+                  target.value = target.value.replace(/\D/g, "");
                 }}
                 sx={{
                   width: { xs: 48, sm: 56 },
@@ -698,10 +804,10 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
               },
             }}
           >
-            {t("LEARNER_APP.LOGIN.SEND") || "SEND"}
+            {t("LEARNER_APP.LOGIN.ENTER_OTP") || "ENTER OTP"}
           </Button>
 
-          {/* Resend OTP Checkbox */}
+          {/* Resend OTP Button */}
           <Box
             sx={{
               display: "flex",
@@ -709,30 +815,31 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
               mb: { xs: 4, sm: 6 },
             }}
           >
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={false}
-                  onChange={handleResendOtp}
-                  sx={{
-                    color: "#E6873C",
-                    "&.Mui-checked": {
-                      color: "#E6873C",
-                    },
-                  }}
-                />
-              }
-              label={
-                <Typography
-                  sx={{
-                    fontSize: { xs: "13px", sm: "14px" },
-                    color: "#1A1A1A",
-                  }}
-                >
-                  {t("LEARNER_APP.LOGIN.RESEND_OTP") || "Resend OTP"}
-                </Typography>
-              }
-            />
+            <Button
+              onClick={handleResendOtp}
+              disabled={resendTimer > 0 || resendAttempts >= 2}
+              sx={{
+                textTransform: "none",
+                color: resendAttempts >= 2 ? "#999999" : "#E6873C",
+                fontSize: { xs: "13px", sm: "14px" },
+                fontWeight: 400,
+                minWidth: "auto",
+                padding: 0,
+                "&:hover": {
+                  backgroundColor: "transparent",
+                  textDecoration: "underline",
+                },
+                "&:disabled": {
+                  color: "#999999",
+                },
+              }}
+            >
+              {resendAttempts >= 2
+                ? t("LEARNER_APP.LOGIN.RESEND_OTP_DISABLED") || "Resend OTP (Limit Reached)"
+                : resendTimer > 0
+                ? `${t("LEARNER_APP.LOGIN.RESEND_OTP") || "Resend OTP"} (${Math.floor(resendTimer / 60)}:${String(resendTimer % 60).padStart(2, "0")})`
+                : t("LEARNER_APP.LOGIN.RESEND_OTP") || "Resend OTP"}
+            </Button>
           </Box>
 
           {/* Pagination Dots - Step 3 */}

@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -11,7 +12,6 @@ import { useRouter } from "next/navigation";
 import { checkAuth } from "@shared-lib-v2/utils/AuthService";
 import InfoIcon from "@mui/icons-material/Info";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import SchoolIcon from "@mui/icons-material/School";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import AccountCircle from "@mui/icons-material/AccountCircle";
@@ -53,7 +53,7 @@ const ProfilePage = () => {
   const handlePreview = async (id: string) => {
     try {
       if (!id || id === "null" || id === "undefined" || id.trim() === "") {
-        showToastMessage("Certification Id not found", "error");
+        showToastMessage(t("LEARNER_APP.PROFILE.CERTIFICATION_ID_NOT_FOUND"), "error");
         return;
       }
       console.log("Opening certificate with ID:", id);
@@ -61,7 +61,7 @@ const ProfilePage = () => {
       setShowCertificate(true);
     } catch (error) {
       console.error("Error opening certificate:", error);
-      showToastMessage("Error opening certificate", "error");
+      showToastMessage(t("LEARNER_APP.PROFILE.ERROR_OPENING_CERTIFICATE"), "error");
     }
   };
 
@@ -125,7 +125,7 @@ const ProfilePage = () => {
               throw new Error("Invalid course details response");
             }
 
-            let courseDetails = Details.data.result.content;
+            const courseDetails = Details.data.result.content;
             console.log("Extracted course details:", {
               name: courseDetails.name,
               title: courseDetails.title,
@@ -148,7 +148,7 @@ const ProfilePage = () => {
               certificateId: item.certificateId,
               completedOn: item.issuedOn,
               description:
-                courseDetails.description || "Course completion certificate",
+                courseDetails.description || t("LEARNER_APP.PROFILE.COURSE_COMPLETION_CERTIFICATE"),
               posterImage: transformImageUrl(courseDetails.posterImage) || "/images/image_ver.png",
               program: courseTitle,
             };
@@ -166,7 +166,7 @@ const ProfilePage = () => {
               courseId: item.courseId,
               certificateId: item.certificateId,
               completedOn: item.issuedOn,
-              description: "Course completion certificate",
+              description: t("LEARNER_APP.PROFILE.COURSE_COMPLETION_CERTIFICATE"),
               posterImage: "/images/image_ver.png",
               program: `Course ${item.courseId.slice(-8)}`,
             };
@@ -201,21 +201,6 @@ const ProfilePage = () => {
         console.log("finalArray (filtered):", finalArray);
         console.log(`Filtered out ${courseDetailsResults.length - validCertificates.length} certificates with invalid IDs`);
 
-        // Add a test certificate if no certificates were found
-        if (finalArray.length === 0) {
-          console.log("No certificates found, adding test certificate");
-          finalArray.push({
-            usercertificateId: "test-id",
-            userId: "test-user",
-            courseId: "test-course",
-            certificateId: "did:rcw:test-certificate-id",
-            completedOn: new Date().toISOString(),
-            description: "Test certificate description",
-            posterImage: "/images/image_ver.png",
-            program: "Test Course",
-          });
-        }
-
         setCourseData(finalArray);
         
         // Cache the data
@@ -225,13 +210,13 @@ const ProfilePage = () => {
         
       } catch (error) {
         console.error("Error fetching certificate data:", error);
-        showToastMessage("Error loading certificates", "error");
+        showToastMessage(t("LEARNER_APP.PROFILE.ERROR_LOADING_CERTIFICATES"), "error");
       } finally {
         setLoading(false);
       }
     };
     prepareCertificateData();
-  }, [filters]);
+  }, [filters, t]);
 
   useEffect(() => {
     if (!checkAuth()) {
@@ -243,8 +228,8 @@ const ProfilePage = () => {
     typeof window !== "undefined" &&
     localStorage.getItem("userProgram") === "YouthNet";
 
-  // Show certificates section if user has certificates or is YouthNet
-  const shouldShowCertificates = courseData.length > 0 || isYouthNet;
+  // Show certificates section always (will show empty state if no certificates)
+  const shouldShowCertificates = true;
 
   // Debug logging
   console.log("Profile page state:", {
@@ -326,7 +311,7 @@ const ProfilePage = () => {
                 marginLeft: { xs: 1, sm: 2 },
                 fontSize: { xs: "16px", sm: "20px" },
                 lineHeight: "28px",
-                color: "#1A1A1A",
+                color: "#484848",
               }}
             >
               {t("LEARNER_APP.HOME.APP_NAME") || "Swadhaar"}
@@ -342,7 +327,10 @@ const ProfilePage = () => {
             }}
           >
             <Button
-              onClick={() => setLanguage("en")}
+              onClick={() => {
+                setLanguage("en");
+              }}
+              disabled={language === "en"}
               sx={{
                 minWidth: "auto",
                 px: 2,
@@ -356,12 +344,19 @@ const ProfilePage = () => {
                 "&:hover": {
                   backgroundColor: language === "en" ? "#E6873C" : "#D0D0D0",
                 },
+                "&:disabled": {
+                  backgroundColor: "#E6873C",
+                  color: "#FFFFFF",
+                },
               }}
             >
               ENGLISH
             </Button>
             <Button
-              onClick={() => setLanguage("hi")}
+              onClick={() => {
+                setLanguage("hi");
+              }}
+              disabled={language === "hi"}
               sx={{
                 minWidth: "auto",
                 px: 2,
@@ -374,6 +369,10 @@ const ProfilePage = () => {
                 borderRadius: "4px",
                 "&:hover": {
                   backgroundColor: language === "hi" ? "#E6873C" : "#D0D0D0",
+                },
+                "&:disabled": {
+                  backgroundColor: "#E6873C",
+                  color: "#FFFFFF",
                 },
               }}
             >
@@ -436,22 +435,23 @@ const ProfilePage = () => {
                 },
               }}
             >
-              Back to Dashboard
+              {t("LEARNER_APP.PROFILE.BACK_TO_DASHBOARD")}
             </Button>
           </Box>
 
           {/* Profile Header */}
-          <Box sx={{ textAlign: 'center', color: '#1A1A1A', mb: 4 }}>
+          <Box sx={{ textAlign: 'center', color: '#484848', mb: 4 }}>
             <Typography
               variant="h2"
               fontWeight={700}
               sx={{ 
                 mb: 2, 
-                textShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                fontSize: '24px'
+               
+                fontSize: '24px',
+                color: '#484848'
               }}
             >
-              My Profile
+              {t("LEARNER_APP.PROFILE.MY_PROFILE")}
             </Typography>
             <Typography
               variant="h5"
@@ -461,55 +461,10 @@ const ProfilePage = () => {
                 fontSize: '16px'
               }}
             >
-              Track your learning journey and achievements
+              {t("LEARNER_APP.PROFILE.TRACK_LEARNING_JOURNEY")}
             </Typography>
           </Box>
 
-          {/* Stats Cards */}
-          <Grid container spacing={3} sx={{ mb: 4 }}>
-            <Grid item xs={12} sm={6}>
-              <Paper
-                sx={{
-                  p: 3,
-                  textAlign: 'center',
-                  background: 'rgba(255,255,255,0.8)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(0,0,0,0.1)',
-                  borderRadius: 3,
-                  color: '#1A1A1A',
-                }}
-              >
-                <SchoolIcon sx={{ fontSize: 32, mb: 1, opacity: 0.9 }} />
-                <Typography variant="h4" fontWeight={700} sx={{ mb: 0.5, fontSize: '24px' }}>
-                  {courseData.length}
-                </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.8, fontSize: '14px' }}>
-                  Courses Completed
-                </Typography>
-              </Paper>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Paper
-                sx={{
-                  p: 3,
-                  textAlign: 'center',
-                  background: 'rgba(255,255,255,0.8)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(0,0,0,0.1)',
-                  borderRadius: 3,
-                  color: '#1A1A1A',
-                }}
-              >
-                <EmojiEventsIcon sx={{ fontSize: 32, mb: 1, opacity: 0.9 }} />
-                <Typography variant="h4" fontWeight={700} sx={{ mb: 0.5, fontSize: '24px' }}>
-                  {courseData.length}
-                </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.8, fontSize: '14px' }}>
-                  Certificates Earned
-                </Typography>
-              </Paper>
-            </Grid>
-          </Grid>
         </Container>
       </Box>
 
@@ -528,44 +483,51 @@ const ProfilePage = () => {
             <Grid item xs={12} md={8}>
               <Paper
                 sx={{
+                  overflowWrap: 'break-word',
+                  wordBreak: 'break-word',
                   borderRadius: 4,
                   overflow: 'hidden',
                   boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
                   border: '1px solid rgba(0,0,0,0.05)',
                 }}
               >
-                {/* Section Header */}
+                {/* Header Section */}
                 <Box
                   sx={{
-                    background: '#F5F5F5',
-                    p: 3,
-                    color: '#1A1A1A',
+                    background: '#F8EFDA',
+                    padding: '24px',
+                    position: 'relative',
+                    color: '#1F1B13',
                   }}
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <EmojiEventsIcon sx={{ fontSize: 32, mr: 2 }} />
-                    <Box>
-                      <Typography variant="h4" fontWeight={700}>
-                        {isYouthNet ? "YouthNet Achievements" : "My Certificates"}
+                    <EmojiEventsIcon sx={{ fontSize: 32, mr: 2, color: '#1F1B13' }} />
+                    <Box sx={{ flex: 1 }}>
+                      <Typography
+                        variant="h5"
+                        fontWeight="700"
+                        sx={{ mb: 0.5 }}
+                      >
+                        {isYouthNet ? t("LEARNER_APP.PROFILE.YOUTHNET_ACHIEVEMENTS") : t("LEARNER_APP.PROFILE.MY_CERTIFICATES")}
                       </Typography>
-                      <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                        Your completed courses and earned certificates
+                      <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                        {t("LEARNER_APP.PROFILE.CERTIFICATES_DESCRIPTION")}
                       </Typography>
                     </Box>
                   </Box>
                   
                   <Chip
-                    label={`${courseData.length} Certificate${courseData.length !== 1 ? 's' : ''}`}
+                    label={`${courseData.length} ${courseData.length !== 1 ? t("LEARNER_APP.PROFILE.CERTIFICATES") : t("LEARNER_APP.PROFILE.CERTIFICATE")}`}
                     sx={{
-                      backgroundColor: 'rgba(26,26,26,0.1)',
-                      color: '#1A1A1A',
+                      backgroundColor: 'rgba(31,27,19,0.1)',
+                      color: '#1F1B13',
                       fontWeight: 600,
                     }}
                   />
                 </Box>
 
-                {/* Content */}
-                <Box sx={{ p: 3 }}>
+                {/* Content Section */}
+                <Box sx={{ padding: '24px', backgroundColor: '#FAFAFA' }}>
                   {loading ? (
                     <Grid container spacing={3}>
                       {[1, 2, 3, 4].map((index) => (
@@ -584,34 +546,52 @@ const ProfilePage = () => {
                     </Grid>
                   ) : courseData.length === 0 ? (
                     <Box
-                      display="flex"
-                      flexDirection="column"
-                      alignItems="center"
-                      justifyContent="center"
-                      p={6}
                       sx={{
-                        backgroundColor: "#fff9f0",
-                        borderRadius: 3,
-                        border: "2px dashed #fdbd16",
+                        backgroundColor: '#fff',
+                        border: '1px solid #e0e0e0',
+                        borderRadius: '16px',
+                        padding: '20px',
+                        marginBottom: '20px',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
                         textAlign: 'center',
                       }}
                     >
-                      <EmojiEventsIcon sx={{ color: "#FDBE16", fontSize: 64, mb: 2 }} />
-                      <Typography variant="h5" fontWeight={600} color="#78590C" sx={{ mb: 1 }}>
-                        No Certificates Yet
-                      </Typography>
-                      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-                        Complete courses to earn your first certificate and showcase your achievements!
-                      </Typography>
-                      <Button
-                        variant="contained"
-                        onClick={() => router.push("/courses-contents")}
+                      <Box
                         sx={{
-                          backgroundColor: "#78590C",
-                          "&:hover": { backgroundColor: "#B8860B" },
+                          mb: 2,
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
                         }}
                       >
-                        Explore Courses
+                        <Image
+                          src="/Group 26817.svg"
+                          alt="No Certificates"
+                          width={150}
+                          height={150}
+                          style={{
+                            objectFit: "contain",
+                            maxWidth: "100%",
+                            height: "auto",
+                          }}
+                        />
+                      </Box>
+                      <Button
+                        variant="contained"
+                        onClick={() => router.push("/dashboard?tab=0")}
+                        sx={{
+                          backgroundColor: "#E6873C",
+                          color: "#FFFFFF",
+                          "&:hover": { backgroundColor: "#D6772C" },
+                          px: 4,
+                          py: 1.5,
+                          fontSize: "16px",
+                          fontWeight: 600,
+                          textTransform: "none",
+                          borderRadius: "8px",
+                        }}
+                      >
+                        {t("LEARNER_APP.PROFILE.GO_TO_COURSES")}
                       </Button>
                     </Box>
                   ) : (
@@ -628,9 +608,9 @@ const ProfilePage = () => {
                         return (
                           <Grid item xs={12} sm={6} lg={4} xl={3} key={index}>
                             <CourseCertificateCard
-                              title={cert.program || "Untitled Course"}
+                              title={cert.program || t("LEARNER_APP.PROFILE.UNTITLED_COURSE")}
                               description={
-                                cert.description || "No description available"
+                                cert.description || t("LEARNER_APP.PROFILE.NO_DESCRIPTION_AVAILABLE")
                               }
                               imageUrl={
                                 cert.posterImage || "/images/image_ver.png"
@@ -640,7 +620,7 @@ const ProfilePage = () => {
                               }
                               onPreviewCertificate={() => {
                                 if (!hasValidCertificateId) {
-                                  showToastMessage("Certificate ID not available for this course", "warning");
+                                  showToastMessage(t("LEARNER_APP.PROFILE.CERTIFICATE_ID_NOT_AVAILABLE"), "warning");
                                   return;
                                 }
                                 handlePreview(cert.certificateId);
@@ -676,11 +656,11 @@ const ProfilePage = () => {
       {/* Logout Confirmation Modal */}
       <ConfirmationModal
         modalOpen={logoutModalOpen}
-        message="Are you sure you want to logout?"
+        message={t("COMMON.SURE_LOGOUT")}
         handleAction={performLogout}
         buttonNames={{
-          primary: "Logout",
-          secondary: "Cancel",
+          primary: t("COMMON.LOGOUT"),
+          secondary: t("COMMON.CANCEL"),
         }}
         handleCloseModal={() => setLogoutModalOpen(false)}
       />

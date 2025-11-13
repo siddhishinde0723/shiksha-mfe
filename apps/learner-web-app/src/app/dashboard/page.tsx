@@ -650,11 +650,11 @@ const DashboardPage = () => {
       {/* Logout Confirmation Modal */}
       <ConfirmationModal
         modalOpen={logoutModalOpen}
-        message="Are you sure you want to logout?"
+        message={t("COMMON.SURE_LOGOUT")}
         handleAction={performLogout}
         buttonNames={{
-          primary: "Logout",
-          secondary: "Cancel",
+          primary: t("COMMON.LOGOUT"),
+          secondary: t("COMMON.CANCEL"),
         }}
         handleCloseModal={() => setLogoutModalOpen(false)}
       />

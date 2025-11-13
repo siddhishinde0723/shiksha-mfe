@@ -85,7 +85,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             variant="outlined"
             onClick={handleCloseModal}
           >
-            {/* {buttonNames.primary} */}
+            {buttonNames.secondary}
           </Button>
           <Button
             sx={{
@@ -106,8 +106,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
               }
             }}
           >
-            Okay
-            {/* {buttonNames.primary} */}
+            {buttonNames.primary}
           </Button>
         </Box>
       </Box>

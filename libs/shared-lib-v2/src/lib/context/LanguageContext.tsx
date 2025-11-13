@@ -119,7 +119,18 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({
 
   // Handle language switch (simple version — no confirmation)
   const handleLanguageChange = useCallback((newLanguage: string) => {
-    if (!translations[newLanguage]) return;
+    // Validate language exists in translations
+    if (!translations[newLanguage]) {
+      console.warn(`Language "${newLanguage}" is not available. Available languages: ${Object.keys(translations).join(", ")}`);
+      // Fallback to English if invalid language is provided
+      if (typeof window !== "undefined") {
+        localStorage.setItem("lang", "en");
+      }
+      setLanguageState("en");
+      return;
+    }
+    
+    // Set the language
     if (typeof window !== "undefined") {
       localStorage.setItem("lang", newLanguage);
     }

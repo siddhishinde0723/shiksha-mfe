@@ -258,7 +258,8 @@
       "OTP_INSTRUCTION": "Enter the 6-digit OTP sent to your phone.",
       "SEND": "SEND",
       "RESEND_OTP": "Resend OTP",
-      "SENDING": "Sending..."
+      "SENDING": "Sending...",
+      "ENTER_OTP": "Submit & Verify OTP"
     },
     "L_ONE_COURSE": {
       "IN_PROGRESS_TITLE": "In Progress",
@@ -407,6 +408,31 @@
       "SEARCH_TEXT": "Search",
       "APP_NAME": "Shiksha myLearning",
       "ON_PLAYSTORE": "on Playstore"
+    },
+    "PROFILE": {
+      "BACK_TO_DASHBOARD": "Back to Dashboard",
+      "MY_PROFILE": "My Profile",
+      "TRACK_LEARNING_JOURNEY": "Track your learning journey and achievements",
+      "COURSES_COMPLETED": "Courses Completed",
+      "CERTIFICATES_EARNED": "Certificates Earned",
+      "YOUTHNET_ACHIEVEMENTS": "YouthNet Achievements",
+      "MY_CERTIFICATES": "My Certificates",
+      "CERTIFICATES_DESCRIPTION": "Your completed courses and earned certificates",
+      "CERTIFICATE": "Certificate",
+      "CERTIFICATES": "Certificates",
+      "NO_CERTIFICATES_YET": "No Certificates Yet",
+      "COMPLETE_COURSES_MESSAGE": "Complete courses to earn your first certificate and showcase your achievements!",
+      "NO_CERTIFICATE_MESSAGE": "You need to consume the course and after completing that course you will get the certificate.",
+      "CERTIFICATE_ISSUED_MESSAGE": "Certificates are issued once you complete the course.",
+      "EXPLORE_COURSES": "Explore Courses",
+      "GO_TO_COURSES": "Go to Courses",
+      "UNTITLED_COURSE": "Untitled Course",
+      "NO_DESCRIPTION_AVAILABLE": "No description available",
+      "CERTIFICATE_ID_NOT_AVAILABLE": "Certificate ID not available for this course",
+      "CERTIFICATION_ID_NOT_FOUND": "Certification Id not found",
+      "ERROR_OPENING_CERTIFICATE": "Error opening certificate",
+      "ERROR_LOADING_CERTIFICATES": "Error loading certificates",
+      "COURSE_COMPLETION_CERTIFICATE": "Course completion certificate"
     }
   },
   "LOGIN_PAGE": {

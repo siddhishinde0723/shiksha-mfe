@@ -227,7 +227,8 @@
       "OTP_INSTRUCTION": "अपने फोन पर भेजे गए 6-अंकीय OTP को दर्ज करें।",
       "SEND": "भेजें",
       "RESEND_OTP": "OTP पुनः भेजें",
-      "SENDING": "भेजा जा रहा है..."
+      "SENDING": "भेजा जा रहा है...",
+      "ENTER_OTP": "OTP दर्ज करें और सत्यापित करें"
     },
     "L_ONE_COURSE": {
       "IN_PROGRESS_TITLE": "प्रगति पर",
@@ -376,6 +377,31 @@
       "SEARCH_TEXT": "खोजें",
       "APP_NAME": "Shiksha myLearning",
       "ON_PLAYSTORE": "प्लेस्टोर पर"
+    },
+    "PROFILE": {
+      "BACK_TO_DASHBOARD": "डैशबोर्ड पर वापस जाएं",
+      "MY_PROFILE": "मेरी प्रोफ़ाइल",
+      "TRACK_LEARNING_JOURNEY": "अपनी सीखने की यात्रा और उपलब्धियों को ट्रैक करें",
+      "COURSES_COMPLETED": "पूर्ण किए गए पाठ्यक्रम",
+      "CERTIFICATES_EARNED": "अर्जित प्रमाणपत्र",
+      "YOUTHNET_ACHIEVEMENTS": "यूथनेट उपलब्धियां",
+      "MY_CERTIFICATES": "मेरे प्रमाणपत्र",
+      "CERTIFICATES_DESCRIPTION": "आपके पूर्ण किए गए पाठ्यक्रम और अर्जित प्रमाणपत्र",
+      "CERTIFICATE": "प्रमाणपत्र",
+      "CERTIFICATES": "प्रमाणपत्र",
+      "NO_CERTIFICATES_YET": "अभी तक कोई प्रमाणपत्र नहीं",
+      "COMPLETE_COURSES_MESSAGE": "अपना पहला प्रमाणपत्र अर्जित करने और अपनी उपलब्धियों को प्रदर्शित करने के लिए पाठ्यक्रम पूर्ण करें!",
+      "NO_CERTIFICATE_MESSAGE": "आपको पाठ्यक्रम का उपभोग करना होगा और उस पाठ्यक्रम को पूरा करने के बाद आपको प्रमाणपत्र मिलेगा।",
+      "CERTIFICATE_ISSUED_MESSAGE": "पाठ्यक्रम पूरा करने के बाद प्रमाणपत्र जारी किए जाते हैं।",
+      "EXPLORE_COURSES": "पाठ्यक्रम देखें",
+      "GO_TO_COURSES": "पाठ्यक्रम पर जाएं",
+      "UNTITLED_COURSE": "अनाम पाठ्यक्रम",
+      "NO_DESCRIPTION_AVAILABLE": "कोई विवरण उपलब्ध नहीं",
+      "CERTIFICATE_ID_NOT_AVAILABLE": "इस पाठ्यक्रम के लिए प्रमाणपत्र आईडी उपलब्ध नहीं है",
+      "CERTIFICATION_ID_NOT_FOUND": "प्रमाणपत्र आईडी नहीं मिली",
+      "ERROR_OPENING_CERTIFICATE": "प्रमाणपत्र खोलने में त्रुटि",
+      "ERROR_LOADING_CERTIFICATES": "प्रमाणपत्र लोड करने में त्रुटि",
+      "COURSE_COMPLETION_CERTIFICATE": "पाठ्यक्रम पूर्णता प्रमाणपत्र"
     }
   },
   "LOGIN_PAGE": {
