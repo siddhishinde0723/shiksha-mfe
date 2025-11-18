@@ -476,6 +476,37 @@ const FilterSection: React.FC<FilterSectionProps> = ({
   errors = {},
   required = {},
 }) => {
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (!Array.isArray(fields)) {
+      return;
+    }
+    setExpandedSections((prev) => {
+      const next = { ...prev };
+      fields.forEach((field) => {
+        const code = field?.code;
+        if (!code) {
+          return;
+        }
+        if (next[code] === undefined) {
+          next[code] = Array.isArray(isOpenColapsed)
+            ? isOpenColapsed.includes(code)
+            : Boolean(isOpenColapsed);
+        }
+      });
+      return next;
+    });
+  }, [fields, isOpenColapsed]);
+
+  const handleAccordionToggle =
+    (code: string) => (_event: React.SyntheticEvent, expanded: boolean) => {
+      setExpandedSections((prev) => ({
+        ...prev,
+        [code]: expanded,
+      }));
+    };
+
   return (
     <Box
       sx={{
@@ -686,13 +717,16 @@ const FilterSection: React.FC<FilterSectionProps> = ({
             </Box>
           );
         }
+        const isExpanded =
+          expandedSections[code] ??
+          (Array.isArray(isOpenColapsed)
+            ? isOpenColapsed.includes(code)
+            : Boolean(isOpenColapsed));
+
         return (
           <Accordion
-            defaultExpanded={
-              Array.isArray(isOpenColapsed)
-                ? isOpenColapsed.includes(code)
-                : isOpenColapsed
-            }
+            expanded={isExpanded}
+            onChange={handleAccordionToggle(code)}
             key={code}
             sx={{ background: "unset", boxShadow: "unset" }}
           >

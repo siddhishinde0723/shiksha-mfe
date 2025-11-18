@@ -28,6 +28,18 @@ import { transformImageUrl } from '@learner/utils/imageUtils';
 const CourseUnitDetails = dynamic(() => import('@CourseUnitDetails'), {
   ssr: false,
 });
+const getSbPlayerBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    const origin = window.location.origin.replace(/\/$/, "");
+    return `${origin}/sbplayer`;
+  }
+  const fallback = process.env.NEXT_PUBLIC_LEARNER_SBPLAYER || "";
+  if (!fallback) return "/sbplayer";
+  return fallback.endsWith("/sbplayer")
+    ? fallback
+    : `${fallback.replace(/\/$/, "")}/sbplayer`;
+};
+
 const App = ({
   userIdLocalstorageName,
   contentBaseUrl,
@@ -299,7 +311,7 @@ const PlayerBox = ({
               trackable: trackable,
             })}
             src={`${
-              process.env.NEXT_PUBLIC_LEARNER_SBPLAYER
+              getSbPlayerBaseUrl()
             }?identifier=${identifier}${
               courseId && unitId ? `&courseId=${courseId}&unitId=${unitId}` : ''
             }${

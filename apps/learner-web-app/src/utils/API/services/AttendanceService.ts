@@ -20,6 +20,8 @@ type MarkAttendanceRequest = MarkAttendanceParams & {
   validLocation?: boolean;
   absentReason?: string;
   lateMark?: boolean;
+  scope?: string;
+  context?: string;
 };
 
 type PostAttendanceListParams = {
@@ -87,21 +89,30 @@ export const markAttendance = async ({
   validLocation,
   absentReason,
   lateMark,
+  scope,
+  context,
 }: MarkAttendanceRequest): Promise<any> => {
   const apiUrl: string = API_ENDPOINTS.attendanceCreate;
   try {
-    const response = await post(apiUrl, {
+    const payload: any = {
       userId,
       attendanceDate,
       contextId,
       attendance,
-      context: DEFAULT_CONTEXT,
+      context: context || DEFAULT_CONTEXT,
       latitude,
       longitude,
       validLocation,
       absentReason,
       lateMark,
-    });
+    };
+    
+    // Add scope if provided
+    if (scope) {
+      payload.scope = scope;
+    }
+    
+    const response = await post(apiUrl, payload);
     return response?.data;
   } catch (error) {
     console.error("error in marking attendance", error);

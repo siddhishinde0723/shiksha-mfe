@@ -27,6 +27,14 @@ interface GroupContentItem {
   imageUrl?: string;
   isCompleted?: boolean;
   difficulty?: "beginner" | "intermediate" | "advanced";
+  se_boards?: string[];
+  se_mediums?: string[];
+  se_gradeLevels?: string[];
+  se_subjects?: string[];
+  targetBoardIds?: string[];
+  targetMediumIds?: string[];
+  targetGradeLevelIds?: string[];
+  targetSubjectIds?: string[];
 }
 
 interface GroupContentProps {
@@ -165,6 +173,15 @@ const GroupContent: React.FC<GroupContentProps> = ({
               ? "advanced"
               : "beginner") as "beginner" | "intermediate" | "advanced",
             imageUrl: String(item.posterImage || item.appIcon || ""),
+            // Framework metadata
+            se_boards: Array.isArray(item.se_boards) ? item.se_boards : Array.isArray(item.targetBoardIds) ? item.targetBoardIds : undefined,
+            se_mediums: Array.isArray(item.se_mediums) ? item.se_mediums : Array.isArray(item.targetMediumIds) ? item.targetMediumIds : undefined,
+            se_gradeLevels: Array.isArray(item.se_gradeLevels) ? item.se_gradeLevels : Array.isArray(item.targetGradeLevelIds) ? item.targetGradeLevelIds : undefined,
+            se_subjects: Array.isArray(item.se_subjects) ? item.se_subjects : Array.isArray(item.targetSubjectIds) ? item.targetSubjectIds : undefined,
+            targetBoardIds: Array.isArray(item.targetBoardIds) ? item.targetBoardIds : undefined,
+            targetMediumIds: Array.isArray(item.targetMediumIds) ? item.targetMediumIds : undefined,
+            targetGradeLevelIds: Array.isArray(item.targetGradeLevelIds) ? item.targetGradeLevelIds : undefined,
+            targetSubjectIds: Array.isArray(item.targetSubjectIds) ? item.targetSubjectIds : undefined,
           })
         );
         setContent(transformedContent);
@@ -445,6 +462,15 @@ const GroupContent: React.FC<GroupContentProps> = ({
                     artifactUrl: "",
                     appIcon: "",
                     contentType: item.type,
+                    // Framework metadata
+                    se_boards: item.se_boards,
+                    se_mediums: item.se_mediums,
+                    se_gradeLevels: item.se_gradeLevels,
+                    se_subjects: item.se_subjects,
+                    targetBoardIds: item.targetBoardIds,
+                    targetMediumIds: item.targetMediumIds,
+                    targetGradeLevelIds: item.targetGradeLevelIds,
+                    targetSubjectIds: item.targetSubjectIds,
                   }}
                   type={item.type}
                   TrackData={trackData}

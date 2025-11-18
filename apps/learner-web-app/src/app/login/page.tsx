@@ -18,12 +18,10 @@ import {
   FormControlLabel,
   InputAdornment,
   IconButton,
-  Paper,
   CircularProgress,
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
-import WelcomeScreen from "@learner/components/WelcomeComponent/WelcomeScreen";
-import Header from "@learner/components/Header/Header";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { getUserId, login } from "@learner/utils/API/LoginService";
 import { checkUserExistenceWithTenant } from "@learner/utils/API/userService";
 import { sendOTP, verifyOTP } from "@learner/utils/API/OtPService";
@@ -43,6 +41,7 @@ import {
   ensureAcademicYearForTenant,
   getTenantInfo,
 } from "@learner/utils/API/ProgramService";
+import { useTenant } from "@learner/context/TenantContext";
 
 // Helper function to get cookie value
 const getCookieValue = (name: string): string | null => {
@@ -83,14 +82,21 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
   onRedirectToLogin,
 }) => {
   const { t } = useTranslation();
+  const { contentFilter, tenant } = useTenant();
+
+  // Determine login method from tenant config
+  const loginMethod = contentFilter?.loginMethod || "otp";
+  const isOtpLoginMethod = loginMethod === "otp";
 
   const [showPassword, setShowPassword] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
-  const [forcePasswordMode, setForcePasswordMode] = useState(false);
+  const [forcePasswordMode, setForcePasswordMode] = useState(!isOtpLoginMethod); // Default based on tenant config
   const [hasCheckedUser, setHasCheckedUser] = useState(false);
   const [lastCallTime, setLastCallTime] = useState(0);
   const [otpHash, setOtpHash] = useState<string>("");
+  const [resendTimer, setResendTimer] = useState(0);
+  const [resendAttempts, setResendAttempts] = useState(0);
   const hasInitializedRef = useRef(false);
   const [formData, setFormData] = useState({
     username: "",
@@ -98,6 +104,14 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
     otp: "",
     remember: false,
   });
+  
+  // Get tenant colors
+  const primaryColor = contentFilter?.theme?.primaryColor || "#E6873C";
+  const secondaryColor = contentFilter?.theme?.secondaryColor || "#1A1A1A";
+  const backgroundColor = contentFilter?.theme?.backgroundColor || "#F5F5F5";
+  
+  // OTP input refs for individual boxes
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Check if username is a mobile number (10+ digits)
   const isMobileNumber = (username: string) => {
@@ -114,9 +128,10 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
   };
 
   // Determine if we should show OTP mode
-  const isOtpMode =
-    prefilledUsername &&
-    isMobileNumber(prefilledUsername) &&
+  // For OTP login method, show OTP if mobile number and OTP sent
+  // For password login method, always show password
+  const isOtpMode = isOtpLoginMethod && 
+    otpSent && 
     !forcePasswordMode;
 
   // Function to check user existence and send OTP
@@ -170,7 +185,18 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
 
         // Check if user exists and has the specific tenant ID
         const users = userCheckResponse?.result?.getUserDetails || [];
-        const targetTenantId = process.env.NEXT_PUBLIC_TARGET_TENANT_ID;
+        
+        // Get tenant ID from the tenant context (domain-based tenant)
+        const domainTenantId = tenant?.tenantId;
+        
+        if (!domainTenantId) {
+          console.error("No tenant found for this domain");
+          showToastMessage(
+            "Tenant configuration not found. Please contact administrator.",
+            "error"
+          );
+          return;
+        }
 
         if (!users || users.length === 0) {
           console.log("No users found for this mobile number");
@@ -183,11 +209,10 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
           return;
         }
 
-        // Find user with target tenant or any user if no specific tenant required
-        const userWithTargetTenant =
-          users.find(
-            (user: { tenantId: string }) => user.tenantId === targetTenantId
-          ) || users[0]; // Fallback to first user if no specific tenant match
+        // Find user with matching tenant ID - MUST match domain tenant
+        const userWithTargetTenant = users.find(
+          (user: { tenantId: string }) => user.tenantId === domainTenantId
+        );
 
         if (userWithTargetTenant) {
           console.log("User found, sending OTP:", userWithTargetTenant);
@@ -204,14 +229,27 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
             console.log("OTP hash stored:", response.result.data.hash);
           }
           setOtpSent(true);
+          // Start 120 second timer when first entering OTP step
+          setResendTimer(120);
+          // Trigger OTP mode by setting prefilledUsername
+          setFormData((prev) => ({
+            ...prev,
+            username: processedMobile,
+          }));
         } else {
-          // User doesn't exist or doesn't have target tenant, show error
-          console.log("User not found, showing error message");
+          // User doesn't belong to this tenant, show error
+          console.log("User does not belong to this tenant");
+          showToastMessage(
+            "This user is not registered for this tenant. Please contact your administrator.",
+            "error"
+          );
           if (onRedirectToLogin) {
             setTimeout(() => {
               onRedirectToLogin();
             }, 100);
           }
+          // Reset hasCheckedUser to allow user to try again with different number
+          setHasCheckedUser(false);
         }
       } catch (error: unknown) {
         console.error("Error in OTP flow:", error);
@@ -250,7 +288,7 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
         setIsSendingOtp(false);
       }
     },
-    [isSendingOtp, hasCheckedUser, lastCallTime, onRedirectToLogin]
+    [isSendingOtp, hasCheckedUser, lastCallTime, onRedirectToLogin, isOtpLoginMethod, tenant]
   );
 
   // Set prefilled username if provided and send OTP if it's a mobile number
@@ -262,20 +300,20 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
         username: prefilledUsername,
       }));
 
-      // Only send OTP if user is not already authenticated
+      // Only send OTP if user is not already authenticated and login method is OTP
       const existingToken =
         localStorage.getItem("token") || getCookieValue("token");
     
 
-      if (!existingToken && isMobileNumber(prefilledUsername)) {
+      if (!existingToken && isMobileNumber(prefilledUsername) && isOtpLoginMethod) {
         sendOtp(prefilledUsername);
       } else {
         console.log(
-          "🚫 LoginComponent: Not sending OTP - user already authenticated or not mobile number"
+          "🚫 LoginComponent: Not sending OTP - user already authenticated, not mobile number, or password login method"
         );
       }
     }
-  }, [prefilledUsername, sendOtp]);
+  }, [prefilledUsername, sendOtp, isOtpLoginMethod]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -330,116 +368,241 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
     }
   };
 
-  const handleResendOtp = () => {
+  const handleSendOtp = async () => {
     if (formData.username && isMobileNumber(formData.username)) {
-      setHasCheckedUser(false); // Reset the flag to allow resend
-      setOtpHash(""); // Reset the hash
-      setOtpSent(false); // Reset OTP sent status
-      sendOtp(formData.username);
+      await sendOtp(formData.username);
     }
   };
 
+  // Timer countdown effect for resend OTP
+  useEffect(() => {
+    if (resendTimer > 0) {
+      const timer = setTimeout(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendTimer]);
+
+  const handleOtpChange = (index: number, value: string) => {
+    // Filter out non-numeric characters
+    const numericValue = value.replace(/\D/g, "");
+    
+    if (numericValue.length > 1) {
+      // If pasting, handle all digits
+      const digits = numericValue.slice(0, 6).split("");
+      const newOtp = [...formData.otp.split("")];
+      digits.forEach((digit, i) => {
+        if (index + i < 6) {
+          newOtp[index + i] = digit;
+        }
+      });
+      setFormData((prev) => ({
+        ...prev,
+        otp: newOtp.join("").slice(0, 6),
+      }));
+      // Focus on the last filled box or next empty box
+      const nextIndex = Math.min(index + digits.length, 5);
+      otpRefs.current[nextIndex]?.focus();
+    } else {
+      // Single digit input - only allow if it's a number
+      if (numericValue || value === "") {
+        const newOtp = formData.otp.split("");
+        newOtp[index] = numericValue;
+        setFormData((prev) => ({
+          ...prev,
+          otp: newOtp.join("").slice(0, 6),
+        }));
+        // Move to next box if value entered
+        if (numericValue && index < 5) {
+          otpRefs.current[index + 1]?.focus();
+        }
+      }
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && !formData.otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData("text");
+    // Filter out non-numeric characters
+    const numericValue = pastedData.replace(/\D/g, "");
+    
+    if (numericValue.length > 0) {
+      // Take only first 6 digits
+      const digits = numericValue.slice(0, 6).split("");
+      const newOtp = new Array(6).fill("");
+      
+      // Fill the OTP array with pasted digits
+      digits.forEach((digit, i) => {
+        if (i < 6) {
+          newOtp[i] = digit;
+        }
+      });
+      
+      setFormData((prev) => ({
+        ...prev,
+        otp: newOtp.join(""),
+      }));
+      
+      // Focus on the last filled box or the last box if all 6 digits are pasted
+      const nextIndex = Math.min(digits.length - 1, 5);
+      if (nextIndex >= 0) {
+        setTimeout(() => {
+          otpRefs.current[nextIndex]?.focus();
+        }, 0);
+      }
+    }
+  };
+
+  const handleResendOtp = async () => {
+    // Check if resend attempts limit reached
+    if (resendAttempts >= 2) {
+      showToastMessage(
+        "Maximum resend attempts reached. Please try again later.",
+        "error"
+      );
+      return;
+    }
+
+    // Check if timer is still active
+    if (resendTimer > 0) {
+      return;
+    }
+
+    if (formData.username && isMobileNumber(formData.username)) {
+      setResendTimer(120); // Start 120 second timer
+      setResendAttempts((prev) => prev + 1); // Increment attempt count
+      
+      // Reset the flag to allow resend but keep OTP mode active
+      setHasCheckedUser(false);
+      
+      // Call sendOtp directly without resetting otpSent
+      const processedMobile = processMobileNumber(formData.username);
+      setIsSendingOtp(true);
+      
+      try {
+        const response = await sendOTP({
+          mobile: processedMobile,
+          reason: "login",
+        });
+
+        console.log("OTP resent successfully:", response);
+        // Store the new hash for OTP verification
+        if (response?.result?.data?.hash) {
+          setOtpHash(response.result.data.hash);
+          console.log("New OTP hash stored:", response.result.data.hash);
+        }
+        // Clear the OTP input so user can enter new OTP
+        setFormData((prev) => ({
+          ...prev,
+          otp: "",
+        }));
+        showToastMessage("OTP resent successfully", "success");
+      } catch (error) {
+        console.error("Error resending OTP:", error);
+        showToastMessage("Failed to resend OTP. Please try again.", "error");
+        // Decrement attempt count on error so user can retry
+        setResendAttempts((prev) => Math.max(0, prev - 1));
+      } finally {
+        setIsSendingOtp(false);
+        setHasCheckedUser(true);
+      }
+    }
+  };
+
+  const router = useRouter();
+
+  const handleBack = () => {
+    if (isOtpMode) {
+      // Go back to phone number step
+      setOtpSent(false);
+      setHasCheckedUser(false);
+      setOtpHash("");
+      setResendTimer(0);
+      setResendAttempts(0); // Reset resend attempts when going back
+      setFormData((prev) => ({
+        ...prev,
+        otp: "",
+      }));
+    } else {
+      // Go back to home page
+      router.push("/");
+    }
+  };
+
+  // If password login method, show password form
+  if (!isOtpLoginMethod) {
   return (
-    <Paper
-      elevation={3}
+      <Box
       sx={{
-        maxWidth: 400,
-        p: 3,
-        borderRadius: 2,
-      }}
-    >
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleSubmit();
+          maxWidth: { xs: "100%", sm: 500 },
+          width: "100%",
+          mx: "auto",
+          px: { xs: 1, sm: 0 },
         }}
       >
-        <Typography
-          variant="h5"
+        {/* Back Button */}
+        <IconButton
+          onClick={() => router.push("/")}
           sx={{
-            fontWeight: 400,
-            fontSize: "24px",
-            lineHeight: "32px",
-            letterSpacing: "0px",
-            textAlign: "center",
-            mb: 3,
+            mb: { xs: 1.5, sm: 2 },
+            color: secondaryColor,
+            "&:hover": {
+              backgroundColor: `${primaryColor}15`,
+            },
           }}
         >
-          {isOtpMode
-            ? t("LEARNER_APP.LOGIN.login_title") || "Verify OTP"
-            : t("LEARNER_APP.LOGIN.login_title")}
+          <ArrowBackIcon />
+        </IconButton>
+
+        {/* Login Title */}
+        <Typography
+          sx={{
+            fontWeight: 700,
+            fontSize: { xs: "24px", sm: "26px", md: "28px" },
+            lineHeight: { xs: "32px", sm: "36px", md: "40px" },
+            color: secondaryColor,
+            mb: { xs: 2, sm: 2.5 },
+          }}
+        >
+          {t("LEARNER_APP.LOGIN.login_title") || "Login"}
         </Typography>
 
+        {/* Username Field */}
         <TextField
-          label={t("LEARNER_APP.LOGIN.username_label")}
+          label={t("LEARNER_APP.LOGIN.username_label") || "Username"}
           name="username"
           value={formData.username}
           onChange={handleChange}
           variant="outlined"
           fullWidth
           margin="normal"
-          disabled={Boolean(isOtpMode)} // Disable username field in OTP mode since it's prefilled
+          sx={{
+            "& .MuiOutlinedInput-root": {
+              borderRadius: "4px",
+              backgroundColor: backgroundColor,
+              "& fieldset": {
+                borderColor: secondaryColor,
+              },
+              "&:hover fieldset": {
+                borderColor: secondaryColor,
+              },
+              "&.Mui-focused fieldset": {
+                borderColor: primaryColor,
+              },
+            },
+          }}
         />
 
-        {isOtpMode ? (
-          // OTP Mode
-          <Box>
-            <TextField
-              label={t("LEARNER_APP.LOGIN.otp_label") || "Enter OTP"}
-              name="otp"
-              type="text"
-              value={formData.otp}
-              onChange={handleChange}
-              variant="outlined"
-              fullWidth
-              margin="normal"
-              placeholder="Enter 6-digit OTP"
-              inputProps={{
-                maxLength: 6,
-                pattern: "[0-9]*",
-              }}
-            />
-
-            {/* OTP Status and Resend */}
-            <Box
-              mt={1}
-              display="flex"
-              justifyContent="space-between"
-              alignItems="center"
-            >
-              {isSendingOtp ? (
-                <Box display="flex" alignItems="center" gap={1}>
-                  <CircularProgress size={16} />
-                  <Typography variant="body2" color="textSecondary">
-                    Sending OTP...
-                  </Typography>
-                </Box>
-              ) : otpSent ? (
-                <Typography variant="body2" color="success.main">
-                  OTP sent successfully!
-                </Typography>
-              ) : (
-                <Typography variant="body2" color="textSecondary">
-                  OTP will be sent automatically
-                </Typography>
-              )}
-
-              {otpSent && (
-                <Button
-                  variant="text"
-                  size="small"
-                  onClick={handleResendOtp}
-                  disabled={isSendingOtp}
-                >
-                  Resend OTP
-                </Button>
-              )}
-            </Box>
-          </Box>
-        ) : (
-          // Password Mode
+        {/* Password Field */}
           <TextField
-            label={t("LEARNER_APP.LOGIN.password_label")}
+          label={t("LEARNER_APP.LOGIN.password_label") || "Password"}
             name="password"
             type={showPassword ? "text" : "password"}
             value={formData.password}
@@ -454,49 +617,424 @@ const LoginComponent: React.FC<LoginComponentProps> = ({
                   <IconButton
                     onClick={() => setShowPassword((prev) => !prev)}
                     edge="end"
+                  sx={{ color: secondaryColor }}
                   >
                     {showPassword ? <VisibilityOff /> : <Visibility />}
                   </IconButton>
                 </InputAdornment>
               ),
             }}
-          />
-        )}
+          sx={{
+            "& .MuiOutlinedInput-root": {
+              borderRadius: "4px",
+              backgroundColor: backgroundColor,
+              "& fieldset": {
+                borderColor: secondaryColor,
+              },
+              "&:hover fieldset": {
+                borderColor: primaryColor,
+              },
+              "&.Mui-focused fieldset": {
+                borderColor: primaryColor,
+              },
+            },
+          }}
+        />
 
-        <Box mt={1}>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={formData.remember}
-                onChange={handleChange}
-                name="remember"
-              />
-            }
-            label={t("LEARNER_APP.LOGIN.remember_me")}
-          />
-        </Box>
 
         <Button
-          type="submit"
-          variant="contained"
+          onClick={handleSubmit}
           fullWidth
-          disabled={Boolean(isOtpMode && !otpSent)}
           sx={{
             mt: 3,
-            backgroundColor: "#FFC107",
-            color: "#000",
-            fontWeight: "bold",
+            py: { xs: 1.25, sm: 1.5 },
+            backgroundColor: primaryColor,
+            color: "#FFFFFF",
+            fontSize: { xs: "14px", sm: "16px" },
+            fontWeight: 600,
+            textTransform: "none",
+            borderRadius: "8px",
             "&:hover": {
-              backgroundColor: "#ffb300",
+              backgroundColor: primaryColor,
+              opacity: 0.9,
             },
           }}
         >
-          {isOtpMode
-            ? t("LEARNER_APP.LOGIN.verify_otp_button") || "Verify OTP"
-            : t("LEARNER_APP.LOGIN.login_button")}
+          {t("LEARNER_APP.LOGIN.login_button") || "Login"}
         </Button>
-      </form>
-    </Paper>
+      </Box>
+    );
+  }
+
+  // OTP Login Method - Show stepper UI
+  return (
+    <Box
+      sx={{
+        maxWidth: { xs: "100%", sm: 500 },
+        width: "100%",
+        mx: "auto",
+        px: { xs: 1, sm: 0 },
+      }}
+    >
+      {/* Back Button */}
+      <IconButton
+        onClick={handleBack}
+        sx={{
+          mb: { xs: 1.5, sm: 2 },
+          color: secondaryColor,
+          "&:hover": {
+            backgroundColor: `${primaryColor}15`,
+          },
+        }}
+      >
+        <ArrowBackIcon />
+      </IconButton>
+
+      {/* Login Title - H1: 24-28px */}
+      <Typography
+        sx={{
+          fontWeight: 700,
+          fontSize: { xs: "24px", sm: "26px", md: "28px" },
+          lineHeight: { xs: "32px", sm: "36px", md: "40px" },
+          color: secondaryColor,
+          mb: { xs: 2, sm: 2.5 },
+        }}
+      >
+        {t("LEARNER_APP.LOGIN.login_title") || "Login"}
+      </Typography>
+
+      {!isOtpMode ? (
+        // Phone Number Step
+        <>
+          {/* Instruction Text */}
+          <Typography
+            sx={{
+              fontWeight: 400,
+              fontSize: { xs: "14px", sm: "15px", md: "16px" },
+              lineHeight: { xs: "20px", sm: "22px", md: "24px" },
+              color: secondaryColor,
+              mb: { xs: 3, sm: 4 },
+            }}
+          >
+            👋 {t("LEARNER_APP.LOGIN.PHONE_INSTRUCTION") || "Hi there! Log in with your registered phone number to continue."}
+          </Typography>
+
+          {/* Phone Number Input */}
+          <Box sx={{ mb: { xs: 3, sm: 4 } }}>
+            <Typography
+              sx={{
+                fontWeight: 400,
+                fontSize: { xs: "13px", sm: "14px" },
+                color: secondaryColor,
+                mb: 1,
+              }}
+            >
+              {t("LEARNER_APP.LOGIN.PHONE_NUMBER") || "Phone Number"}
+            </Typography>
+            <TextField
+              name="username"
+              value={formData.username}
+              onChange={(e) => {
+                // Only allow numbers and limit to 10 digits
+                const value = e.target.value.replace(/\D/g, "").slice(0, 10);
+                setFormData((prev) => ({
+                  ...prev,
+                  username: value,
+                }));
+                // Reset hasCheckedUser when user changes the phone number
+                if (hasCheckedUser) {
+                  setHasCheckedUser(false);
+                }
+              }}
+              placeholder="+91 0000000000"
+              fullWidth
+              inputProps={{
+                maxLength: 10,
+                pattern: "[0-9]*",
+                inputMode: "numeric",
+              }}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "4px",
+                  backgroundColor: backgroundColor,
+                  "& fieldset": {
+                    borderColor: "#E0E0E0",
+                  },
+                  "&:hover fieldset": {
+                    borderColor: "#E0E0E0",
+                  },
+                  "&.Mui-focused fieldset": {
+                    borderColor: primaryColor,
+                  },
+                },
+              }}
+            />
+          </Box>
+
+          {/* Send OTP Button */}
+          <Button
+            onClick={handleSendOtp}
+            disabled={!formData.username || isSendingOtp}
+            fullWidth
+            sx={{
+              py: { xs: 1.25, sm: 1.5 },
+              backgroundColor: primaryColor,
+              color: "#FFFFFF",
+              fontSize: { xs: "14px", sm: "16px" },
+              fontWeight: 600,
+              textTransform: "none",
+              borderRadius: "8px",
+              mb: { xs: 4, sm: 6 },
+              "&:hover": {
+                backgroundColor: primaryColor,
+                opacity: 0.9,
+              },
+              "&:focus": {
+                backgroundColor: primaryColor,
+                boxShadow: `0 0 0 3px ${primaryColor}33`,
+              },
+              "&:disabled": {
+                backgroundColor: backgroundColor,
+                color: secondaryColor,
+                opacity: 0.5,
+              },
+            }}
+          >
+            {isSendingOtp ? (
+              <Box display="flex" alignItems="center" gap={1}>
+                <CircularProgress size={20} sx={{ color: "#FFFFFF" }} />
+                <span>{t("LEARNER_APP.LOGIN.SENDING") || "Sending..."}</span>
+              </Box>
+            ) : (
+              t("LEARNER_APP.LOGIN.SEND_OTP") || "SEND OTP"
+            )}
+          </Button>
+
+          {/* Pagination Dots - Step 2 (First and second dots active) */}
+          <Box
+            sx={{
+              display: "flex",
+              gap: 1,
+              alignItems: "center",
+            }}
+          >
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: primaryColor,
+              }}
+            />
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: primaryColor,
+              }}
+            />
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: "#E0E0E0",
+              }}
+          />
+        </Box>
+        </>
+      ) : (
+        // OTP Verification Step
+        <>
+          {/* Instruction Text */}
+          <Typography
+            sx={{
+              fontWeight: 400,
+              fontSize: { xs: "14px", sm: "15px", md: "16px" },
+              lineHeight: { xs: "20px", sm: "22px", md: "24px" },
+              color: secondaryColor,
+              mb: { xs: 3, sm: 4 },
+            }}
+          >
+            {t("LEARNER_APP.LOGIN.OTP_INSTRUCTION") || "Enter the 6-digit OTP sent to your phone."}
+          </Typography>
+
+          {/* OTP Label */}
+          <Typography
+            sx={{
+              fontWeight: 400,
+              fontSize: "14px",
+              color: secondaryColor,
+              mb: 2,
+            }}
+          >
+            {t("LEARNER_APP.LOGIN.otp_label") || "OTP"}
+          </Typography>
+
+          {/* 6 Individual OTP Input Boxes */}
+          <Box
+            sx={{
+              display: "flex",
+              gap: { xs: 1, sm: 1.5 },
+              mb: { xs: 3, sm: 4 },
+              justifyContent: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            {[0, 1, 2, 3, 4, 5].map((index) => (
+              <TextField
+                key={index}
+                inputRef={(el) => {
+                  otpRefs.current[index] = el;
+                }}
+                value={formData.otp[index] || ""}
+                onChange={(e) => handleOtpChange(index, e.target.value)}
+                onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                onPaste={handleOtpPaste}
+                inputProps={{
+                  maxLength: 1,
+                  pattern: "[0-9]*",
+                  inputMode: "numeric",
+                  style: {
+                    textAlign: "center",
+                    fontSize: "24px",
+                    fontWeight: 600,
+                  },
+                }}
+                onInput={(e) => {
+                  // Additional validation to prevent non-numeric input
+                  const target = e.target as HTMLInputElement;
+                  target.value = target.value.replace(/\D/g, "");
+                }}
+                sx={{
+                  width: { xs: 48, sm: 56 },
+                  height: { xs: 48, sm: 56 },
+                  "& .MuiOutlinedInput-root": {
+                    width: { xs: 48, sm: 56 },
+                    height: { xs: 48, sm: 56 },
+                    borderRadius: "4px",
+                    "& input": {
+                      fontSize: { xs: "20px", sm: "24px" },
+                    },
+                    "& fieldset": {
+                      borderColor: "#E0E0E0",
+                    },
+                    "&:hover fieldset": {
+                      borderColor: primaryColor,
+                    },
+                    "&.Mui-focused fieldset": {
+                      borderColor: primaryColor,
+                    },
+                  },
+                }}
+              />
+            ))}
+          </Box>
+
+          {/* Send Button */}
+        <Button
+            onClick={handleSubmit}
+            disabled={formData.otp.length !== 6}
+          fullWidth
+          sx={{
+              py: { xs: 1.25, sm: 1.5 },
+              backgroundColor: primaryColor,
+              color: "#FFFFFF",
+              fontSize: { xs: "14px", sm: "16px" },
+              fontWeight: 600,
+              textTransform: "none",
+              borderRadius: "8px",
+              mb: { xs: 1.5, sm: 2 },
+            "&:hover": {
+                backgroundColor: primaryColor,
+                opacity: 0.9,
+              },
+              "&:focus": {
+                backgroundColor: primaryColor,
+                boxShadow: `0 0 0 3px ${primaryColor}33`,
+              },
+              "&:disabled": {
+                backgroundColor: backgroundColor,
+                color: secondaryColor,
+                opacity: 0.5,
+            },
+          }}
+        >
+            {t("LEARNER_APP.LOGIN.ENTER_OTP") || "ENTER OTP"}
+        </Button>
+
+          {/* Resend OTP Button */}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "flex-end",
+              mb: { xs: 4, sm: 6 },
+            }}
+          >
+            <Button
+              onClick={handleResendOtp}
+              disabled={resendTimer > 0 || resendAttempts >= 2}
+              sx={{
+                textTransform: "none",
+                color: resendAttempts >= 2 ? "#999999" : primaryColor,
+                fontSize: { xs: "13px", sm: "14px" },
+                fontWeight: 400,
+                minWidth: "auto",
+                padding: 0,
+                "&:hover": {
+                  backgroundColor: "transparent",
+                  textDecoration: "underline",
+                },
+                "&:disabled": {
+                  color: "#999999",
+                },
+              }}
+            >
+              {resendAttempts >= 2
+                ? t("LEARNER_APP.LOGIN.RESEND_OTP_DISABLED") || "Resend OTP (Limit Reached)"
+                : resendTimer > 0
+                ? `${t("LEARNER_APP.LOGIN.RESEND_OTP") || "Resend OTP"} (${Math.floor(resendTimer / 60)}:${String(resendTimer % 60).padStart(2, "0")})`
+                : t("LEARNER_APP.LOGIN.RESEND_OTP") || "Resend OTP"}
+            </Button>
+          </Box>
+
+          {/* Pagination Dots - Step 3 */}
+          <Box
+            sx={{
+              display: "flex",
+              gap: 1,
+              alignItems: "center",
+            }}
+          >
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: primaryColor,
+              }}
+            />
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: primaryColor,
+              }}
+            />
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: primaryColor,
+              }}
+            />
+          </Box>
+        </>
+      )}
+    </Box>
   );
 };
 
@@ -632,6 +1170,15 @@ const LoginPage = () => {
   const [prefilledUsername, setPrefilledUsername] = useState<string>("");
   const [showLoginForm, setShowLoginForm] = useState<boolean>(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState<boolean>(true);
+  const { tenant, contentFilter } = useTenant();
+
+  // Get tenant colors and logo
+  const primaryColor = contentFilter?.theme?.primaryColor || "#E6873C";
+  const secondaryColor = contentFilter?.theme?.secondaryColor || "#1A1A1A";
+  const backgroundColor = contentFilter?.theme?.backgroundColor || "#F5F5F5";
+  const tenantIcon = contentFilter?.icon || "/logo.png";
+  const tenantName = contentFilter?.title || tenant?.name || "Tenant";
+  const tenantAlt = `${tenantName} logo`;
 
   const handleAddAccount = () => {
     router.push("/");
@@ -660,6 +1207,35 @@ const LoginPage = () => {
       }
 
       if (userResponse) {
+        // Validate that user's tenant matches the domain tenant
+        const userTenantId = userResponse?.tenantData?.[0]?.tenantId;
+        const domainTenantId = tenant?.tenantId;
+        
+        if (!domainTenantId) {
+          showToastMessage(
+            "Tenant configuration not found. Please contact administrator.",
+            "error"
+          );
+          // Clear token and redirect to login
+          localStorage.removeItem("token");
+          localStorage.removeItem("refreshToken");
+          return;
+        }
+        
+        if (userTenantId !== domainTenantId) {
+          console.error(
+            `Tenant mismatch: User tenantId (${userTenantId}) does not match domain tenantId (${domainTenantId})`
+          );
+          showToastMessage(
+            "This user is not registered for this tenant. Please contact your administrator.",
+            "error"
+          );
+          // Clear token and redirect to login
+          localStorage.removeItem("token");
+          localStorage.removeItem("refreshToken");
+          return;
+        }
+        
         const userRole = userResponse?.tenantData?.[0]?.roleName;
 
         // Handle Learner role - redirect to learner dashboard
@@ -1066,12 +1642,12 @@ const LoginPage = () => {
         display="flex"
         justifyContent="center"
         alignItems="center"
-       
         sx={{
-          background: "linear-gradient(135deg, #FFFDF6, #F8EFDA)",
+          backgroundColor: backgroundColor,
+          minHeight: "100vh",
         }}
       >
-        <CircularProgress />
+        <CircularProgress sx={{ color: primaryColor }} />
       </Box>
     );
   }
@@ -1082,57 +1658,114 @@ const LoginPage = () => {
   }
 
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        backgroundColor: backgroundColor,
+      }}>
+        <CircularProgress sx={{ color: primaryColor }} />
+      </Box>
+    }>
       <Box
         display="flex"
         flexDirection="column"
         sx={{
           wordBreak: "break-word",
-          background: "linear-gradient(135deg, #FFFDF6, #F8EFDA)",
+          backgroundColor: backgroundColor,
+          minHeight: "100vh",
         }}
       >
-        {/* Fixed Header */}
-        <Header />
-
-        {/* Main Content: Split screen */}
+        {/* Simple Header with Logo and Tenant Name */}
         <Box
-          flex={1}
-          display="flex"
-          flexDirection={{ xs: "column", sm: "row" }}
+          sx={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            px: { xs: 2, sm: 3 },
+            py: { xs: 1.5, sm: 2 },
+            zIndex: 1000,
+            backgroundColor: backgroundColor,
+            borderBottom: `1px solid ${secondaryColor}10`,
+          }}
         >
-          {/* Left: Welcome Screen - Hidden on mobile */}
+          {/* Logo and Brand Name */}
           <Box
-            flex={1}
-            display={{ xs: "none", sm: "flex" }}
-            justifyContent="center"
-            alignItems="center"
-           
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: { xs: 0.5, sm: 1 },
+            }}
           >
-            <WelcomeScreen />
+            <Box
+              sx={{
+                width: { xs: 28, sm: 32 },
+                height: { xs: 28, sm: 32 },
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {tenantIcon.startsWith('data:') ? (
+                <img
+                  src={tenantIcon}
+                  alt={tenantAlt}
+                  width={60}
+                  height={60}
+                  style={{ objectFit: "contain" }}
+                />
+              ) : (
+                <Image
+                  src={tenantIcon}
+                  alt={tenantAlt}
+                  width={60}
+                  height={60}
+                  style={{ objectFit: "contain" }}
+                />
+              )}
+            </Box>
+            <Typography
+              sx={{
+                fontWeight: 500,
+                marginLeft: { xs: 1, sm: 2 },
+                fontSize: { xs: "1rem", sm: "1.2rem" },
+                lineHeight: "1.4",
+                color: secondaryColor,
+              }}
+            >
+              {tenantName}
+            </Typography>
+          </Box>
           </Box>
 
-          {/* Right: Login Component */}
+        {/* Main Content: Two Column Layout */}
+        <Box
+          sx={{
+            minHeight: "100vh",
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+            pt: { xs: 8, sm: 10 },
+            backgroundColor: backgroundColor,
+          }}
+        >
+          {/* Left Column - Login Form */}
           <Box
-            flex={1}
-            display="flex"
-            flexDirection="column"
-            justifyContent="center"
-            alignItems="center"
-            px={3}
-            boxSizing="border-box"
-          
+            sx={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: { xs: "flex-start", md: "center" },
+              px: { xs: 2, sm: 3, md: 4, lg: 6 },
+              py: { xs: 2, sm: 4 },
+            }}
           >
-            {/* Welcome Message - Only visible on mobile */}
-            <Box
-              display={{ xs: "flex", sm: "none" }}
-              justifyContent="center"
-              alignItems="center"
-              width="100%"
-              mb={1}
-            >
-              <WelcomeMessage />
-            </Box>
-
             {showLoginForm && (
               <LoginComponent
                 onLogin={handleLogin}
@@ -1150,16 +1783,69 @@ const LoginPage = () => {
                 }}
               />
             )}
+          </Box>
 
-            {/* App Download Section - Only visible on mobile */}
+          {/* Right Column - Logo */}
+          <Box
+            sx={{
+              flex: 1,
+              display: { xs: "none", md: "flex" },
+              alignItems: "center",
+              justifyContent: "center",
+              px: 4,
+              py: 4,
+            }}
+          >
             <Box
-              display={{ xs: "flex", sm: "none" }}
-              justifyContent="center"
-              alignItems="center"
-              width="100%"
-              mt={4}
+              sx={{
+                width: "100%",
+                height: "80%",
+                backgroundColor: "white",
+                border: `1px solid ${primaryColor}`,
+                borderRadius: "8px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: `0 4px 6px ${primaryColor}20`,
+              }}
             >
-              <AppDownloadSection />
+              {/* Logo */}
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "100%",
+                  height: "100%",
+                  p: 4,
+                }}
+              >
+                {tenantIcon.startsWith('data:') ? (
+                  <img
+                    src={tenantIcon}
+                    alt={tenantAlt}
+                    width={300}
+                    height={300}
+                    style={{ 
+                      objectFit: "contain",
+                      maxWidth: "100%",
+                      height: "auto",
+                    }}
+                  />
+                ) : (
+                  <Image
+                    src={tenantIcon}
+                    alt={tenantAlt}
+                    width={300}
+                    height={300}
+                    style={{ 
+                      objectFit: "contain",
+                      maxWidth: "100%",
+                      height: "auto",
+                    }}
+                  />
+                )}
+              </Box>
             </Box>
           </Box>
         </Box>

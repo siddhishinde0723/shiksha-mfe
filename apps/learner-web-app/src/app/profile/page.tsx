@@ -1,24 +1,36 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Alert, Box, Typography, Container, Grid, Button, Skeleton, Paper, Chip, Avatar, Divider } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Container,
+  Grid,
+  Button,
+  Skeleton,
+  Paper,
+  Chip,
+  IconButton,
+} from "@mui/material";
 import Layout from "../../components/Layout";
-import UserProfileCard from "@learner/components/UserProfileCard/UserProfileCard";
 import CourseCertificateCard from "@learner/components/CourseCertificateCard/CourseCertificateCard";
 import { courseWiseLernerList } from "@shared-lib-v2/utils/CertificateService/coursesCertificates";
-import { CertificateModal, get } from "@shared-lib";
+import { CertificateModal, get, useTranslation } from "@shared-lib";
 import { useRouter } from "next/navigation";
 import { checkAuth } from "@shared-lib-v2/utils/AuthService";
-import InfoIcon from "@mui/icons-material/Info";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import SchoolIcon from "@mui/icons-material/School";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import { AccountCircleOutlined } from "@mui/icons-material";
+import Image from "next/image";
 
 import { baseurl } from "@learner/utils/API/EndUrls";
-import { Info } from "@mui/icons-material";
 import { showToastMessage } from "@learner/components/ToastComponent/Toastify";
 import { transformImageUrl } from "@learner/utils/imageUtils";
+import { useTenant } from "@learner/context/TenantContext";
+import { alpha } from "@mui/material/styles";
+import ProfileMenu from "../../components/ProfileMenu/ProfileMenu";
+import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal";
 
 type FilterDetails = {
   status?: string[];
@@ -27,6 +39,27 @@ type FilterDetails = {
 };
 const ProfilePage = () => {
   const router = useRouter();
+  const { t, language, setLanguage } = useTranslation();
+  const { tenant, contentFilter } = useTenant();
+
+  const primaryColor = contentFilter?.theme?.primaryColor || "#E6873C";
+  const secondaryColor = contentFilter?.theme?.secondaryColor || "#1A1A1A";
+  const backgroundColor = contentFilter?.theme?.backgroundColor || "#F5F5F5";
+  const surfaceColor = "#FFFFFF";
+  const subtleBg = alpha(primaryColor, 0.08);
+  const tenantIcon = contentFilter?.icon || "/logo.png";
+  const tenantName = contentFilter?.title || tenant?.name || "Tenant";
+  const tenantAlt = `${tenantName} logo`;
+  const resolveText = (key: string, fallback: string) => {
+    const translated = t(key);
+    return translated === key ? fallback : translated;
+  };
+
+  const [profileInfo, setProfileInfo] = useState({
+    name: tenantName,
+    username: "",
+    phone: "",
+  });
 
   const [filters] = useState<FilterDetails>({
     status: ["completed", "viewCertificate"],
@@ -39,6 +72,8 @@ const ProfilePage = () => {
   const [certificateId, setCertificateId] = useState("");
   const [courseData, setCourseData] = useState<any>([]);
   const [loading, setLoading] = useState(true);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   
   // Cache key for storing certificate data
   const cacheKey = `profile-certificates-${filters.userId}-${filters.tenantId}`;
@@ -46,7 +81,7 @@ const ProfilePage = () => {
   const handlePreview = async (id: string) => {
     try {
       if (!id || id === "null" || id === "undefined" || id.trim() === "") {
-        showToastMessage("Certification Id not found", "error");
+        showToastMessage(t("LEARNER_APP.PROFILE.CERTIFICATION_ID_NOT_FOUND"), "error");
         return;
       }
       console.log("Opening certificate with ID:", id);
@@ -54,9 +89,28 @@ const ProfilePage = () => {
       setShowCertificate(true);
     } catch (error) {
       console.error("Error opening certificate:", error);
-      showToastMessage("Error opening certificate", "error");
+      showToastMessage(t("LEARNER_APP.PROFILE.ERROR_OPENING_CERTIFICATE"), "error");
     }
   };
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setProfileInfo({
+        name:
+          localStorage.getItem("firstName") ||
+          localStorage.getItem("userName") ||
+          tenantName,
+        username:
+          localStorage.getItem("userIdName") ||
+          localStorage.getItem("userName") ||
+          "",
+        phone:
+          localStorage.getItem("phoneNumber") ||
+          localStorage.getItem("mobileNumber") ||
+          "",
+      });
+    }
+  }, [tenantName]);
 
   useEffect(() => {
     const prepareCertificateData = async () => {
@@ -118,7 +172,7 @@ const ProfilePage = () => {
               throw new Error("Invalid course details response");
             }
 
-            let courseDetails = Details.data.result.content;
+            const courseDetails = Details.data.result.content;
             console.log("Extracted course details:", {
               name: courseDetails.name,
               title: courseDetails.title,
@@ -141,8 +195,8 @@ const ProfilePage = () => {
               certificateId: item.certificateId,
               completedOn: item.issuedOn,
               description:
-                courseDetails.description || "Course completion certificate",
-              posterImage: transformImageUrl(courseDetails.posterImage) || "/images/image_ver.png",
+                courseDetails.description || t("LEARNER_APP.PROFILE.COURSE_COMPLETION_CERTIFICATE"),
+              posterImage: transformImageUrl(courseDetails.posterImage) || null,
               program: courseTitle,
             };
             console.log("Created certificate object:", obj);
@@ -159,8 +213,8 @@ const ProfilePage = () => {
               courseId: item.courseId,
               certificateId: item.certificateId,
               completedOn: item.issuedOn,
-              description: "Course completion certificate",
-              posterImage: "/images/image_ver.png",
+              description: t("LEARNER_APP.PROFILE.COURSE_COMPLETION_CERTIFICATE"),
+              posterImage: null,
               program: `Course ${item.courseId.slice(-8)}`,
             };
             console.log("Created fallback certificate object:", obj);
@@ -194,21 +248,6 @@ const ProfilePage = () => {
         console.log("finalArray (filtered):", finalArray);
         console.log(`Filtered out ${courseDetailsResults.length - validCertificates.length} certificates with invalid IDs`);
 
-        // Add a test certificate if no certificates were found
-        if (finalArray.length === 0) {
-          console.log("No certificates found, adding test certificate");
-          finalArray.push({
-            usercertificateId: "test-id",
-            userId: "test-user",
-            courseId: "test-course",
-            certificateId: "did:rcw:test-certificate-id",
-            completedOn: new Date().toISOString(),
-            description: "Test certificate description",
-            posterImage: "/images/image_ver.png",
-            program: "Test Course",
-          });
-        }
-
         setCourseData(finalArray);
         
         // Cache the data
@@ -218,13 +257,13 @@ const ProfilePage = () => {
         
       } catch (error) {
         console.error("Error fetching certificate data:", error);
-        showToastMessage("Error loading certificates", "error");
+        showToastMessage(t("LEARNER_APP.PROFILE.ERROR_LOADING_CERTIFICATES"), "error");
       } finally {
         setLoading(false);
       }
     };
     prepareCertificateData();
-  }, [filters]);
+  }, [filters, t]);
 
   useEffect(() => {
     if (!checkAuth()) {
@@ -236,26 +275,35 @@ const ProfilePage = () => {
     typeof window !== "undefined" &&
     localStorage.getItem("userProgram") === "YouthNet";
 
-  // Show certificates section if user has certificates or is YouthNet
-  const shouldShowCertificates = courseData.length > 0 || isYouthNet;
-
   // Debug logging
   console.log("Profile page state:", {
     courseDataLength: courseData.length,
     isYouthNet,
-    shouldShowCertificates,
     courseData: courseData,
   });
 
+  const handleProfileClick = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogoutClick = () => {
+    setLogoutModalOpen(true);
+    setAnchorEl(null);
+  };
+
+  const performLogout = () => {
+    router.push("/logout");
+  };
+
   return (
-    <Layout>
+    <Layout onlyHideElements={["footer", "topBar"]}>
       {/* Hero Section with Gradient Background */}
       <Box
         sx={{
-            background: '#F8EFDA',
+          background: `linear-gradient(180deg, ${backgroundColor} 0%, ${alpha(backgroundColor, 0.3)} 100%)`,
           py: 4,
-          position: 'relative',
-          overflow: 'hidden',
+          position: "relative",
+          overflow: "hidden",
         }}
       >
         {/* Background Pattern */}
@@ -271,7 +319,124 @@ const ProfilePage = () => {
           }}
         />
         
-        <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 1 }}>
+        <Container maxWidth="xl" sx={{ position: "relative", zIndex: 1 }}>
+          {/* Brand + Language Row */}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 2,
+              flexWrap: "wrap",
+              mb: 3,
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Box
+                sx={{
+                  width: { xs: 40, sm: 48 },
+                  height: { xs: 40, sm: 48 },
+                  borderRadius: "50%",
+                  backgroundColor: alpha("#FFFFFF", 0.35),
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                  boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+                }}
+              >
+                <Image
+                  src={tenantIcon}
+                  alt={tenantAlt}
+                  width={48}
+                  height={48}
+                  style={{ objectFit: "contain" }}
+                />
+              </Box>
+              <Typography
+                sx={{
+                  fontWeight: 600,
+                  fontSize: { xs: "18px", sm: "22px" },
+                  lineHeight: 1.3,
+                  color: secondaryColor,
+                }}
+              >
+                {resolveText("LEARNER_APP.HOME.APP_NAME", tenantName)}
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+              <Button
+                onClick={() => setLanguage("en")}
+                disabled={language === "en"}
+                sx={{
+                  minWidth: 100,
+                  borderRadius: "999px",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  textTransform: "none",
+                  px: 2.5,
+                  py: 0.75,
+                  backgroundColor:
+                    language === "en" ? primaryColor : alpha(secondaryColor, 0.12),
+                  color: language === "en" ? "#FFFFFF" : secondaryColor,
+                  "&:hover": {
+                    backgroundColor:
+                      language === "en"
+                        ? primaryColor
+                        : alpha(secondaryColor, 0.2),
+                  },
+                  "&:disabled": {
+                    backgroundColor: primaryColor,
+                    color: "#FFFFFF",
+                  },
+                }}
+              >
+                ENGLISH
+              </Button>
+              {/* <Button
+                onClick={() => setLanguage("hi")}
+                disabled={language === "hi"}
+                sx={{
+                  minWidth: 100,
+                  borderRadius: "999px",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  textTransform: "none",
+                  px: 2.5,
+                  py: 0.75,
+                  backgroundColor:
+                    language === "hi" ? primaryColor : alpha(secondaryColor, 0.12),
+                  color: language === "hi" ? "#FFFFFF" : secondaryColor,
+                  "&:hover": {
+                    backgroundColor:
+                      language === "hi"
+                        ? primaryColor
+                        : alpha(secondaryColor, 0.2),
+                  },
+                  "&:disabled": {
+                    backgroundColor: primaryColor,
+                    color: "#FFFFFF",
+                  },
+                }}
+              >
+                हिन्दी
+              </Button> */}
+              <IconButton
+                onClick={(e) => setAnchorEl(e.currentTarget)}
+                sx={{
+                  border: `1px solid ${alpha(secondaryColor, 0.2)}`,
+                  color: secondaryColor,
+                  "&:hover": {
+                    backgroundColor: alpha(primaryColor, 0.08),
+                  },
+                }}
+              >
+                <AccountCircleOutlined />
+              </IconButton>
+            </Box>
+          </Box>
+
           {/* Back Button */}
           <Box sx={{ mb: 3 }}>
             <Button
@@ -279,7 +444,7 @@ const ProfilePage = () => {
               startIcon={<ArrowBackIcon />}
               onClick={() => router.push("/dashboard")}
               sx={{
-                color: "#1F1B13",
+                color: secondaryColor,
                 borderColor: "rgba(31,27,19,0.3)",
                 backgroundColor: "rgba(255,255,255,0.8)",
                 backdropFilter: "blur(10px)",
@@ -289,22 +454,22 @@ const ProfilePage = () => {
                 },
               }}
             >
-              Back to Dashboard
+              {t("LEARNER_APP.PROFILE.BACK_TO_DASHBOARD")}
             </Button>
           </Box>
 
           {/* Profile Header */}
-          <Box sx={{ textAlign: 'center', color: '#1F1B13', mb: 4 }}>
+      <Box sx={{ textAlign: "center", color: secondaryColor, mb: 4 }}>
             <Typography
               variant="h2"
               fontWeight={700}
               sx={{ 
                 mb: 2, 
-                textShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                fontSize: '24px'
+                fontSize: '24px',
+                color: secondaryColor
               }}
             >
-              My Profile
+              {resolveText("LEARNER_APP.PROFILE.MY_PROFILE_DESCRIPTION", "My Profile")}
             </Typography>
             <Typography
               variant="h5"
@@ -314,200 +479,245 @@ const ProfilePage = () => {
                 fontSize: '16px'
               }}
             >
-              Track your learning journey and achievements
+              {resolveText("LEARNER_APP.PROFILE.TRACK_LEARNING_JOURNEY", "Track your learning journey and achievements")}
             </Typography>
           </Box>
-
-          {/* Stats Cards */}
-          <Grid container spacing={3} sx={{ mb: 4 }}>
-            <Grid item xs={12} sm={6}>
-              <Paper
-                sx={{
-                  p: 3,
-                  textAlign: 'center',
-                  background: 'rgba(255,255,255,0.8)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(0,0,0,0.1)',
-                  borderRadius: 3,
-                  color: '#1F1B13',
-                }}
-              >
-                <SchoolIcon sx={{ fontSize: 32, mb: 1, opacity: 0.9 }} />
-                <Typography variant="h4" fontWeight={700} sx={{ mb: 0.5, fontSize: '24px' }}>
-                  {courseData.length}
-                </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.8, fontSize: '14px' }}>
-                  Courses Completed
-                </Typography>
-              </Paper>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Paper
-                sx={{
-                  p: 3,
-                  textAlign: 'center',
-                  background: 'rgba(255,255,255,0.8)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(0,0,0,0.1)',
-                  borderRadius: 3,
-                  color: '#1F1B13',
-                }}
-              >
-                <EmojiEventsIcon sx={{ fontSize: 32, mb: 1, opacity: 0.9 }} />
-                <Typography variant="h4" fontWeight={700} sx={{ mb: 0.5, fontSize: '24px' }}>
-                  {courseData.length}
-                </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.8, fontSize: '14px' }}>
-                  Certificates Earned
-                </Typography>
-              </Paper>
-            </Grid>
-          </Grid>
         </Container>
       </Box>
 
       {/* Main Content */}
       <Container maxWidth="xl" sx={{ py: 4 }}>
-        <Grid container spacing={4}>
-          {/* User Profile Card */}
-          <Grid item xs={12} md={shouldShowCertificates ? 4 : 12}>
-            <UserProfileCard
-              maxWidth={shouldShowCertificates ? "100%" : "100%"}
-            />
-          </Grid>
-
-          {/* Certificates Section */}
-          {shouldShowCertificates && (
-            <Grid item xs={12} md={8}>
-              <Paper
-                sx={{
-                  borderRadius: 4,
-                  overflow: 'hidden',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                  border: '1px solid rgba(0,0,0,0.05)',
-                }}
-              >
-                {/* Section Header */}
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={4}>
+            <Box
+              sx={{
+                backgroundColor: surfaceColor,
+                borderRadius: 3,
+                p: 3,
+                boxShadow: "0px 20px 60px rgba(0,0,0,0.08)",
+                border: `1px solid ${alpha(secondaryColor, 0.08)}`,
+                display: "flex",
+                flexDirection: "column",
+                gap: 3,
+                height: "100%",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                 <Box
                   sx={{
-                    background: '#F8EFDA',
-                    p: 3,
-                    color: '#1F1B13',
+                    width: 56,
+                    height: 56,
+                    borderRadius: "16px",
+                    backgroundColor: subtleBg,
+                    color: primaryColor,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: 600,
+                    fontSize: "20px",
                   }}
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <EmojiEventsIcon sx={{ fontSize: 32, mr: 2 }} />
-                    <Box>
-                      <Typography variant="h4" fontWeight={700}>
-                        {isYouthNet ? "YouthNet Achievements" : "My Certificates"}
-                      </Typography>
-                      <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                        Your completed courses and earned certificates
-                      </Typography>
-                    </Box>
-                  </Box>
-                  
-                  <Chip
-                    label={`${courseData.length} Certificate${courseData.length !== 1 ? 's' : ''}`}
-                    sx={{
-                      backgroundColor: 'rgba(31,27,19,0.1)',
-                      color: '#1F1B13',
-                      fontWeight: 600,
-                    }}
-                  />
+                  {(profileInfo.name || tenantName).charAt(0).toUpperCase()}
                 </Box>
+                <Box>
+                  <Typography sx={{ fontWeight: 600, color: secondaryColor }}>
+                    {profileInfo.name || tenantName}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: 14,
+                      color: alpha(secondaryColor, 0.7),
+                    }}
+                  >
+                    {profileInfo.username
+                      ? `@${profileInfo.username}`
+                      : resolveText("LEARNER_APP.PROFILE.MY_PROFILE", "My Profile")}
+                  </Typography>
+                </Box>
+              </Box>
 
-                {/* Content */}
-                <Box sx={{ p: 3 }}>
-                  {loading ? (
-                    <Grid container spacing={3}>
-                      {[1, 2, 3, 4].map((index) => (
-                        <Grid item xs={12} sm={6} lg={4} xl={3} key={index}>
-                          <Box sx={{ p: 1 }}>
-                            <Skeleton 
-                              variant="rectangular" 
-                              height={280} 
-                              sx={{ borderRadius: 3, mb: 2 }} 
-                            />
-                            <Skeleton variant="text" width="80%" height={24} sx={{ mb: 1 }} />
-                            <Skeleton variant="text" width="60%" height={20} />
-                          </Box>
-                        </Grid>
-                      ))}
-                    </Grid>
-                  ) : courseData.length === 0 ? (
+              <Box>
+                <Typography
+                  sx={{
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    fontSize: 12,
+                    color: alpha(secondaryColor, 0.7),
+                    mb: 1,
+                    fontWeight: 600,
+                  }}
+                >
+                  {resolveText(
+                    "LEARNER_APP.PROFILE.CONTACT_INFORMATION",
+                    "Contact Information"
+                  )}
+                </Typography>
+                <Box
+                  sx={{
+                    border: `1px solid ${alpha(secondaryColor, 0.12)}`,
+                    borderRadius: 2,
+                    p: 2,
+                    backgroundColor: alpha(backgroundColor, 0.5),
+                  }}
+                >
+                  <Typography sx={{ fontSize: 12, color: alpha(secondaryColor, 0.7) }}>
+                    {resolveText("LEARNER_APP.PROFILE.PHONE_NUMBER", "Phone Number")}
+                  </Typography>
+                  <Typography sx={{ fontWeight: 600, color: secondaryColor }}>
+                    {profileInfo.phone || resolveText("LEARNER_APP.PROFILE.NOT_AVAILABLE", "Not available")}
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+          </Grid>
+
+          <Grid item xs={12} md={8}>
+            <Paper
+              sx={{
+                borderRadius: 3,
+                overflow: "hidden",
+                boxShadow: "0px 20px 60px rgba(0,0,0,0.08)",
+                border: `1px solid ${alpha(secondaryColor, 0.08)}`,
+              }}
+            >
+              <Box
+                sx={{
+                  backgroundColor: alpha(primaryColor, 0.1),
+                  p: 3,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                }}
+              >
+                <EmojiEventsIcon sx={{ fontSize: 32, color: primaryColor }} />
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ fontWeight: 700, color: secondaryColor }}>
+                    {isYouthNet
+                      ? t("LEARNER_APP.PROFILE.YOUTHNET_ACHIEVEMENTS")
+                      : t("LEARNER_APP.PROFILE.MY_CERTIFICATES")}
+                  </Typography>
+                  <Typography sx={{ fontSize: 14, color: alpha(secondaryColor, 0.8) }}>
+                    {resolveText(
+                      "LEARNER_APP.PROFILE.CERTIFICATES_DESCRIPTION",
+                      "Your completed courses and earned certificates"
+                    )}
+                  </Typography>
+                </Box>
+                <Chip
+                  label={`${courseData.length} ${
+                    courseData.length === 1
+                      ? t("LEARNER_APP.PROFILE.CERTIFICATE")
+                      : t("LEARNER_APP.PROFILE.CERTIFICATES")
+                  }`}
+                  sx={{
+                    backgroundColor: surfaceColor,
+                    color: primaryColor,
+                    fontWeight: 600,
+                  }}
+                />
+              </Box>
+
+              <Box sx={{ p: 3, backgroundColor: alpha(backgroundColor, 0.4) }}>
+                {loading ? (
+                  <Grid container spacing={2}>
+                    {[1, 2, 3].map((index) => (
+                      <Grid item xs={12} sm={6} md={4} key={index}>
+                        <Box sx={{ p: 1 }}>
+                          <Skeleton
+                            variant="rounded"
+                            height={220}
+                            sx={{ borderRadius: 2 }}
+                          />
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : courseData.length === 0 ? (
+                  <Box
+                    sx={{
+                      backgroundColor: surfaceColor,
+                      borderRadius: 3,
+                      p: { xs: 3, md: 4 },
+                      border: `1px solid ${alpha(secondaryColor, 0.08)}`,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      textAlign: "center",
+                    }}
+                  >
                     <Box
-                      display="flex"
-                      flexDirection="column"
-                      alignItems="center"
-                      justifyContent="center"
-                      p={6}
                       sx={{
-                        backgroundColor: "#fff9f0",
-                        borderRadius: 3,
-                        border: "2px dashed #fdbd16",
-                        textAlign: 'center',
+                        display: "flex",
+                        justifyContent: "center",
+                        mb: 3,
                       }}
                     >
-                      <EmojiEventsIcon sx={{ color: "#FDBE16", fontSize: 64, mb: 2 }} />
-                      <Typography variant="h5" fontWeight={600} color="#78590C" sx={{ mb: 1 }}>
-                        No Certificates Yet
-                      </Typography>
-                      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-                        Complete courses to earn your first certificate and showcase your achievements!
-                      </Typography>
-                      <Button
-                        variant="contained"
-                        onClick={() => router.push("/courses-contents")}
-                        sx={{
-                          backgroundColor: "#78590C",
-                          "&:hover": { backgroundColor: "#B8860B" },
-                        }}
-                      >
-                        Explore Courses
-                      </Button>
+                      <Image
+                        src="/Group 26817.svg"
+                        alt="No Certificates"
+                        width={180}
+                        height={180}
+                        style={{ objectFit: "contain" }}
+                      />
                     </Box>
-                  ) : (
-                    <Grid container spacing={3}>
-                      {courseData.map((cert: any, index: number) => {
-                        console.log(`Rendering certificate ${index}:`, cert);
-                        
-                        // Additional validation for certificate ID
-                        const hasValidCertificateId = cert.certificateId && 
-                          cert.certificateId !== "null" && 
-                          cert.certificateId !== "undefined" && 
-                          cert.certificateId.trim() !== "";
-                        
-                        return (
-                          <Grid item xs={12} sm={6} lg={4} xl={3} key={index}>
-                            <CourseCertificateCard
-                              title={cert.program || "Untitled Course"}
-                              description={
-                                cert.description || "No description available"
+                    <Button
+                      variant="contained"
+                      onClick={() => router.push("/dashboard?tab=0")}
+                      sx={{
+                        backgroundColor: primaryColor,
+                        color: "#FFFFFF",
+                        px: 4,
+                        py: 1.25,
+                        fontWeight: 600,
+                        borderRadius: "10px",
+                        "&:hover": { backgroundColor: alpha(primaryColor, 0.85) },
+                      }}
+                    >
+                      {t("LEARNER_APP.PROFILE.GO_TO_COURSES")}
+                    </Button>
+                  </Box>
+                ) : (
+                  <Grid container spacing={2}>
+                    {courseData.map((cert: any, index: number) => {
+                      const hasValidCertificateId =
+                        cert.certificateId &&
+                        cert.certificateId !== "null" &&
+                        cert.certificateId !== "undefined" &&
+                        cert.certificateId.trim() !== "";
+
+                      return (
+                        <Grid item xs={12} sm={6} key={`${cert.courseId}-${index}`}>
+                          <CourseCertificateCard
+                            variant="compact"
+                            title={cert.program || t("LEARNER_APP.PROFILE.UNTITLED_COURSE")}
+                            description={
+                              cert.description ||
+                              t("LEARNER_APP.PROFILE.NO_DESCRIPTION_AVAILABLE")
+                            }
+                            imageUrl={cert.posterImage || undefined}
+                            completionDate={
+                              cert.completedOn || new Date().toISOString()
+                            }
+                            onPreviewCertificate={() => {
+                              if (!hasValidCertificateId) {
+                                showToastMessage(
+                                  t("LEARNER_APP.PROFILE.CERTIFICATE_ID_NOT_AVAILABLE"),
+                                  "warning"
+                                );
+                                return;
                               }
-                              imageUrl={
-                                cert.posterImage || "/images/image_ver.png"
-                              }
-                              completionDate={
-                                cert.completedOn || new Date().toISOString()
-                              }
-                              onPreviewCertificate={() => {
-                                if (!hasValidCertificateId) {
-                                  showToastMessage("Certificate ID not available for this course", "warning");
-                                  return;
-                                }
-                                handlePreview(cert.certificateId);
-                              }}
-                            />
-                          </Grid>
-                        );
-                      })}
-                    </Grid>
-                  )}
-                </Box>
-              </Paper>
-            </Grid>
-          )}
+                              handlePreview(cert.certificateId);
+                            }}
+                          />
+                        </Grid>
+                      );
+                    })}
+                  </Grid>
+                )}
+              </Box>
+            </Paper>
+          </Grid>
         </Grid>
       </Container>
 
@@ -516,6 +726,23 @@ const ProfilePage = () => {
         certificateId={certificateId}
         open={showCertificate}
         setOpen={setShowCertificate}
+      />
+      <ProfileMenu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={() => setAnchorEl(null)}
+        onProfileClick={handleProfileClick}
+        onLogout={handleLogoutClick}
+      />
+      <ConfirmationModal
+        modalOpen={logoutModalOpen}
+        handleCloseModal={() => setLogoutModalOpen(false)}
+        handleAction={performLogout}
+        message={t("COMMON.SURE_LOGOUT")}
+        buttonNames={{
+          primary: t("COMMON.LOGOUT"),
+          secondary: t("COMMON.CANCEL"),
+        }}
       />
     </Layout>
   );

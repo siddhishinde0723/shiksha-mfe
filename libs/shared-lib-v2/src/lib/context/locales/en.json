@@ -140,7 +140,8 @@
       "in_progress": "In Progress",
       "enrolled_not_started": "Enrolled, not started",
       "not_started": "Not Started"
-    }
+    },
+    "ACTIVE": "Active"
   },
   "LEARNER_APP": {
     "COMPLETE_PROFILE_BANNER": {
@@ -169,7 +170,8 @@
       "CANCEL": "Cancel",
       "OK": "OK",
       "INPROGRESS": "In-Progress",
-      "LOADING": "Loading.."
+      "LOADING": "Loading..",
+      "LEARNER": "Learner"
     },
     "COURSE": {
       "COMPLETED_ON": "Completed on",
@@ -248,7 +250,15 @@
       "SEARCH_PLAYSTORE": "Search “Shiksha myLearning” on Playstore",
       "ON_PLAYSTORE": "on Playstore",
       "otp_label": "Enter OTP",
-      "verify_otp_button": "Verify OTP"
+      "verify_otp_button": "Verify OTP",
+      "PHONE_INSTRUCTION": "Hi there! Log in with your registered phone number to continue.",
+      "PHONE_NUMBER": "Phone Number",
+      "SENDING": "Sending...",
+      "SEND_OTP": "Send OTP",
+      "OTP_INSTRUCTION": "Enter the 6-digit OTP sent to your phone.",
+      "ENTER_OTP": "Enter OTP",
+      "RESEND_OTP_DISABLED": "Resend OTP (Limit Reached)",
+      "RESEND_OTP": "Resend OTP"
     },
     "L_ONE_COURSE": {
       "IN_PROGRESS_TITLE": "In Progress",
@@ -307,7 +317,7 @@
     },
     "other_filters": "Other Filters",
     "USER_PROFILE_CARD": {
-      "MY_PROFILE": "My Profile",
+      "MY_PROFILE": "Hi",
       "JOINED_ON": "Joined on",
       "CONTACT_INFORMATION": "Contact Information",
       "EMAIL_ADDRESS": "Email Address",
@@ -374,6 +384,28 @@
       "SEARCH_TEXT": "Search",
       "APP_NAME": "Shiksha myLearning",
       "ON_PLAYSTORE": "on Playstore"
+    },
+    "PROFILE": {
+      "CERTIFICATION_ID_NOT_FOUND": "Certification ID not found",
+      "ERROR_OPENING_CERTIFICATE": "Error opening certificate. Please try again.",
+      "COURSE_COMPLETION_CERTIFICATE": "Course completion certificate",
+      "ERROR_LOADING_CERTIFICATES": "Error loading certificates",
+      "BACK_TO_DASHBOARD": "Back to Dashboard",
+      "MY_PROFILE": "Hi",
+      "MY_PROFILE_DESCRIPTION": "My Profile",
+      "TRACK_LEARNING_JOURNEY": "Track your learning journey and achievements",
+      "CONTACT_INFORMATION": "Contact Information",
+      "PHONE_NUMBER": "Phone Number",
+      "NOT_AVAILABLE": "Not available",
+      "YOUTHNET_ACHIEVEMENTS": "YouthNet Achievements",
+      "MY_CERTIFICATES": "My Certificates",
+      "CERTIFICATES_DESCRIPTION": "Your completed courses and earned certificates",
+      "CERTIFICATE": "Certificate",
+      "CERTIFICATES": "Certificates",
+      "GO_TO_COURSES": "Go to Courses",
+      "UNTITLED_COURSE": "Untitled Course",
+      "NO_DESCRIPTION_AVAILABLE": "No description available",
+      "CERTIFICATE_ID_NOT_AVAILABLE": "Certificate ID not available for this course"
     }
   },
   "LOGIN_PAGE": {

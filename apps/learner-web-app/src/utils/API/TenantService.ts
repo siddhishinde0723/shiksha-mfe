@@ -1,0 +1,198 @@
+import axios from "axios";
+
+const TENANT_READ_API = "https://interface.tekdinext.com/interface/v1/tenant/read";
+
+export interface TenantTheme {
+  primaryColor: string;
+  secondaryColor: string;
+  backgroundColor: string;
+}
+
+export interface TenantContentFilter {
+  url: string;
+  icon: string;
+  theme: TenantTheme;
+  title: string;
+  tagline: string;
+  sameOrigin: boolean;
+  showGroups: boolean;
+  showAttendance?: boolean;
+  description: string;
+  loginMethod: "otp" | "password";
+}
+
+export interface TenantParams {
+  contentFilter: TenantContentFilter[];
+}
+
+export interface Tenant {
+  ordering: number;
+  tenantId: string;
+  name: string;
+  domain: string;
+  createdAt: string;
+  updatedAt: string;
+  params: TenantParams;
+  programImages?: Record<string, unknown>;
+  description: string;
+  status: string;
+  programHead: string;
+  templateId: string;
+  contentFramework: string;
+  channelId: string;
+  collectionFramework: string;
+  createdBy: string;
+  updatedBy: string;
+  contentFilter?: Record<string, unknown>;
+  role: Array<{
+    roleId: string;
+    name: string;
+    code: string;
+  }>;
+}
+
+export interface TenantReadResponse {
+  result?: Tenant[];
+  data?: Tenant[];
+}
+
+/**
+ * Fetches all tenants from the tenant read API
+ */
+export const fetchTenants = async (): Promise<Tenant[]> => {
+  try {
+    const response = await axios.get<TenantReadResponse>(TENANT_READ_API, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    // Handle different response structures
+    const tenants = response.data?.result || response.data?.data || [];
+    
+    if (!Array.isArray(tenants)) {
+      console.error("Tenant API returned invalid data structure:", response.data);
+      return [];
+    }
+
+    return tenants;
+  } catch (error) {
+    console.error("Error fetching tenants:", error);
+    throw error;
+  }
+};
+
+/**
+ * Finds a tenant by matching the domain name
+ * Extracts the first word from the domain (e.g., "swadhaar" from "swadhaar.learner")
+ * For now, hardcoded to return Swadhaar tenant
+ */
+export const findTenantByDomain = (
+  tenants: Tenant[],
+  currentDomain?: string
+): Tenant | null => {
+  // let domain = currentDomain;
+  let domain = 'www.oblf.sunbirdsaas.com';
+
+  if (!domain) {
+    if (typeof window !== "undefined") {
+      domain = window.location.hostname;
+    } else {
+      return null;
+    }
+  }
+
+  const sanitizedDomain = domain.split(":")[0]?.toLowerCase() ?? "";
+  if (!sanitizedDomain) {
+    return null;
+  }
+
+  const domainParts = sanitizedDomain.split(".");
+  // Skip "www" if it's the first part, then get the actual tenant name
+  let tenantKey = domainParts[0];
+  if (tenantKey === "www" && domainParts.length > 1) {
+    tenantKey = domainParts[1];
+  }
+  if (!tenantKey) {
+    return null;
+  }
+
+  const matchedTenant = tenants.find((t) => {
+    const tenantDomainKey = t.domain
+      ?.toLowerCase()
+      .split(":")[0]
+      ?.split(".")[0];
+    const tenantName = t.name?.toLowerCase();
+
+    return (
+      tenantDomainKey === tenantKey ||
+      tenantDomainKey === sanitizedDomain ||
+      tenantName === tenantKey
+    );
+  });
+
+  if (!matchedTenant) {
+    console.warn(`[TenantService] No tenant found for domain: ${sanitizedDomain}, extracted key: ${tenantKey}`);
+    console.log(`[TenantService] Available tenants:`, tenants.map(t => ({ name: t.name, domain: t.domain })));
+  } else {
+    console.log(`[TenantService] Found tenant: ${matchedTenant.name} (${matchedTenant.domain}) for domain: ${sanitizedDomain}`);
+  }
+
+  return matchedTenant || null;
+};
+
+/**
+ * Gets the tenant configuration for the current domain
+ */
+export const getTenantConfig = async (
+  domain?: string
+): Promise<Tenant | null> => {
+  try {
+    const tenants = await fetchTenants();
+    const tenant = findTenantByDomain(tenants, domain);
+    
+    if (tenant) {
+      // Store tenant config in localStorage for later use
+      if (typeof window !== "undefined") {
+        localStorage.setItem("tenantConfig", JSON.stringify(tenant));
+      }
+    }
+    
+    return tenant;
+  } catch (error) {
+    console.error("Error getting tenant config:", error);
+    return null;
+  }
+};
+
+/**
+ * Gets stored tenant config from localStorage
+ */
+export const getStoredTenantConfig = (): Tenant | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const stored = localStorage.getItem("tenantConfig");
+    if (stored) {
+      return JSON.parse(stored) as Tenant;
+    }
+  } catch (error) {
+    console.error("Error parsing stored tenant config:", error);
+  }
+
+  return null;
+};
+
+/**
+ * Gets the first content filter from tenant params
+ */
+export const getTenantContentFilter = (tenant: Tenant | null): TenantContentFilter | null => {
+  if (!tenant?.params?.contentFilter || !Array.isArray(tenant.params.contentFilter)) {
+    return null;
+  }
+
+  return tenant.params.contentFilter[0] || null;
+};
+

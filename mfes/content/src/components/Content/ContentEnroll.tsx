@@ -10,6 +10,7 @@ import {
   AccordionSummary,
   AccordionDetails,
   Divider,
+  Alert,
 } from "@mui/material";
 import { useRouter, useParams } from "next/navigation";
 import LayoutPage from "@content-mfes/components/LayoutPage";
@@ -44,6 +45,7 @@ const ContentDetails = (props: ContentDetailsProps) => {
   const [contentDetails, setContentDetails] =
     useState<ContentSearchResponse | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   let activeLink = null;
   if (typeof window !== "undefined") {
     const searchParams = new URLSearchParams(window.location.search);
@@ -262,13 +264,23 @@ const ContentDetails = (props: ContentDetailsProps) => {
 
         setContentDetails(result as unknown as ContentSearchResponse);
       } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unknown error while fetching content details.";
         console.error("ContentEnroll - Failed to fetch content:", {
           error: error,
           identifier: identifier,
-          errorMessage:
-            error instanceof Error ? error.message : "Unknown error",
+          errorMessage: message,
           stack: error instanceof Error ? error.stack : undefined,
         });
+        setErrorMessage(
+          `Unable to fetch course details for ${identifier}. ${
+            (error as any)?.response?.status
+              ? `Server responded with ${(error as any).response.status}.`
+              : message
+          }`
+        );
 
         // Set a fallback content structure to prevent complete failure
         setContentDetails({
@@ -280,6 +292,7 @@ const ContentDetails = (props: ContentDetailsProps) => {
           appIcon: "/images/image_ver.png",
           posterImage: "/images/image_ver.png",
         } as unknown as ContentSearchResponse);
+        setIsProgressCompleted(true);
       } finally {
         setIsLoading(false);
       }
@@ -343,6 +356,11 @@ const ContentDetails = (props: ContentDetailsProps) => {
           }}
           checkLocalAuth={checkLocalAuth}
         />
+        {errorMessage && (
+          <Box sx={{ mt: 2 }}>
+            <Alert severity="error">{errorMessage}</Alert>
+          </Box>
+        )}
         <Box sx={{ display: "flex" }}>
           <Box
             sx={{

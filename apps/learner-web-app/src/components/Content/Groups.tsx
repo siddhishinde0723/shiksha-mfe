@@ -16,6 +16,7 @@ import {
   transformCohortToGroup,
   getGroupContentCount,
 } from "@learner/utils/API/GroupService";
+import { useTenant } from "@learner/context/TenantContext";
 
 interface CohortData {
   cohortStatus?: string;
@@ -42,6 +43,13 @@ interface GroupsProps {
 }
 
 const Groups: React.FC<GroupsProps> = ({ onGroupClick, isLoading = false }) => {
+  const { contentFilter } = useTenant();
+  
+  // Get tenant colors
+  const primaryColor = contentFilter?.theme?.primaryColor || "#E6873C";
+  const secondaryColor = contentFilter?.theme?.secondaryColor || "#1A1A1A";
+  const backgroundColor = contentFilter?.theme?.backgroundColor || "#F5F5F5";
+  
   const [groups, setGroups] = useState<GroupItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -151,13 +159,13 @@ const Groups: React.FC<GroupsProps> = ({ onGroupClick, isLoading = false }) => {
   }
 
   return (
-    <Box sx={{ p: 2 }}>
+    <Box sx={{ p: 2, backgroundColor: backgroundColor }}>
       <Typography
         variant="h5"
         sx={{
           mb: 3,
           fontWeight: 500,
-          color: "#1F1B13",
+          color: secondaryColor,
         }}
       >
         Study Groups
@@ -166,62 +174,87 @@ const Groups: React.FC<GroupsProps> = ({ onGroupClick, isLoading = false }) => {
       <Grid container spacing={3}>
         {groups.map((group) => (
           <Grid item xs={12} sm={6} md={4} key={group.id}>
-            <Card
+            <Box
+              onClick={() => handleGroupClick(group)}
               sx={{
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                cursor: "pointer",
-                transition: "all 0.3s ease",
-                "&:hover": {
-                  transform: "translateY(-4px)",
-                  boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
+                backgroundColor: '#fff',
+                position: 'relative',
+                cursor: 'pointer',
+                transition: 'transform 0.2s ease-in-out',
+                boxShadow: '0 0.15rem 1.75rem 0 rgba(33, 40, 50, 0.15)',
+                border: '1px solid rgba(0, 0, 0, .125)',
+                minHeight: '317px',
+                borderRadius: '.25rem',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                '&:hover': {
+                  transform: 'scale(1.02)',
                 },
               }}
-              onClick={() => handleGroupClick(group)}
             >
-              <CardContent
-                sx={{ flex: 1, display: "flex", flexDirection: "column", p: 3 }}
+              <Box
+                sx={{
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  position: 'relative',
+                  zIndex: 1,
+                  p: 2,
+                }}
               >
+                {/* Placeholder for group image or icon */}
+                <Box sx={{ margin: '8px', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px', backgroundColor: backgroundColor }}>
+                  <Group sx={{ fontSize: 80, color: primaryColor, opacity: 0.3 }} />
+                </Box>
+
+                {/* Title */}
                 <Typography
                   variant="h6"
                   sx={{
-                    fontWeight: 600,
-                    mb: 2,
-                    color: "#1F1B13",
-                    lineHeight: 1.3,
-                    wordBreak: "break-word",
-                    overflowWrap: "break-word",
-                    hyphens: "auto",
-                    display: "-webkit-box",
+                    fontWeight: 400,
+                    textAlign: 'center',
+                    fontSize: '16px',
+                    letterSpacing: '1px',
+                    lineHeight: 1.2,
+                    mt: 1,
+                    mb: 1,
+                    display: '-webkit-box',
                     WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    minHeight: "2.6em", // Ensure consistent height for 2 lines
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    color: secondaryColor,
+                    px: '16px',
                   }}
-                  title={group.name} // Show full name on hover
+                  title={group.name}
                 >
                   {group.name}
                 </Typography>
 
-                <Stack direction="row" spacing={2} sx={{ mt: "auto" }}>
-                  {/* <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                   <People sx={{ fontSize: 16, color: 'text.secondary' }} />
-                   <Typography variant="body2" color="text.secondary">
-                     {group.memberCount} members
-                   </Typography>
-                 </Box> */}
-
+                {/* Content Count */}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    alignItems: 'center',
+                    px: 2,
+                    pb: 2,
+                    mt: 'auto',
+                  }}
+                >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <School sx={{ fontSize: 16, color: "text.secondary" }} />
-                    <Typography variant="body2" color="text.secondary">
+                    <School sx={{ fontSize: 16, color: secondaryColor }} />
+                    <Typography variant="body2" sx={{ color: secondaryColor }}>
                       {group.contentCount} contents
                     </Typography>
                   </Box>
-                </Stack>
-              </CardContent>
-            </Card>
+                </Box>
+              </Box>
+            </Box>
           </Grid>
         ))}
       </Grid>

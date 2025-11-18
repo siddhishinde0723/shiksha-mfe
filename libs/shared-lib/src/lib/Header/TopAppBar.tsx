@@ -255,11 +255,31 @@ const MobileTopBar = ({
   );
 };
 
-const Brand = ({ _box, name = 'Pratham' }: { _box?: any; name?: string }) => {
+const Brand = ({
+  _box,
+  name = 'Pratham',
+  icon,
+  children,
+}: {
+  _box?: any;
+  name?: string;
+  icon?: string;
+  children?: React.ReactNode;
+}) => {
   const theme = useTheme();
+  const logoSrc = icon || '/logo.png';
+
+  if (children) {
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }} {..._box}>
+        {children}
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }} {..._box}>
-      <img src="/logo.png" alt="YouthNet" style={{ height: '32px' }} />
+      <img src={logoSrc} alt={name} style={{ height: '32px', maxWidth: '120px', objectFit: 'contain' }} />
       <Typography
         variant="h6"
         sx={{

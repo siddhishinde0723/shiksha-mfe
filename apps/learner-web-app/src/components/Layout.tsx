@@ -19,6 +19,7 @@ import ProfileMenu from "./ProfileMenu/ProfileMenu";
 import ConfirmationModal from "./ConfirmationModal/ConfirmationModal";
 import { checkAuth } from "@shared-lib-v2/utils/AuthService";
 import MuiThemeProvider from "@learner/assets/theme/MuiThemeProvider";
+import { useTenant } from "@learner/context/TenantContext";
 
 // Custom DrawerItem interface
 interface NewDrawerItemProp extends DrawerItemProp {
@@ -194,10 +195,23 @@ const NAV_CONFIG: Record<
     }),
 };
 
-const App: React.FC<LayoutProps> = ({ children, ...props }) => {
+const App: React.FC<LayoutProps> = ({ children, onlyHideElements, ...props }) => {
   const router = useRouter();
   const pathname = usePathname();
   const { t, setLanguage } = useTranslation();
+  const { tenant, contentFilter } = useTenant();
+
+  // Get tenant colors
+  const primaryColor = contentFilter?.theme?.primaryColor || "#E6873C";
+  const secondaryColor = contentFilter?.theme?.secondaryColor || "#1A1A1A";
+  const backgroundColor = contentFilter?.theme?.backgroundColor || "#F5F5F5";
+  const tenantName =
+    contentFilter?.title ||
+    tenant?.name ||
+    (typeof window !== "undefined"
+      ? localStorage.getItem("userProgram") || ""
+      : "");
+  const tenantIcon = contentFilter?.icon || "/logo.png";
 
   const [defaultNavLinks, setDefaultNavLinks] = useState<NewDrawerItemProp[]>(
     []
@@ -234,8 +248,9 @@ const App: React.FC<LayoutProps> = ({ children, ...props }) => {
   };
 
   const getLinkStyle = (isActive: boolean): React.CSSProperties => ({
-    backgroundColor: isActive ? "#e0f7fa" : "transparent",
+    backgroundColor: isActive ? `${primaryColor}20` : "transparent",
     borderRadius: 8,
+    color: isActive ? primaryColor : secondaryColor,
   });
 
   const getMessage = () => (modalOpen ? t("COMMON.SURE_LOGOUT") : "");
@@ -315,24 +330,31 @@ const App: React.FC<LayoutProps> = ({ children, ...props }) => {
 
   const onLanguageChange = (val: string) => setLanguage(val);
 
+  const computedHideElements =
+    onlyHideElements && onlyHideElements.length > 0
+      ? onlyHideElements
+      : ["footer"];
+
   return (
     <Layout
-      onlyHideElements={["footer"]}
+      onlyHideElements={computedHideElements}
       {...props}
       _topAppBar={{
         _brand: {
-          name:
-            typeof window !== "undefined"
-              ? localStorage.getItem("userProgram") ?? ""
-              : "",
+          name: tenantName,
+          icon: tenantIcon,
           _box: {
             onClick: () => {
-              const tenantName = localStorage.getItem("userProgram") || "";
-              if (tenantName === "YouthNet") {
+              const programName =
+                tenant?.name ||
+                (typeof window !== "undefined"
+                  ? localStorage.getItem("userProgram") || ""
+                  : "");
+              if (programName === "YouthNet") {
                 router.push("/content");
-              } else if (tenantName === "Camp to Club") {
+              } else if (programName === "Camp to Club") {
                 router.push("/courses-contents");
-              } else if (tenantName === "Pragyanpath") {
+              } else if (programName === "Pragyanpath") {
                 router.push("/courses-contents");
               }
             },

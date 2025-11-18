@@ -30,6 +30,18 @@ import { hierarchyAPI } from "@content-mfes/services/Hierarchy";
 const CourseUnitDetails = dynamic(() => import("@CourseUnitDetails"), {
   ssr: false,
 });
+
+const getSbPlayerBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    const origin = window.location.origin.replace(/\/$/, "");
+    return `${origin}/sbplayer`;
+  }
+  const fallback = process.env.NEXT_PUBLIC_LEARNER_SBPLAYER || "";
+  if (!fallback) return "/sbplayer";
+  return fallback.endsWith("/sbplayer")
+    ? fallback
+    : `${fallback.replace(/\/$/, "")}/sbplayer`;
+};
 const App = ({
   userIdLocalstorageName,
   contentBaseUrl,
@@ -376,7 +388,8 @@ const PlayerBox = ({
               const tenantId = localStorage.getItem("tenantId");
               const userId = userIdLocalstorageName ? localStorage.getItem(userIdLocalstorageName) : "";
              
-              const url = `${process.env.NEXT_PUBLIC_LEARNER_SBPLAYER}?identifier=${identifier}${
+              const baseUrl = getSbPlayerBaseUrl();
+              const url = `${baseUrl}?identifier=${identifier}${
                 courseId && unitId ? `&courseId=${courseId}&unitId=${unitId}` : ""
               }${userId ? `&userId=${userId}` : ""}${tenantId ? `&tenantId=${tenantId}` : ""}`;
              

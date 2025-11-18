@@ -62,14 +62,27 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
+    console.log("[MarkBulkAttendance] Modal opened/updated:", {
+      open,
+      memberListLength: memberList?.length || 0,
+      memberList: memberList,
+      presentCount,
+      absentCount,
+      numberOfCohortMembers,
+    });
+    
     if (open) {
       const initialRows = (memberList || []).map((member: any) => ({
         ...member,
         attendance: member.attendance ?? "",
       }));
+      console.log("[MarkBulkAttendance] Setting rows:", {
+        rowsCount: initialRows.length,
+        sampleRows: initialRows.slice(0, 3),
+      });
       setRows(initialRows);
     }
-  }, [open, memberList]);
+  }, [open, memberList, presentCount, absentCount, numberOfCohortMembers]);
 
   const totalPresent = React.useMemo(
     () =>

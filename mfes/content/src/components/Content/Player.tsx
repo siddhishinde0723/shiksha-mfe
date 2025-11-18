@@ -4,6 +4,18 @@ import React from 'react';
 interface PlayerPageProps {
   id?: string; // Define the type for the 'id' prop
 }
+const getSbPlayerBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    const origin = window.location.origin.replace(/\/$/, "");
+    return `${origin}/sbplayer`;
+  }
+  const fallback = process.env.NEXT_PUBLIC_LEARNER_SBPLAYER || "";
+  if (!fallback) return "/sbplayer";
+  return fallback.endsWith("/sbplayer")
+    ? fallback
+    : `${fallback.replace(/\/$/, "")}/sbplayer`;
+};
+
 const PlayerPage: React.FC<PlayerPageProps> = ({ id }) => {
   const params = useParams();
   const { identifier, courseId, unitId } = params; // string | string[] | undefined
@@ -13,7 +25,7 @@ const PlayerPage: React.FC<PlayerPageProps> = ({ id }) => {
 
   return (
     <iframe
-      src={`${process.env.NEXT_PUBLIC_LEARNER_SBPLAYER
+      src={`${getSbPlayerBaseUrl()
         }?identifier=${identifier}${courseId && unitId ? `&courseId=${courseId}&unitId=${unitId}` : ''
         }`}
       style={{

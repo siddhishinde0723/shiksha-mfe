@@ -68,9 +68,9 @@ export const fetchAttendanceDetails = async (
     };
 
     const res = await attendanceStatusList(attendanceStatusData);
-    const response = res?.data?.attendanceList;
+    const response = res?.data?.attendanceList || [];
 
-    if (nameUserIdArray && response) {
+    if (nameUserIdArray && nameUserIdArray.length > 0) {
       const getUserAttendanceStatus = (
         users: any[],
         attendanceList: any[]
@@ -191,17 +191,53 @@ export const fetchAttendanceDetails = async (
       };
 
       mergeArrays(nameUserIdArray, userAttendanceArray);
+    } else {
+      // If no members, still create empty member list structure
+      console.log("[fetchAttendanceDetails] No members in nameUserIdArray, creating empty structure");
+      cohortMemberList = [];
+      numberOfCohortMembers = 0;
+      presentCount = 0;
+      absentCount = 0;
+      dropoutMemberList = [];
+      dropoutCount = 0;
+      bulkAttendanceStatus = "";
     }
+  } else {
+    // If nameUserIdArray is not provided, ensure we still update with empty data
+    console.log("[fetchAttendanceDetails] nameUserIdArray not provided, creating empty structure");
+    cohortMemberList = [];
+    numberOfCohortMembers = 0;
+    presentCount = 0;
+    absentCount = 0;
+    dropoutMemberList = [];
+    dropoutCount = 0;
+    bulkAttendanceStatus = "";
   }
 
-  onAttendanceDataUpdate({
+  const attendanceDataToUpdate = {
     cohortMemberList,
     presentCount,
     absentCount,
     numberOfCohortMembers,
     dropoutMemberList,
     dropoutCount,
-    bulkStatus: bulkAttendanceStatus,
+    bulkAttendanceStatus: bulkAttendanceStatus,
+  };
+  
+  console.log("[fetchAttendanceDetails] Calling onAttendanceDataUpdate with:", {
+    cohortMemberListLength: cohortMemberList.length,
+    presentCount,
+    absentCount,
+    numberOfCohortMembers,
+    dropoutCount,
+    bulkAttendanceStatus,
+    sampleMembers: cohortMemberList.slice(0, 3).map(m => ({
+      userId: (m as any).userId,
+      name: (m as any).name,
+      attendance: (m as any).attendance,
+    })),
   });
+  
+  onAttendanceDataUpdate(attendanceDataToUpdate);
 };
 

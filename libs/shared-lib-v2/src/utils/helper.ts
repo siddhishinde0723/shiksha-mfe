@@ -45,8 +45,17 @@ export function calculateCourseStatus({
 
   const total = allCourseIds.length;
   let status = "";
-  console.log("Total Course IDs:", total);
-  console.log("Completed Count:", completedCount);
+  
+  console.log("[calculateCourseStatus] Input:", {
+    courseId,
+    totalCourseIds: total,
+    allCourseIds: allCourseIds.slice(0, 5), // Show first 5 for debugging
+    statusDataCompleted: statusData.completed_list?.length || 0,
+    statusDataInProgress: statusData.in_progress_list?.length || 0,
+    statusDataCompletedList: statusData.completed_list?.slice(0, 5),
+    statusDataInProgressList: statusData.in_progress_list?.slice(0, 5),
+  });
+  
   // Determine status
   if (total === 0) {
     status = "not started";
@@ -56,14 +65,26 @@ export function calculateCourseStatus({
     status = "in progress";
   }
 
-  // Calculate percentage
-  const percentage = total > 0 ? Math.round((completedCount / total) * 100) : 0;
+  // Calculate percentage - include both completed and in-progress items
+  // For in-progress items, count them as 50% progress
+  // Formula: (completed * 100 + in_progress * 50) / total
+  let percentage = 0;
+  if (total > 0) {
+    const completedPercentage = (completedCount / total) * 100;
+    const inProgressPercentage = (inProgressCount / total) * 50; // In-progress counts as 50%
+    percentage = Math.round(completedPercentage + inProgressPercentage);
+    // Ensure percentage doesn't exceed 100%
+    percentage = Math.min(100, percentage);
+  }
 
-  console.log("Final Status:", {
+  console.log("[calculateCourseStatus] Output:", {
     status,
     completed: completedCount,
     in_progress: inProgressCount,
+    total,
     percentage,
+    completed_list: completed_list.slice(0, 5),
+    in_progress_list: in_progress_list.slice(0, 5),
   });
 
   return {
@@ -84,18 +105,55 @@ export const calculateTrackData = (newTrack: any, children: any) => {
 };
 
 export const calculateTrackDataItem = (newTrack: any, item: any) => {
-    if (item?.mimeType === "application/vnd.ekstep.content-collection") {
+  console.log("[calculateTrackDataItem] Input:", {
+    newTrack: {
+      courseId: newTrack?.courseId,
+      hasCompletedList: !!newTrack?.completed_list,
+      hasInProgressList: !!newTrack?.in_progress_list,
+      completedListLength: newTrack?.completed_list?.length || 0,
+      inProgressListLength: newTrack?.in_progress_list?.length || 0,
+      completedListSample: newTrack?.completed_list?.slice(0, 3),
+      inProgressListSample: newTrack?.in_progress_list?.slice(0, 3),
+    },
+    item: {
+      identifier: item?.identifier,
+      mimeType: item?.mimeType,
+      hasLeafNodes: !!item?.leafNodes,
+      leafNodesLength: item?.leafNodes?.length || 0,
+      leafNodesSample: item?.leafNodes?.slice(0, 3),
+    },
+  });
+
+  // Ensure newTrack has the expected structure
+  const statusData = {
+    completed_list: newTrack?.completed_list || [],
+    in_progress_list: newTrack?.in_progress_list || [],
+  };
+
+  if (item?.mimeType === "application/vnd.ekstep.content-collection") {
+    const allCourseIds = item?.leafNodes ?? [];
     const result = calculateCourseStatus({
-      statusData: newTrack,
-      allCourseIds: item?.leafNodes ?? [],
+      statusData,
+      allCourseIds,
       courseId: item.identifier,
+    });
+    console.log("[calculateTrackDataItem] Course result:", {
+      courseId: item.identifier,
+      percentage: result.percentage,
+      status: result.status,
     });
     return result;
   } else {
+    const allCourseIds = item.identifier ? [item.identifier] : [item.id];
     const result = calculateCourseStatus({
-      statusData: newTrack,
-      allCourseIds: item.identifier ? [item.identifier] : [item.id],
+      statusData,
+      allCourseIds,
       courseId: item.identifier ? item.identifier : item.id,
+    });
+    console.log("[calculateTrackDataItem] Content result:", {
+      courseId: item.identifier || item.id,
+      percentage: result.percentage,
+      status: result.status,
     });
     return result;
   }

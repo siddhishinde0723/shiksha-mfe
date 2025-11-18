@@ -5,7 +5,9 @@
 "use client";
 import React, { useEffect, useState, useRef } from "react";
 import Layout from "@learner/components/Layout";
-import { Tabs, Tab, Typography, Box, Grid } from "@mui/material";
+import Image from "next/image";
+import { Tabs, Tab, Typography, Box, Grid, Button, IconButton } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { usePathname, useRouter } from "next/navigation";
 import { checkAuth } from "@shared-lib-v2/utils/AuthService";
 import { profileComplitionCheck } from "@learner/utils/API/userService";
@@ -16,10 +18,23 @@ import GroupsManager from "@learner/components/Content/GroupsManager";
 import { AccountCircleOutlined } from "@mui/icons-material";
 import ProfileMenu from "../../components/ProfileMenu/ProfileMenu";
 import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal";
+import { useTenant } from "@learner/context/TenantContext";
+import { useTranslation } from "@shared-lib";
 
 const DashboardPage = () => {
   const pathname = usePathname();
   const router = useRouter();
+  const { tenant, contentFilter } = useTenant();
+  const { t, language, setLanguage } = useTranslation();
+  
+  // Get tenant colors
+  const primaryColor = contentFilter?.theme?.primaryColor || "#E6873C";
+  const secondaryColor = contentFilter?.theme?.secondaryColor || "#1A1A1A";
+  const backgroundColor = contentFilter?.theme?.backgroundColor || "#F5F5F5";
+  const tenantIcon = contentFilter?.icon || "/logo.png";
+  const tenantName = contentFilter?.title || tenant?.name || "Tenant";
+  const tenantAlt = `${tenantName} logo`;
+  
   const [activeTab, setActiveTab] = React.useState("Course");
   const [filter, setFilter] = useState<Record<string, any>>({});
   const [isLogin, setIsLogin] = useState<boolean | null>(null);
@@ -38,6 +53,10 @@ const DashboardPage = () => {
     isOpenColapsed: [],
   });
   const hasInitialized = useRef(false);
+
+  // Get tab visibility from tenant config
+  const showGroups = contentFilter?.showGroups ?? false;
+  const showAttendance = contentFilter?.showAttendance ?? false; // Default to false if not specified
   
   // Immediate authentication check and redirect
   React.useLayoutEffect(() => {
@@ -291,60 +310,188 @@ const DashboardPage = () => {
   };
 
   return (
-    <Layout
-      _topAppBar={{
-        navLinks: [
-          {
-            title: "Profile",
-            icon: <AccountCircleOutlined sx={{ width: 28, height: 28 }} />,
-            to: (e: React.MouseEvent<HTMLElement>) =>
-              setAnchorEl(e.currentTarget),
-            isActive: pathname === "/profile",
-            customStyle: {
-              backgroundColor:
-                pathname === "/profile" ? "#e0f7fa" : "transparent",
-              borderRadius: 8,
-            },
-          },
-        ],
-      }}
-    >
-      <Box
-        sx={{
-          height: 24,
-          display: "flex",
-          alignItems: "center",
-          py: "36px",
-          px: "34px",
-          bgcolor: "#fff",
-        }}
-      >
-        <Typography
-          variant="body1"
-          component="h2"
-          gutterBottom
+    <Layout onlyHideElements={["footer", "topBar"]}>
+      <Box sx={{ backgroundColor: backgroundColor, minHeight: "100vh" }}>
+        <Box
           sx={{
-            fontWeight: 500,
-            color: "#1F1B13",
-            textTransform: "capitalize",
+            px: { xs: 2, md: 4 },
+            py: { xs: 4, md: 6 },
+            background: `linear-gradient(180deg, ${backgroundColor} 0%, ${alpha(
+              backgroundColor,
+              0.25
+            )} 100%)`,
           }}
         >
-          <span role="img" aria-label="wave">
-            👋
-          </span>
-          Welcome, {firstName}!
-        </Typography>
-      </Box>
-      <Box>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 2,
+              mb: 3,
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Box
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: "50%",
+                  backgroundColor: alpha("#FFFFFF", 0.35),
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                  boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+                }}
+              >
+                <Image
+                  src={tenantIcon}
+                  alt={tenantAlt}
+                  width={48}
+                  height={48}
+                  style={{ objectFit: "contain" }}
+                />
+              </Box>
+              <Typography
+                sx={{
+                  fontWeight: 600,
+                  fontSize: { xs: "18px", sm: "22px" },
+                  lineHeight: 1.3,
+                  color: secondaryColor,
+                }}
+              >
+                {tenantName}
+              </Typography>
+            </Box>
+
+            <Box
+              sx={{
+                display: "flex",
+                gap: 1,
+                flexWrap: "wrap",
+                alignItems: "center",
+              }}
+            >
+              <Button
+                onClick={() => setLanguage("en")}
+                disabled={language === "en"}
+                sx={{
+                  minWidth: 110,
+                  borderRadius: "999px",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  textTransform: "none",
+                  px: 2.5,
+                  py: 0.75,
+                  backgroundColor:
+                    language === "en"
+                      ? primaryColor
+                      : alpha(secondaryColor, 0.12),
+                  color: language === "en" ? "#FFFFFF" : secondaryColor,
+                  "&:hover": {
+                    backgroundColor:
+                      language === "en"
+                        ? primaryColor
+                        : alpha(secondaryColor, 0.2),
+                  },
+                  "&:disabled": {
+                    backgroundColor: primaryColor,
+                    color: "#FFFFFF",
+                  },
+                }}
+              >
+                ENGLISH
+              </Button>
+              {/* 
+              <Button
+                onClick={() => setLanguage("hi")}
+                disabled={language === "hi"}
+                sx={{
+                  minWidth: 110,
+                  borderRadius: "999px",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  textTransform: "none",
+                  px: 2.5,
+                  py: 0.75,
+                  backgroundColor:
+                    language === "hi"
+                      ? primaryColor
+                      : alpha(secondaryColor, 0.12),
+                  color: language === "hi" ? "#FFFFFF" : secondaryColor,
+                  "&:hover": {
+                    backgroundColor:
+                      language === "hi"
+                        ? primaryColor
+                        : alpha(secondaryColor, 0.2),
+                  },
+                  "&:disabled": {
+                    backgroundColor: primaryColor,
+                    color: "#FFFFFF",
+                  },
+                }}
+              >
+                हिन्दी
+              </Button>
+              */}
+              <IconButton
+                onClick={(e) => setAnchorEl(e.currentTarget)}
+                sx={{
+                  border: `1px solid ${alpha(secondaryColor, 0.2)}`,
+                  color: secondaryColor,
+                  "&:hover": {
+                    backgroundColor: alpha(primaryColor, 0.08),
+                  },
+                }}
+              >
+                <AccountCircleOutlined />
+              </IconButton>
+            </Box>
+          </Box>
+
+          <Typography
+            variant="body1"
+            component="h2"
+            gutterBottom
+            sx={{
+              fontWeight: 600,
+              color: secondaryColor,
+              textTransform: "capitalize",
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+            }}
+          >
+            <span role="img" aria-label="wave">
+              👋
+            </span>
+            {t("LEARNER_APP.PROFILE.MY_PROFILE") || "Welcome"},{" "}
+            {firstName || "Learner"}!
+          </Typography>
+        </Box>
+        <Box sx={{ px: { xs: 2, md: 4 }, pb: { xs: 4, md: 6 } }}>
         <Tabs
           value={activeTab}
           onChange={(_event, newValue) => handleTabChange(newValue)}
           aria-label="Dashboard Tabs"
+          sx={{
+            "& .MuiTab-root": {
+              color: secondaryColor,
+              "&.Mui-selected": {
+                color: primaryColor,
+              },
+            },
+            "& .MuiTabs-indicator": {
+              backgroundColor: primaryColor,
+            },
+          }}
         >
           <Tab label="Courses" value="Course" />
           <Tab label="Content" value="content" />
-          <Tab label="Groups" value="groups" />
-          <Tab label="Attendance" value="attendance" />
+          {showGroups && <Tab label="Groups" value="groups" />}
+          {showAttendance && <Tab label="Attendance" value="attendance" />}
         </Tabs>
         <Grid container style={gredientStyle}>
           <Grid item xs={12}>
@@ -407,14 +554,15 @@ const DashboardPage = () => {
       {/* Logout Confirmation Modal */}
       <ConfirmationModal
         modalOpen={logoutModalOpen}
-        message="Are you sure you want to logout?"
+        message={t("COMMON.SURE_LOGOUT")}
         handleAction={performLogout}
         buttonNames={{
-          primary: "Logout",
-          secondary: "Cancel",
+          primary: t("COMMON.LOGOUT"),
+          secondary: t("COMMON.CANCEL"),
         }}
         handleCloseModal={() => setLogoutModalOpen(false)}
       />
+      </Box>
     </Layout>
   );
 };

@@ -14,9 +14,10 @@ import { transformImageUrl } from "../../utils/imageUtils";
 interface CertificateCardProps {
   title: string;
   description: string;
-  imageUrl: string;
+  imageUrl?: string;
   completionDate: string;
   onPreviewCertificate: () => void;
+  variant?: "default" | "compact";
 }
 
 const CourseCertificateCard: React.FC<CertificateCardProps> = ({
@@ -25,6 +26,7 @@ const CourseCertificateCard: React.FC<CertificateCardProps> = ({
   imageUrl,
   completionDate,
   onPreviewCertificate,
+  variant = "default",
 }) => {
   // Debug logging
   console.log("CourseCertificateCard props:", {
@@ -39,6 +41,13 @@ const CourseCertificateCard: React.FC<CertificateCardProps> = ({
   const safeDescription = description || "No description available";
   const safeImageUrl = transformImageUrl(imageUrl) || "/images/image_ver.png";
   const safeCompletionDate = completionDate || new Date().toISOString();
+  const isCompact = variant === "compact";
+  const imageHeight = isCompact ? 110 : 160;
+  const titleFontSize = isCompact ? "16px" : "18px";
+  const descClamp = isCompact ? 2 : 3;
+  const cardPadding = isCompact ? "12px" : "16px";
+  const cardMinHeight = isCompact ? "auto" : "2.6em";
+  const descMinHeight = isCompact ? "2.8em" : "4.2em";
 
   return (
     <Card
@@ -61,7 +70,7 @@ const CourseCertificateCard: React.FC<CertificateCardProps> = ({
       <Box sx={{ position: "relative", flexShrink: 0 }}>
         <CardMedia
           component="img"
-          height="160"
+          height={imageHeight}
           image={safeImageUrl}
           alt={safeTitle}
           sx={{
@@ -113,11 +122,11 @@ const CourseCertificateCard: React.FC<CertificateCardProps> = ({
       {/* Content */}
       <CardContent
         sx={{
-          padding: "16px",
+          padding: cardPadding,
           display: "flex",
           flexDirection: "column",
           flexGrow: 1,
-          "&:last-child": { paddingBottom: "16px" },
+          "&:last-child": { paddingBottom: cardPadding },
         }}
       >
         {/* Title */}
@@ -126,13 +135,13 @@ const CourseCertificateCard: React.FC<CertificateCardProps> = ({
           fontWeight={700}
           sx={{
             mb: 1,
-            fontSize: "18px",
+            fontSize: titleFontSize,
             lineHeight: 1.3,
             display: "-webkit-box",
             WebkitLineClamp: 2,
             WebkitBoxOrient: "vertical",
             overflow: "hidden",
-            minHeight: "2.6em",
+            minHeight: cardMinHeight,
           }}
         >
           {safeTitle}
@@ -145,13 +154,13 @@ const CourseCertificateCard: React.FC<CertificateCardProps> = ({
           sx={{
             flexGrow: 1,
             display: "-webkit-box",
-            WebkitLineClamp: 3,
+            WebkitLineClamp: descClamp,
             WebkitBoxOrient: "vertical",
             overflow: "hidden",
             lineHeight: 1.4,
             mb: 2,
-            minHeight: "4.2em",
-            fontSize: "12px",
+            minHeight: descMinHeight,
+            fontSize: isCompact ? "11px" : "12px",
           }}
         >
           {safeDescription}
@@ -162,7 +171,7 @@ const CourseCertificateCard: React.FC<CertificateCardProps> = ({
           variant="text"
           onClick={onPreviewCertificate}
           sx={{
-            fontSize: "12px",
+            fontSize: isCompact ? "11px" : "12px",
             fontWeight: 600,
             textTransform: "none",
             color: "#1976D2",

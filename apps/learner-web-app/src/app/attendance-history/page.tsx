@@ -1,7 +1,9 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   Box,
@@ -24,6 +26,7 @@ import ClearIcon from "@mui/icons-material/Clear";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import { AccountCircleOutlined } from "@mui/icons-material";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import Layout from "@learner/components/Layout";
 import ProfileMenu from "@learner/components/ProfileMenu/ProfileMenu";
 import ConfirmationModal from "@learner/components/ConfirmationModal/ConfirmationModal";
@@ -38,6 +41,7 @@ import { ICohort } from "@learner/utils/attendance/interfaces";
 import { getTodayDate, shortDateFormat } from "@learner/utils/attendance/helper";
 import { fetchAttendanceDetails } from "@learner/app/attandence/fetchAttendanceDetails";
 import { useTheme } from "@mui/material/styles";
+import { alpha } from "@mui/material/styles";
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
 import "react-circular-progressbar/dist/styles.css";
 import Calendar from "react-calendar";
@@ -45,14 +49,27 @@ import "react-calendar/dist/Calendar.css";
 import { format } from "date-fns";
 import MarkBulkAttendance from "@learner/app/attandence/components/MarkBulkAttendance";
 import "../global.css";
+import { useTranslation } from "@shared-lib";
+import { useTenant } from "@learner/context/TenantContext";
+import Image from "next/image";
 
-const AttendanceHistoryPage = () => {
+const AttendanceHistoryPageContent = () => {
   const router = useRouter();
+  const { t, language, setLanguage } = useTranslation();
+  const { tenant, contentFilter } = useTenant();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const theme = useTheme();
   const initialClassId = searchParams.get("classId");
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Get tenant colors
+  const primaryColor = contentFilter?.theme?.primaryColor || "#E6873C";
+  const secondaryColor = contentFilter?.theme?.secondaryColor || "#1A1A1A";
+  const backgroundColor = contentFilter?.theme?.backgroundColor || "#F5F5F5";
+  const tenantIcon = contentFilter?.icon || "/logo.png";
+  const tenantName = contentFilter?.title || tenant?.name || "Tenant";
+  const tenantAlt = `${tenantName} logo`;
   
   const [classId, setClassId] = useState(initialClassId || "");
   const [cohortsData, setCohortsData] = useState<Array<ICohort>>([]);
@@ -69,6 +86,7 @@ const AttendanceHistoryPage = () => {
   const [openMarkAttendance, setOpenMarkAttendance] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+  const [firstName, setFirstName] = useState("");
   const [attendanceData, setAttendanceData] = useState({
     cohortMemberList: [] as any[],
     presentCount: 0,
@@ -78,6 +96,18 @@ const AttendanceHistoryPage = () => {
     dropoutCount: 0,
     bulkAttendanceStatus: "",
   });
+  
+  const today = new Date();
+  const currentMonth = today.toLocaleString("default", {
+    month: "long",
+  });
+  const currentYear = today.getFullYear();
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setFirstName(localStorage.getItem("firstName") || "");
+    }
+  }, []);
 
   const handleProfileClick = () => {
     router.push("/profile");
@@ -382,7 +412,8 @@ const AttendanceHistoryPage = () => {
     setDisplayStudentList(cohortMemberList);
   };
 
-  const handleDateChange = (date: Date | Date[] | null) => {
+  const handleDateChange = (value: any) => {
+    const date = value as Date | Date[] | null;
     if (date && !Array.isArray(date)) {
       setSelectedDate(date);
     }
@@ -414,27 +445,137 @@ const AttendanceHistoryPage = () => {
   };
 
   const pathColor = determinePathColor(presentPercentage);
+  const backgroundGradient = `linear-gradient(180deg, ${backgroundColor} 0%, ${alpha(backgroundColor, 0.25)} 100%)`;
 
   return (
-    <Layout
-      _topAppBar={{
-        navLinks: [
-          {
-            title: "Profile",
-            icon: <AccountCircleOutlined sx={{ width: 28, height: 28 }} />,
-            to: (e: React.MouseEvent<HTMLElement>) =>
-              setAnchorEl(e.currentTarget),
-            isActive: pathname === "/profile",
-            customStyle: {
-              backgroundColor:
-                pathname === "/profile" ? "#e0f7fa" : "transparent",
-              borderRadius: 8,
-            },
-          },
-        ],
-      }}
-    >
-      <Box minHeight="100vh" textAlign="center" sx={{ backgroundColor: "#f5f5f5" }}>
+    <Layout onlyHideElements={["footer", "topBar"]}>
+      <Box sx={{ backgroundColor: backgroundColor, minHeight: "100vh" }}>
+        <Box
+          sx={{
+            px: { xs: 2, md: 4 },
+            py: { xs: 4, md: 6 },
+            background: backgroundGradient,
+          }}
+        >
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 2,
+              mb: 3,
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Box
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: "50%",
+                  backgroundColor: alpha("#FFFFFF", 0.35),
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                  boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+                }}
+              >
+                <Image
+                  src={tenantIcon}
+                  alt={tenantAlt}
+                  width={48}
+                  height={48}
+                  style={{ objectFit: "contain" }}
+                />
+              </Box>
+              <Typography
+                sx={{
+                  fontWeight: 600,
+                  fontSize: { xs: "18px", sm: "22px" },
+                  lineHeight: 1.3,
+                  color: secondaryColor,
+                }}
+              >
+                {tenantName}
+              </Typography>
+            </Box>
+
+            <Box
+              sx={{
+                display: "flex",
+                gap: 1,
+                flexWrap: "wrap",
+                alignItems: "center",
+              }}
+            >
+              <Button
+                onClick={() => setLanguage("en")}
+                disabled={language === "en"}
+                sx={{
+                  minWidth: 110,
+                  borderRadius: "999px",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  textTransform: "none",
+                  px: 2.5,
+                  py: 0.75,
+                  backgroundColor:
+                    language === "en"
+                      ? primaryColor
+                      : alpha(secondaryColor, 0.12),
+                  color: language === "en" ? "#FFFFFF" : secondaryColor,
+                  "&:hover": {
+                    backgroundColor:
+                      language === "en"
+                        ? primaryColor
+                        : alpha(secondaryColor, 0.2),
+                  },
+                  "&:disabled": {
+                    backgroundColor: primaryColor,
+                    color: "#FFFFFF",
+                  },
+                }}
+              >
+                ENGLISH
+              </Button>
+              <IconButton
+                onClick={(e) => setAnchorEl(e.currentTarget)}
+                sx={{
+                  border: `1px solid ${alpha(secondaryColor, 0.2)}`,
+                  color: secondaryColor,
+                  "&:hover": {
+                    backgroundColor: alpha(primaryColor, 0.08),
+                  },
+                }}
+              >
+                <AccountCircleOutlined />
+              </IconButton>
+            </Box>
+          </Box>
+
+          <Typography
+            variant="body1"
+            component="h2"
+            gutterBottom
+            sx={{
+              fontWeight: 600,
+              color: secondaryColor,
+              textTransform: "capitalize",
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+            }}
+          >
+            <span role="img" aria-label="wave">
+              👋
+            </span>
+            {t("LEARNER_APP.PROFILE.MY_PROFILE") || "Welcome"},{" "}
+            {firstName || "Learner"}!
+          </Typography>
+        </Box>
+        <Box sx={{ px: { xs: 2, md: 4 }, pb: { xs: 4, md: 6 } }}>
+          <Box minHeight="100vh" textAlign="center" sx={{ backgroundColor: backgroundColor }}>
         {loading && (
           <Box
             sx={{
@@ -466,114 +607,208 @@ const AttendanceHistoryPage = () => {
           >
             {/* Header */}
             <Box
-              display="flex"
-              flexDirection="column"
-              gap="1rem"
-              padding="1.5rem 20px 1rem"
-              alignItems="center"
               sx={{
-                backgroundColor: "#fffdf7",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                borderRadius: "0 0 12px 12px",
+                backgroundColor: alpha(backgroundColor, 0.95),
+                borderRadius: "12px 12px 0 0",
+                padding: { xs: "1rem", md: "2rem 2.5rem 1.5rem 1.5rem" },
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                mb: 0,
               }}
             >
               <Box
-                display="flex"
-                sx={{ color: (theme.palette.warning as any)?.A200 || "#666" }}
-                gap="10px"
-                width="100%"
-                paddingTop="10px"
+                display={"flex"}
+                flexDirection={{ xs: "column", md: "row" }}
+                justifyContent={"space-between"}
+                alignItems={{ xs: "flex-start", md: "center" }}
+                marginBottom={"16px"}
+                gap={{ xs: 2, md: 0 }}
               >
-                <Box className="d-md-flex w-100 space-md-between min-align-md-center">
-                  <Box display="flex" gap="10px" alignItems="center">
-                    <Box
-                      onClick={() => {
-                        router.push("/attandence");
-                      }}
+                <Box display="flex" gap="10px" alignItems="center">
+                  <Box
+                    onClick={() => {
+                      router.push("/attandence");
+                    }}
+                    sx={{
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      padding: "4px",
+                      borderRadius: "50%",
+                      "&:hover": {
+                        backgroundColor: "rgba(0,0,0,0.05)",
+                      },
+                    }}
+                  >
+                    <KeyboardBackspaceOutlinedIcon
                       sx={{
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "4px",
-                        borderRadius: "50%",
-                        "&:hover": {
-                          backgroundColor: "rgba(0,0,0,0.05)",
-                        },
+                        color: secondaryColor,
+                        fontSize: "24px",
+                      }}
+                    />
+                  </Box>
+                  <Typography
+                    variant="h2"
+                    sx={{
+                      fontSize: { xs: "18px", md: "20px" },
+                      fontWeight: "700",
+                      color: secondaryColor,
+                      letterSpacing: "0.3px",
+                    }}
+                  >
+                    Day-Wise Attendance
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    display: "flex",
+                    gap: { xs: "0.5rem", md: "1rem" },
+                    alignItems: "center",
+                    flexDirection: { xs: "column", sm: "row" },
+                    width: { xs: "100%", md: "auto" },
+                  }}
+                >
+                  {/* Center Selection */}
+                  {centersData.length > 0 && (
+                    <Box sx={{ width: { xs: "100%", sm: "auto" } }}>
+                      <FormControl
+                        fullWidth
+                        size="small"
+                        sx={{
+                          minWidth: { xs: "100%", sm: "150px" },
+                          maxWidth: { xs: "100%", md: "200px" },
+                          backgroundColor: "white",
+                          borderRadius: "8px",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                          "& .MuiOutlinedInput-root": {
+                            "&:hover fieldset": {
+                              borderColor: primaryColor,
+                            },
+                            "&.Mui-focused fieldset": {
+                              borderColor: primaryColor,
+                            },
+                          },
+                        }}
+                      >
+                        <InputLabel sx={{ color: secondaryColor }}>Center</InputLabel>
+                        <Select
+                          value={selectedCenterId}
+                          label="Center"
+                          onChange={handleCenterChange}
+                          disabled={loading}
+                          sx={{
+                            color: secondaryColor,
+                            "& .MuiSelect-select": {
+                              color: secondaryColor,
+                            },
+                            "& .MuiSvgIcon-root": {
+                              color: secondaryColor,
+                            },
+                          }}
+                        >
+                          {centersData.map((center) => (
+                            <MenuItem
+                              key={center.centerId}
+                              value={center.centerId}
+                              sx={{ color: secondaryColor }}
+                            >
+                              {center.centerName}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Box>
+                  )}
+
+                  {/* Batch Selection */}
+                  {batchesData.length > 0 && (
+                    <Box sx={{ width: { xs: "100%", sm: "auto" } }}>
+                      <FormControl
+                        fullWidth
+                        size="small"
+                        sx={{
+                          minWidth: { xs: "100%", sm: "150px" },
+                          maxWidth: { xs: "100%", md: "200px" },
+                          backgroundColor: "white",
+                          borderRadius: "8px",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                          "& .MuiOutlinedInput-root": {
+                            "&:hover fieldset": {
+                              borderColor: primaryColor,
+                            },
+                            "&.Mui-focused fieldset": {
+                              borderColor: primaryColor,
+                            },
+                          },
+                        }}
+                      >
+                        <InputLabel sx={{ color: secondaryColor }}>Batch</InputLabel>
+                        <Select
+                          value={classId}
+                          label="Batch"
+                          onChange={handleBatchChange}
+                          disabled={loading || !selectedCenterId}
+                          sx={{
+                            color: secondaryColor,
+                            "& .MuiSelect-select": {
+                              color: secondaryColor,
+                            },
+                            "& .MuiSvgIcon-root": {
+                              color: secondaryColor,
+                            },
+                          }}
+                        >
+                          {batchesData.map((batch) => (
+                            <MenuItem key={batch.batchId} value={batch.batchId} sx={{ color: secondaryColor }}>
+                              {batch.batchName}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Box>
+                  )}
+
+                  {/* Date Display */}
+                  <Box
+                    display={"flex"}
+                    sx={{
+                      cursor: "pointer",
+                      gap: { xs: "4px", sm: "6px", md: "8px" },
+                      alignItems: "center",
+                      backgroundColor: "white",
+                      padding: { xs: "6px 12px", sm: "7px 14px", md: "8px 16px" },
+                      borderRadius: { xs: "6px", md: "8px" },
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                      border: "1px solid rgba(0,0,0,0.05)",
+                      transition: "all 0.2s",
+                      width: { xs: "100%", sm: "auto" },
+                      justifyContent: { xs: "space-between", sm: "flex-start" },
+                      "&:hover": {
+                        boxShadow: "0 4px 8px rgba(0,0,0,0.15)",
+                        transform: { xs: "none", md: "translateY(-1px)" },
+                      },
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        fontWeight: "600",
+                        minWidth: { xs: "auto", sm: "120px", md: "140px" },
+                        textAlign: "center",
+                        fontSize: { xs: "13px", sm: "14px", md: "15px" },
+                        color: secondaryColor,
+                        flex: { xs: 1, sm: "none" },
                       }}
                     >
-                      <KeyboardBackspaceOutlinedIcon
-                        sx={{
-                          color: (theme.palette.warning as any)?.["A200"] || "#666",
-                          fontSize: "24px",
-                        }}
-                      />
-                    </Box>
-                    <Typography
-                      marginBottom="0px"
-                      fontSize="24px"
-                      fontWeight={600}
-                      color={(theme.palette.warning as any)?.["A200"] || "#666"}
-                      className="flex-basis-md-30"
-                      sx={{ whiteSpace: "nowrap" }}
-                    >
-                      Day-Wise Attendance
+                      {currentMonth} {currentYear}
                     </Typography>
-                  </Box>
-
-                  <Box className="w-100 d-md-flex flex-md-end">
-                    <Box sx={{ display: "flex", gap: 2 }}>
-                      {centersData.length > 0 && (
-                        <FormControl
-                          size="small"
-                          sx={{
-                            minWidth: 150,
-                            backgroundColor: "white",
-                            borderRadius: "8px",
-                            boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                          }}
-                        >
-                          <InputLabel>Center</InputLabel>
-                          <Select
-                            value={selectedCenterId}
-                            label="Center"
-                            onChange={handleCenterChange}
-                            disabled={loading}
-                          >
-                            {centersData.map((center) => (
-                              <MenuItem key={center.centerId} value={center.centerId}>
-                                {center.centerName}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      )}
-
-                      {batchesData.length > 0 && (
-                        <FormControl
-                          size="small"
-                          sx={{
-                            minWidth: 150,
-                            backgroundColor: "white",
-                            borderRadius: "8px",
-                            boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                          }}
-                        >
-                          <InputLabel>Batch</InputLabel>
-                          <Select
-                            value={classId}
-                            label="Batch"
-                            onChange={handleBatchChange}
-                            disabled={loading || !selectedCenterId}
-                          >
-                            {batchesData.map((batch) => (
-                              <MenuItem key={batch.batchId} value={batch.batchId}>
-                                {batch.batchName}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      )}
-                    </Box>
+                    <CalendarMonthIcon
+                      sx={{
+                        fontSize: { xs: "14px", sm: "15px", md: "16px" },
+                        ml: { xs: 0, sm: 0.5 },
+                        cursor: "pointer",
+                        color: secondaryColor,
+                        display: { xs: "none", sm: "block" },
+                      }}
+                    />
                   </Box>
                 </Box>
               </Box>
@@ -587,10 +822,10 @@ const AttendanceHistoryPage = () => {
               position: "sticky",
               top: 0,
               zIndex: 1000,
-              backgroundColor: "#fffdf7",
+              backgroundColor: alpha(backgroundColor, 0.95),
               boxShadow: "0px 4px 16px rgba(0,0,0,0.12)",
-              borderTop: "2px solid rgba(253, 190, 22, 0.2)",
-              borderBottom: "2px solid rgba(253, 190, 22, 0.2)",
+              borderTop: `2px solid ${alpha(primaryColor, 0.2)}`,
+              borderBottom: `2px solid ${alpha(primaryColor, 0.2)}`,
               padding: "18px 24px",
               marginTop: "12px",
               borderRadius: "12px 12px 0 0",
@@ -613,7 +848,7 @@ const AttendanceHistoryPage = () => {
                     <Typography
                       fontSize="16px"
                       fontWeight="700"
-                      color="#1F1B13"
+                      color={secondaryColor}
                       sx={{ letterSpacing: "0.3px" }}
                     >
                       {format(selectedDate, "dd MMMM yyyy")}
@@ -647,7 +882,7 @@ const AttendanceHistoryPage = () => {
                         <Typography
                           fontSize="14px"
                           fontWeight="700"
-                          color="#1F1B13"
+                          color={secondaryColor}
                           sx={{ lineHeight: 1.2 }}
                         >
                           {presentPercentage}%
@@ -655,7 +890,7 @@ const AttendanceHistoryPage = () => {
                         <Typography
                           fontSize="11px"
                           fontWeight="500"
-                          color="#666"
+                          color={alpha(secondaryColor, 0.6)}
                           sx={{ lineHeight: 1.2 }}
                         >
                           Present
@@ -668,7 +903,6 @@ const AttendanceHistoryPage = () => {
               <Grid item xs={12} md={4} display="flex" justifyContent="flex-end" mt={{ xs: 2, md: 0 }}>
                 <Button
                   variant="contained"
-                  color="primary"
                   onClick={handleOpen}
                   sx={{
                     minWidth: "140px",
@@ -676,9 +910,12 @@ const AttendanceHistoryPage = () => {
                     fontWeight: "600",
                     fontSize: "14px",
                     borderRadius: "8px",
-                    boxShadow: "0 4px 12px rgba(251, 188, 19, 0.4)",
+                    backgroundColor: primaryColor,
+                    color: "#FFFFFF",
+                    boxShadow: `0 4px 12px ${alpha(primaryColor, 0.4)}`,
                     "&:hover": {
-                      boxShadow: "0 6px 16px rgba(251, 188, 19, 0.5)",
+                      backgroundColor: primaryColor,
+                      boxShadow: `0 6px 16px ${alpha(primaryColor, 0.5)}`,
                       transform: "translateY(-1px)",
                     },
                     transition: "all 0.2s",
@@ -695,7 +932,7 @@ const AttendanceHistoryPage = () => {
             className="calender-container"
             sx={{
               padding: "28px 24px",
-              backgroundColor: "#fffdf7",
+              backgroundColor: alpha(backgroundColor, 0.95),
               marginTop: "12px",
               borderRadius: "0 0 12px 12px",
               boxShadow: "0 2px 12px rgba(0,0,0,0.1)",
@@ -751,12 +988,14 @@ const AttendanceHistoryPage = () => {
               />
             </Box>
           </Box>
+        </Box>
+        </Box>
 
           {/* Search and Student List */}
           <Box
             mt={3}
             sx={{
-              backgroundColor: "#fffdf7",
+              backgroundColor: alpha(backgroundColor, 0.95),
               borderRadius: "12px",
               padding: "24px",
               boxShadow: "0 2px 12px rgba(0,0,0,0.1)",
@@ -787,11 +1026,11 @@ const AttendanceHistoryPage = () => {
                         borderRadius: "100px",
                         background: "white",
                         boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                        border: "2px solid rgba(253, 190, 22, 0.2)",
+                        border: `2px solid ${alpha(primaryColor, 0.2)}`,
                         transition: "all 0.2s",
                         "&:hover": {
                           boxShadow: "0 6px 16px rgba(0,0,0,0.15)",
-                          borderColor: "rgba(253, 190, 22, 0.4)",
+                          borderColor: alpha(primaryColor, 0.4),
                         },
                       }}
                     >
@@ -802,7 +1041,7 @@ const AttendanceHistoryPage = () => {
                           flex: 1,
                           mb: "0",
                           fontSize: "14px",
-                          color: (theme.palette.warning as any)?.["A200"] || "#666",
+                          color: secondaryColor,
                           px: "16px",
                         }}
                         placeholder="Search student.."
@@ -811,7 +1050,7 @@ const AttendanceHistoryPage = () => {
                       />
                       <IconButton
                         type="button"
-                        sx={{ p: "10px", color: (theme.palette.warning as any)?.["A200"] || "#666" }}
+                        sx={{ p: "10px", color: secondaryColor }}
                         aria-label="search"
                       >
                         <SearchIcon />
@@ -824,7 +1063,7 @@ const AttendanceHistoryPage = () => {
                         >
                           <ClearIcon
                             sx={{
-                              color: (theme.palette.warning as any)?.["A200"] || "#666",
+                              color: secondaryColor,
                             }}
                           />
                         </IconButton>
@@ -840,16 +1079,16 @@ const AttendanceHistoryPage = () => {
                   display: "flex",
                   justifyContent: "space-between",
                   padding: "18px 24px",
-                  borderBottom: `3px solid ${(theme.palette.warning as any)?.["A200"] || "#fdbe16"}`,
+                  borderBottom: `3px solid ${primaryColor}`,
                   bgcolor: "white",
                   borderRadius: "12px 12px 0 0",
                   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                  background: "linear-gradient(180deg, #fffdf7 0%, #ffffff 100%)",
+                  background: `linear-gradient(180deg, ${alpha(backgroundColor, 0.95)} 0%, #ffffff 100%)`,
                 }}
               >
                 <Typography
                   sx={{
-                    color: "#1F1B13",
+                    color: secondaryColor,
                     fontSize: "14px",
                     fontWeight: 700,
                     textTransform: "uppercase",
@@ -861,7 +1100,7 @@ const AttendanceHistoryPage = () => {
                 <Box sx={{ display: "flex", gap: "32px" }}>
                   <Typography
                     sx={{
-                      color: "#1F1B13",
+                      color: secondaryColor,
                       fontSize: "14px",
                       fontWeight: 700,
                       textTransform: "uppercase",
@@ -872,7 +1111,7 @@ const AttendanceHistoryPage = () => {
                   </Typography>
                   <Typography
                     sx={{
-                      color: "#1F1B13",
+                      color: secondaryColor,
                       fontSize: "14px",
                       fontWeight: 700,
                       textTransform: "uppercase",
@@ -904,10 +1143,10 @@ const AttendanceHistoryPage = () => {
                         alignItems: "center",
                         padding: "18px 24px",
                         borderBottom: index < displayStudentList.length - 1
-                          ? `1px solid ${(theme.palette.warning as any)?.["A100"] || "#e8e8e8"}`
+                          ? `1px solid ${alpha(primaryColor, 0.1)}`
                           : "none",
                         "&:hover": {
-                          backgroundColor: "rgba(253, 190, 22, 0.08)",
+                          backgroundColor: alpha(primaryColor, 0.08),
                           transform: "translateX(4px)",
                         },
                         transition: "all 0.2s ease",
@@ -917,7 +1156,7 @@ const AttendanceHistoryPage = () => {
                       <Typography
                         variant="body1"
                         sx={{
-                          color: "#1F1B13",
+                          color: secondaryColor,
                           fontWeight: 600,
                           fontSize: "16px",
                           letterSpacing: "0.2px",
@@ -1020,7 +1259,7 @@ const AttendanceHistoryPage = () => {
                 >
                   <Typography
                     color="textSecondary"
-                    sx={{ fontSize: "18px", fontWeight: 500, color: "#666" }}
+                    sx={{ fontSize: "18px", fontWeight: 500, color: alpha(secondaryColor, 0.6) }}
                   >
                     No students found
                   </Typography>
@@ -1029,7 +1268,7 @@ const AttendanceHistoryPage = () => {
             </Stack>
           </Box>
         </Box>
-      </Box>
+        </Box>
       </Box>
 
       <ProfileMenu
@@ -1044,8 +1283,8 @@ const AttendanceHistoryPage = () => {
         modalOpen={logoutModalOpen}
         handleCloseModal={() => setLogoutModalOpen(false)}
         handleAction={performLogout}
-        message="Are you sure you want to logout?"
-        buttonNames={{ primary: "Logout", secondary: "Cancel" }}
+        message={t("COMMON.SURE_LOGOUT")}
+        buttonNames={{ primary: t("COMMON.LOGOUT"), secondary: t("COMMON.CANCEL") }}
       />
 
       {/* Mark Attendance Modal */}
@@ -1054,7 +1293,7 @@ const AttendanceHistoryPage = () => {
           open={openMarkAttendance}
           onClose={handleClose}
           classId={classId}
-          selectedDate={selectedDateStr}
+          selectedDate={selectedDate}
           onSaveSuccess={() => {
             fetchAttendanceForDate();
             fetchAttendanceStats();
@@ -1069,6 +1308,29 @@ const AttendanceHistoryPage = () => {
         />
       )}
     </Layout>
+  );
+};
+
+const AttendanceHistoryPage = () => {
+  return (
+    <Suspense
+      fallback={
+        <Box
+          sx={{
+            minHeight: "100vh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "18px",
+            fontWeight: 500,
+          }}
+        >
+          Loading attendance history...
+        </Box>
+      }
+    >
+      <AttendanceHistoryPageContent />
+    </Suspense>
   );
 };
 

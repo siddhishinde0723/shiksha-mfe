@@ -10,7 +10,7 @@ import CardActions from "@mui/material/CardActions";
 import Avatar from "@mui/material/Avatar";
 import Typography from "@mui/material/Typography";
 import { red } from "@mui/material/colors";
-import { Box, LinearProgress, useTheme, Chip } from "@mui/material";
+import { Box, LinearProgress, useTheme, Chip, Link } from "@mui/material";
 import { CircularProgressWithLabel } from "../Progress/CircularProgressWithLabel";
 import SpeakableText from "../textToSpeech/SpeakableText";
 import { capitalize } from "lodash";
@@ -159,7 +159,19 @@ export const CommonCard: React.FC<CommonCardProps> = ({
   console.log("content:siddhi", content);
   console.log("image:siddhi", title);
   const [statusBar, setStatusBar] = React.useState<StatuPorps>();
+  const [showDetails, setShowDetails] = React.useState(false);
   const { t } = useTranslation();
+  
+  // Use useCallback to ensure the handler is unique per card instance
+  const cardId = item?.identifier || '';
+  const handleToggleDetails = React.useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setShowDetails((prev) => {
+      // Double-check we're updating the correct card's state
+      return !prev;
+    });
+  }, [cardId]);
   React.useEffect(() => {
     const init = () => {
       try {
@@ -337,83 +349,227 @@ export const CommonCard: React.FC<CommonCardProps> = ({
           </CardContent>
         )}
       </Box>
-      {/* Keywords Section - Outside content box to prevent overlapping */}
+      {/* View More/Less Link - Below content, aligned to right */}
       {(() => {
-        // Get keywords from item
+        // Get metadata from item
         const itemKeywords = (item as any)?.keywords || item?.keywords;
         const hasKeywords = itemKeywords && Array.isArray(itemKeywords) && itemKeywords.length > 0;
         
-        if (!hasKeywords) return null;
+        // Get framework metadata
+        const boards = (item as any)?.se_boards || (item as any)?.targetBoardIds || [];
+        const mediums = (item as any)?.se_mediums || (item as any)?.targetMediumIds || [];
+        const gradeLevels = (item as any)?.se_gradeLevels || (item as any)?.targetGradeLevelIds || [];
+        const subjects = (item as any)?.se_subjects || (item as any)?.targetSubjectIds || [];
+        
+        const hasFrameworkMetadata = 
+          (Array.isArray(boards) && boards.length > 0) ||
+          (Array.isArray(mediums) && mediums.length > 0) ||
+          (Array.isArray(gradeLevels) && gradeLevels.length > 0) ||
+          (Array.isArray(subjects) && subjects.length > 0);
+        
+        const hasMetadata = hasKeywords || hasFrameworkMetadata;
+        
+        if (!hasMetadata) return null;
         
         // Show only first 5 keywords
-        const keywordsToShow = itemKeywords.slice(0, 5);
-        const remainingCount = itemKeywords.length - 5;
+        const keywordsToShow = hasKeywords ? itemKeywords.slice(0, 5) : [];
+        const remainingCount = hasKeywords ? itemKeywords.length - 5 : 0;
         
         return (
-          <CardContent
-            sx={{
-              pt: "8px !important",
-              pb: "12px !important",
-              px: "16px !important",
-              "&:last-child": {
-                paddingBottom: "12px",
-              },
-            }}
-          >
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-            
-              <Box
-                sx={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: "8px",
-                  rowGap: "8px",
-                  alignItems: "flex-start",
-                }}
-              >
-                {keywordsToShow.map((keyword: string, index: number) => (
-                  <Chip
-                    key={`keyword-${index}-${keyword}`}
-                    label={keyword}
-                    size="small"
-                    sx={{
-                      fontSize: "11px",
-                      height: "26px",
-                      backgroundColor: "#F3EDF7",
-                      color: "#6750A4",
-                      fontWeight: 500,
-                      borderRadius: "12px",
-                      margin: 0,
-                      "& .MuiChip-label": {
-                        padding: "0 10px",
-                        whiteSpace: "nowrap",
-                      },
-                    }}
-                  />
-                ))}
-                {remainingCount > 0 && (
-                  <Chip
-                    key="keyword-more"
-                    label={`+${remainingCount} more`}
-                    size="small"
-                    sx={{
-                      fontSize: "11px",
-                      height: "26px",
-                      backgroundColor: "#E6E6E6",
-                      color: "#666",
-                      fontWeight: 500,
-                      borderRadius: "12px",
-                      margin: 0,
-                      "& .MuiChip-label": {
-                        padding: "0 10px",
-                        whiteSpace: "nowrap",
-                      },
-                    }}
-                  />
-                )}
+          <>
+            {/* View More/Less Link - Positioned at right corner below content */}
+            <CardContent
+              sx={{
+                pt: "4px !important",
+                pb: "4px !important",
+                px: "16px !important",
+                "&:last-child": {
+                  paddingBottom: "4px",
+                },
+              }}
+            >
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }} data-card-id={item?.identifier}>
+                <Link
+                  component="button"
+                  variant="caption"
+                  onClick={handleToggleDetails}
+                  sx={{
+                    fontSize: "11px",
+                    color: "#E6873C",
+                    textDecoration: "none",
+                    cursor: "pointer",
+                    fontWeight: 500,
+                    "&:hover": {
+                      textDecoration: "underline",
+                    },
+                  }}
+                >
+                  {showDetails ? "View less" : "View more"}
+                </Link>
               </Box>
-            </Box>
-          </CardContent>
+            </CardContent>
+            
+            {/* Collapsible Metadata Section - Scoped to this specific card */}
+            {showDetails && (
+              <CardContent
+                sx={{
+                  pt: "8px !important",
+                  pb: "12px !important",
+                  px: "16px !important",
+                  "&:last-child": {
+                    paddingBottom: "12px",
+                  },
+                }}
+                data-card-id={item?.identifier}
+              >
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                  {/* Framework Metadata - Board, Medium, Grade, Subject */}
+                  {hasFrameworkMetadata && (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "8px",
+                        rowGap: "8px",
+                        alignItems: "flex-start",
+                      }}
+                    >
+                      {Array.isArray(boards) && boards.length > 0 && (
+                        <Chip
+                          label={`Board: ${boards[0]}`}
+                          size="small"
+                          sx={{
+                            fontSize: "11px",
+                            height: "26px",
+                            backgroundColor: "rgba(0,0,0,0.04)",
+                            color: "#49454F",
+                            fontWeight: 500,
+                            borderRadius: "12px",
+                            margin: 0,
+                            "& .MuiChip-label": {
+                              padding: "0 10px",
+                              whiteSpace: "nowrap",
+                            },
+                          }}
+                        />
+                      )}
+                      {Array.isArray(mediums) && mediums.length > 0 && (
+                        <Chip
+                          label={`Medium: ${mediums[0]}`}
+                          size="small"
+                          sx={{
+                            fontSize: "11px",
+                            height: "26px",
+                            backgroundColor: "rgba(0,0,0,0.04)",
+                            color: "#49454F",
+                            fontWeight: 500,
+                            borderRadius: "12px",
+                            margin: 0,
+                            "& .MuiChip-label": {
+                              padding: "0 10px",
+                              whiteSpace: "nowrap",
+                            },
+                          }}
+                        />
+                      )}
+                      {Array.isArray(gradeLevels) && gradeLevels.length > 0 && (
+                        <Chip
+                          label={`Grade: ${gradeLevels[0]}`}
+                          size="small"
+                          sx={{
+                            fontSize: "11px",
+                            height: "26px",
+                            backgroundColor: "rgba(0,0,0,0.04)",
+                            color: "#49454F",
+                            fontWeight: 500,
+                            borderRadius: "12px",
+                            margin: 0,
+                            "& .MuiChip-label": {
+                              padding: "0 10px",
+                              whiteSpace: "nowrap",
+                            },
+                          }}
+                        />
+                      )}
+                      {Array.isArray(subjects) && subjects.length > 0 && (
+                        <Chip
+                          label={`Subject: ${subjects[0]}`}
+                          size="small"
+                          sx={{
+                            fontSize: "11px",
+                            height: "26px",
+                            backgroundColor: "rgba(0,0,0,0.04)",
+                            color: "#49454F",
+                            fontWeight: 500,
+                            borderRadius: "12px",
+                            margin: 0,
+                            "& .MuiChip-label": {
+                              padding: "0 10px",
+                              whiteSpace: "nowrap",
+                            },
+                          }}
+                        />
+                      )}
+                    </Box>
+                  )}
+                  
+                  {/* Keywords Section */}
+                  {hasKeywords && (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "8px",
+                        rowGap: "8px",
+                        alignItems: "flex-start",
+                      }}
+                    >
+                      {keywordsToShow.map((keyword: string, index: number) => (
+                        <Chip
+                          key={`keyword-${index}-${keyword}`}
+                          label={keyword}
+                          size="small"
+                          sx={{
+                            fontSize: "11px",
+                            height: "26px",
+                            backgroundColor: "#F3EDF7",
+                            color: "#6750A4",
+                            fontWeight: 500,
+                            borderRadius: "12px",
+                            margin: 0,
+                            "& .MuiChip-label": {
+                              padding: "0 10px",
+                              whiteSpace: "nowrap",
+                            },
+                          }}
+                        />
+                      ))}
+                      {remainingCount > 0 && (
+                        <Chip
+                          key="keyword-more"
+                          label={`+${remainingCount} more`}
+                          size="small"
+                          sx={{
+                            fontSize: "11px",
+                            height: "26px",
+                            backgroundColor: "#E6E6E6",
+                            color: "#666",
+                            fontWeight: 500,
+                            borderRadius: "12px",
+                            margin: 0,
+                            "& .MuiChip-label": {
+                              padding: "0 10px",
+                              whiteSpace: "nowrap",
+                            },
+                          }}
+                        />
+                      )}
+                    </Box>
+                  )}
+                </Box>
+              </CardContent>
+            )}
+          </>
         );
       })()}
       {children && <CardContent>{children}</CardContent>}

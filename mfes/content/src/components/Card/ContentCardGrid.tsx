@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import React, { memo, useState, useCallback } from "react";
 import { Box, Grid, Typography, Button, CircularProgress } from "@mui/material";
 import { ContentItem, useTranslation } from "@shared-lib";
 import ContentCard from "./ContentCard";
@@ -23,32 +23,55 @@ const ContentCardGrid = memo((props: ContentCardGridProps) => {
  const { default_img, _subBox, _grid, _containerGrid, _card } =
    props._config ?? {};
 
+ // Centralized state management - ensure only the clicked card expands
+ const [expandedCardMap, setExpandedCardMap] = useState<Record<string, boolean>>(
+   {}
+ );
+
+ const handleToggleCard = useCallback((cardId: string) => {
+   setExpandedCardMap((prev) => {
+     const shouldExpand = !prev[cardId];
+     // Collapse all other cards by returning a fresh map
+     return shouldExpand ? { [cardId]: true } : {};
+   });
+ }, []);
 
  return (
    <Box {..._subBox} sx={{ ...(_subBox?.sx ?? {}) }}>
      <Grid container spacing={{ xs: 1, sm: 1, md: 2 }} {..._containerGrid}>
-       {props.contentData?.map((item: any, index: number) => (
-         <Grid
-           key={`${item?.identifier}-${index}`}
-           id={item?.identifier}
-           item
-           xs={6}
-           sm={6}
-           md={4}
-           lg={3}
-           xl={2.4}
-           {..._grid}
-         >
-           <ContentCard
-             item={item}
-             type={props.type}
-             default_img={default_img}
-             _card={_card}
-             handleCardClick={props.handleCardClick}
-             trackData={props.trackData as [] | undefined}
-           />
-         </Grid>
-       ))}
+      {props.contentData?.map((item: any, index: number) => {
+        // CRITICAL: Build a stable but unique key even when identifiers repeat
+        const baseId = item?.identifier || `card-${props.type}`;
+        const cardId = `${baseId}-${index}`;
+        const uniqueKey = cardId;
+        const isExpanded = Boolean(expandedCardMap[cardId]);
+        
+        return (
+          <Grid
+            key={uniqueKey}
+            item
+            xs={6}
+            sm={6}
+            md={4}
+            lg={3}
+            xl={2.4}
+            {..._grid}
+          >
+            <ContentCard
+              key={uniqueKey}
+              item={item}
+              type={props.type}
+              default_img={default_img}
+              _card={_card}
+              handleCardClick={props.handleCardClick}
+              trackData={props.trackData as [] | undefined}
+              isExpanded={isExpanded}
+              onToggle={handleToggleCard}
+              cardId={cardId}
+            />
+          </Grid>
+        );
+      })}
      </Grid>
      <Box sx={{ textAlign: "center", mt: 2 }}>
        {props.hasMoreData && (

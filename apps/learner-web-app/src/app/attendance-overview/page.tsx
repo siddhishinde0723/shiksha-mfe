@@ -1,7 +1,9 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Box,
@@ -15,10 +17,14 @@ import {
   Card,
   CardContent,
   CircularProgress,
+  IconButton,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
+import Image from "next/image";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import Layout from "@learner/components/Layout";
 import { AccountCircleOutlined } from "@mui/icons-material";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import Layout from "@learner/components/Layout";
 import { getCohortList } from "@learner/utils/API/services/CohortServices";
 import { getUserDetails } from "@learner/utils/API/services/ProfileService";
 import {
@@ -27,16 +33,29 @@ import {
 } from "@learner/utils/API/services/AttendanceService";
 import { getMyCohortMemberList } from "@learner/utils/API/services/MyClassDetailsService";
 import { AttendanceAPILimit } from "../../../app.config";
-import { ICohort } from "@learner/utils/attendance/interfaces";
 import { getTodayDate, shortDateFormat } from "@learner/utils/attendance/helper";
+import ProfileMenu from "../../components/ProfileMenu/ProfileMenu";
+import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal";
+import DateRangePopup from "../../components/DateRangePopup/DateRangePopup";
+import { useTenant } from "@learner/context/TenantContext";
+import { useTranslation } from "@shared-lib";
 
-const AttendanceOverviewPage = () => {
+const AttendanceOverviewContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialClassId = searchParams.get("classId");
+  const { tenant, contentFilter } = useTenant();
+  const { t, language, setLanguage } = useTranslation();
+  
+  // Get tenant colors
+  const primaryColor = contentFilter?.theme?.primaryColor || "#E6873C";
+  const secondaryColor = contentFilter?.theme?.secondaryColor || "#1A1A1A";
+  const backgroundColor = contentFilter?.theme?.backgroundColor || "#F5F5F5";
+  const tenantIcon = contentFilter?.icon || "/logo.png";
+  const tenantName = contentFilter?.title || tenant?.name || "Tenant";
+  const tenantAlt = `${tenantName} logo`;
   
   const [classId, setClassId] = useState(initialClassId || "");
-  const [cohortsData, setCohortsData] = useState<Array<ICohort>>([]);
   const [centersData, setCentersData] = useState<Array<any>>([]);
   const [batchesData, setBatchesData] = useState<Array<any>>([]);
   const [selectedCenterId, setSelectedCenterId] = useState("");
@@ -44,31 +63,38 @@ const AttendanceOverviewPage = () => {
   const [presentPercentage, setPresentPercentage] = useState<string | number>("");
   const [lowAttendanceLearnerList, setLowAttendanceLearnerList] = useState<any[]>([]);
   const [learnerData, setLearnerData] = useState<Array<any>>([]);
+  const [firstName, setFirstName] = useState("");
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [selectedDateRange, setSelectedDateRange] = useState("");
+  const [dateRange, setDateRange] = useState("");
+  
+  const today = new Date();
+  const currentMonth = today.toLocaleString("default", {
+    month: "long",
+  });
+  const currentYear = today.getFullYear();
 
   useEffect(() => {
-    const initializePage = async () => {
-      if (typeof window !== "undefined" && window.localStorage) {
-        const token = localStorage.getItem("token");
-        const storedUserId = localStorage.getItem("userId");
-        
-        if (!token) {
-          router.push("/login");
-          return;
-        }
+    if (typeof window !== "undefined") {
+      setFirstName(localStorage.getItem("firstName") || "");
+      
+      // Initialize date range to last 7 days
+      const today = new Date();
+      const last7Days = new Date(today);
+      last7Days.setDate(today.getDate() - 6);
+      const fromDateStr = shortDateFormat(last7Days);
+      const toDateStr = getTodayDate();
+      setFromDate(fromDateStr);
+      setToDate(toDateStr);
+      setDateRange(`${fromDateStr} to ${toDateStr}`);
+      setSelectedDateRange(`Last 7 Days (${fromDateStr} to ${toDateStr})`);
+    }
+  }, []);
 
-        if (storedUserId) {
-          await fetchUserCohorts(storedUserId);
-          if (initialClassId) {
-            setClassId(initialClassId);
-          }
-        }
-      }
-    };
-
-    initializePage();
-  }, [router, initialClassId]);
-
-  const fetchUserCohorts = async (userId: string | null) => {
+  const fetchUserCohorts = useCallback(async (userId: string | null) => {
     if (!userId) return;
 
     try {
@@ -80,8 +106,6 @@ const AttendanceOverviewPage = () => {
       await getUserDetails(userId, true);
       
       if (response && response.length > 0) {
-        setCohortsData(response);
-        
         // Filter centers: items with parentId === null (SCHOOL type)
         const centers = response
           .filter((item: any) => item.parentId === null && item.type === "SCHOOL")
@@ -114,7 +138,31 @@ const AttendanceOverviewPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const initializePage = async () => {
+      if (typeof window !== "undefined" && window.localStorage) {
+        const token = localStorage.getItem("token");
+        const storedUserId = localStorage.getItem("userId");
+        
+        if (!token) {
+          router.push("/login");
+          return;
+        }
+
+        if (storedUserId) {
+          await fetchUserCohorts(storedUserId);
+          if (initialClassId) {
+            setClassId(initialClassId);
+          }
+        }
+      }
+    };
+
+    initializePage();
+  }, [router, initialClassId, fetchUserCohorts]);
 
   const handleCenterChange = (event: any) => {
     const centerId = event.target.value;
@@ -144,13 +192,7 @@ const AttendanceOverviewPage = () => {
     setClassId(batchId);
   };
 
-  useEffect(() => {
-    if (classId) {
-      fetchAttendanceData();
-    }
-  }, [classId]);
-
-  const fetchAttendanceData = async () => {
+  const fetchAttendanceData = useCallback(async () => {
     if (!classId) return;
 
     try {
@@ -171,17 +213,12 @@ const AttendanceOverviewPage = () => {
         memberStatus: entry.status,
       }));
 
-      // Get attendance statistics
-      const todayFormatted = getTodayDate();
-      const last7Days = new Date();
-      last7Days.setDate(last7Days.getDate() - 6);
-      const fromDate = shortDateFormat(last7Days);
-
+      // Get attendance statistics - use date range from state
       const attendanceFilters: any = {
         scope: "student",
         contextId: classId,
-        fromDate,
-        toDate: todayFormatted,
+        fromDate: fromDate || shortDateFormat(new Date(new Date().setDate(new Date().getDate() - 6))),
+        toDate: toDate || getTodayDate(),
       };
 
       // Get cohort attendance percentage
@@ -245,163 +282,605 @@ const AttendanceOverviewPage = () => {
     } finally {
       setLoading(false);
     }
+  }, [classId, fromDate, toDate]);
+
+  useEffect(() => {
+    if (classId && fromDate && toDate) {
+      fetchAttendanceData();
+    }
+  }, [classId, fromDate, toDate, fetchAttendanceData]);
+
+  const handleDateRangeSelected = ({ fromDate: newFromDate, toDate: newToDate }: { fromDate: string; toDate: string }) => {
+    setFromDate(newFromDate);
+    setToDate(newToDate);
+    const dateRangeStr = `${newFromDate} to ${newToDate}`;
+    setDateRange(dateRangeStr);
+    
+    // Update selected date range display based on the dates
+    const today = new Date();
+    const last7Days = new Date(today);
+    last7Days.setDate(today.getDate() - 6);
+    const last7DaysStr = shortDateFormat(last7Days);
+    const todayStr = getTodayDate();
+    
+    if (newFromDate === last7DaysStr && newToDate === todayStr) {
+      setSelectedDateRange(`Last 7 Days (${dateRangeStr})`);
+    } else if (newFromDate === todayStr && newToDate === todayStr) {
+      setSelectedDateRange(`As of Today (${newToDate})`);
+    } else {
+      setSelectedDateRange(`Custom Range (${dateRangeStr})`);
+    }
+  };
+
+  const handleLogout = () => {
+    setLogoutModalOpen(true);
+  };
+
+  const handleConfirmLogout = () => {
+    if (typeof window !== "undefined") {
+      localStorage.clear();
+      sessionStorage.clear();
+      router.push("/login");
+    }
   };
 
   return (
-    <Layout
-      _topAppBar={{
-        navLinks: [
-          {
-            title: "Profile",
-            icon: <AccountCircleOutlined sx={{ width: 28, height: 28 }} />,
-            to: () => router.push("/profile"),
-            isActive: false,
-            customStyle: {},
-          },
-        ],
-      }}
-    >
-      <Box sx={{ p: 3, backgroundColor: "#f5f5f5", minHeight: "100vh" }}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => router.push("/attandence")}
-          sx={{ mb: 2 }}
-        >
-          Back to Attendance
-        </Button>
-
+    <Layout onlyHideElements={["footer", "topBar"]}>
+      <Box sx={{ backgroundColor: backgroundColor, minHeight: "100vh" }}>
+        {/* Header Section - Matching Dashboard */}
         <Box
           sx={{
-            backgroundColor: "#fffdf7",
-            borderRadius: "8px",
-            p: 3,
-            mb: 3,
+            px: { xs: 2, md: 4 },
+            py: { xs: 3, md: 4 },
+            background: `linear-gradient(180deg, ${backgroundColor} 0%, ${alpha(
+              backgroundColor,
+              0.25
+            )} 100%)`,
           }}
         >
-          <Typography variant="h4" gutterBottom sx={{ fontWeight: 500 }}>
-            Attendance Overview
-          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 2,
+              mb: 3,
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Box
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: "50%",
+                  backgroundColor: alpha("#FFFFFF", 0.35),
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                  boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+                }}
+              >
+                <Image
+                  src={tenantIcon}
+                  alt={tenantAlt}
+                  width={48}
+                  height={48}
+                  style={{ objectFit: "contain" }}
+                />
+              </Box>
+              <Typography
+                sx={{
+                  fontWeight: 600,
+                  fontSize: { xs: "18px", sm: "22px" },
+                  lineHeight: 1.3,
+                  color: secondaryColor,
+                }}
+              >
+                {tenantName}
+              </Typography>
+            </Box>
 
-          {/* Center and Batch Dropdowns */}
-          <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
-            {centersData.length > 0 && (
-              <FormControl size="small" sx={{ minWidth: 200 }}>
-                <InputLabel>Center</InputLabel>
-                <Select
-                  value={selectedCenterId}
-                  label="Center"
-                  onChange={handleCenterChange}
-                  disabled={loading}
-                >
-                  {centersData.map((center) => (
-                    <MenuItem key={center.centerId} value={center.centerId}>
-                      {center.centerName}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-
-            {batchesData.length > 0 && (
-              <FormControl size="small" sx={{ minWidth: 200 }}>
-                <InputLabel>Batch</InputLabel>
-                <Select
-                  value={classId}
-                  label="Batch"
-                  onChange={handleBatchChange}
-                  disabled={loading || !selectedCenterId}
-                >
-                  {batchesData.map((batch) => (
-                    <MenuItem key={batch.batchId} value={batch.batchId}>
-                      {batch.batchName}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Button
+                onClick={() => setLanguage("en")}
+                disabled={language === "en"}
+                sx={{
+                  minWidth: 110,
+                  borderRadius: "999px",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  textTransform: "none",
+                  px: 2.5,
+                  py: 0.75,
+                  backgroundColor:
+                    language === "en"
+                      ? primaryColor
+                      : alpha(secondaryColor, 0.12),
+                  color: language === "en" ? "#FFFFFF" : secondaryColor,
+                  "&:hover": {
+                    backgroundColor:
+                      language === "en"
+                        ? primaryColor
+                        : alpha(secondaryColor, 0.2),
+                  },
+                  "&:disabled": {
+                    backgroundColor: primaryColor,
+                    color: "#FFFFFF",
+                  },
+                }}
+              >
+                English
+              </Button>
+              {/* <Button
+                onClick={() => setLanguage("hi")}
+                disabled={language === "hi"}
+                sx={{
+                  minWidth: 110,
+                  borderRadius: "999px",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  textTransform: "none",
+                  px: 2.5,
+                  py: 0.75,
+                  backgroundColor:
+                    language === "hi"
+                      ? primaryColor
+                      : alpha(secondaryColor, 0.12),
+                  color: language === "hi" ? "#FFFFFF" : secondaryColor,
+                  "&:hover": {
+                    backgroundColor:
+                      language === "hi"
+                        ? primaryColor
+                        : alpha(secondaryColor, 0.2),
+                  },
+                  "&:disabled": {
+                    backgroundColor: primaryColor,
+                    color: "#FFFFFF",
+                  },
+                }}
+              >
+                हिन्दी
+              </Button> */}
+              <IconButton
+                onClick={(e) => setAnchorEl(e.currentTarget)}
+                sx={{
+                  border: `1px solid ${alpha(secondaryColor, 0.2)}`,
+                  color: secondaryColor,
+                  "&:hover": {
+                    backgroundColor: alpha(primaryColor, 0.08),
+                  },
+                }}
+              >
+                <AccountCircleOutlined />
+              </IconButton>
+            </Box>
           </Box>
 
-          {loading ? (
-            <Box display="flex" justifyContent="center" p={3}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <>
-              {/* Overview Cards */}
-              <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid item xs={12} md={4}>
-                  <Card>
-                    <CardContent>
-                      <Typography variant="body2" color="textSecondary" gutterBottom>
-                        Center Attendance
-                      </Typography>
-                      <Typography variant="h4" fontWeight="bold">
-                        {typeof presentPercentage === "number"
-                          ? `${presentPercentage}%`
-                          : presentPercentage}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                <Grid item xs={12} md={8}>
-                  <Card>
-                    <CardContent>
-                      <Typography variant="body2" color="textSecondary" gutterBottom>
-                        Low Attendance Learners
-                      </Typography>
-                      <Typography variant="body1">
-                        {lowAttendanceLearnerList.length > 0
-                          ? lowAttendanceLearnerList.slice(0, 3).join(", ") +
-                            (lowAttendanceLearnerList.length > 3
-                              ? ` and ${lowAttendanceLearnerList.length - 3} more`
-                              : "")
-                          : "No learners with low attendance"}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              </Grid>
+          {/* Welcome Message */}
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              sx={{
+                fontWeight: 600,
+                fontSize: { xs: "18px", sm: "22px" },
+                lineHeight: 1.3,
+                color: secondaryColor,
+              }}
+            >
+              <span style={{ fontSize: "24px", marginRight: "8px" }}>👋</span>
+              {t("LEARNER_APP.PROFILE.MY_PROFILE") || "Welcome"},{" "}
+              {firstName || t("LEARNER_APP.COMMON.LEARNER") || "Learner"}!
+            </Typography>
+          </Box>
 
-              {/* Learner List */}
-              {learnerData.length > 0 && (
-                <Box>
-                  <Typography variant="h6" gutterBottom>
-                    Learner Attendance Details
-                  </Typography>
-                  <Box sx={{ maxHeight: "500px", overflowY: "auto" }}>
-                    {learnerData.map((learner) => (
-                      <Card key={learner.userId} sx={{ mb: 1 }}>
-                        <CardContent>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                            }}
+          {/* Back Button */}
+          <Button
+            startIcon={<ArrowBackIcon />}
+            onClick={() => router.push("/attandence")}
+            sx={{
+              mb: 2,
+              color: secondaryColor,
+              "&:hover": {
+                backgroundColor: alpha(primaryColor, 0.08),
+              },
+            }}
+          >
+            Back to Attendance
+          </Button>
+        </Box>
+
+        {/* Main Content */}
+        <Box sx={{ px: { xs: 2, md: 4 }, pb: { xs: 4, md: 6 } }}>
+          <Box
+            sx={{
+              backgroundColor: alpha(backgroundColor, 0.95),
+              borderRadius: "12px 12px 0 0",
+              padding: { xs: "1rem", md: "2rem 2.5rem 1.5rem 1.5rem" },
+              boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+              mb: 0,
+            }}
+          >
+            <Box
+              display={"flex"}
+              flexDirection={{ xs: "column", md: "row" }}
+              justifyContent={"space-between"}
+              alignItems={{ xs: "flex-start", md: "center" }}
+              marginBottom={"16px"}
+              gap={{ xs: 2, md: 0 }}
+            >
+              <Typography
+                variant="h2"
+                sx={{
+                  fontSize: { xs: "18px", md: "20px" },
+                  fontWeight: "700",
+                  color: secondaryColor,
+                  letterSpacing: "0.3px",
+                }}
+              >
+                Day-Wise Attendance
+              </Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: { xs: "0.5rem", md: "1rem" },
+                  alignItems: "center",
+                  flexDirection: { xs: "column", sm: "row" },
+                  width: { xs: "100%", md: "auto" },
+                }}
+              >
+                {/* Center Selection */}
+                {centersData.length > 0 && (
+                  <Box sx={{ width: { xs: "100%", sm: "auto" } }}>
+                    <FormControl
+                      fullWidth
+                      size="small"
+                      sx={{
+                        minWidth: { xs: "100%", sm: "150px" },
+                        maxWidth: { xs: "100%", md: "200px" },
+                        backgroundColor: "white",
+                        borderRadius: "8px",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                        "& .MuiOutlinedInput-root": {
+                          "&:hover fieldset": {
+                            borderColor: primaryColor,
+                          },
+                          "&.Mui-focused fieldset": {
+                            borderColor: primaryColor,
+                          },
+                        },
+                      }}
+                    >
+                      <InputLabel sx={{ color: secondaryColor }}>Center</InputLabel>
+                      <Select
+                        value={selectedCenterId}
+                        label="Center"
+                        onChange={handleCenterChange}
+                        disabled={loading}
+                        sx={{
+                          color: secondaryColor,
+                          "& .MuiSelect-select": {
+                            color: secondaryColor,
+                          },
+                          "& .MuiSvgIcon-root": {
+                            color: secondaryColor,
+                          },
+                        }}
+                      >
+                        {centersData.map((center) => (
+                          <MenuItem
+                            key={center.centerId}
+                            value={center.centerId}
+                            sx={{ color: secondaryColor }}
                           >
-                            <Typography variant="body1" fontWeight="500">
-                              {learner.name}
-                            </Typography>
-                            <Box sx={{ textAlign: "right" }}>
-                              <Typography variant="body2" color="textSecondary">
-                                Present: {learner.present} | Absent: {learner.absent}
-                              </Typography>
-                              <Typography variant="body2" fontWeight="bold">
-                                {Math.floor(parseFloat(learner.present_percent))}%
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </CardContent>
-                      </Card>
-                    ))}
+                            {center.centerName}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
                   </Box>
+                )}
+
+                {/* Batch Selection */}
+                {batchesData.length > 0 && (
+                  <Box sx={{ width: { xs: "100%", sm: "auto" } }}>
+                    <FormControl
+                      fullWidth
+                      size="small"
+                      sx={{
+                        minWidth: { xs: "100%", sm: "150px" },
+                        maxWidth: { xs: "100%", md: "200px" },
+                        backgroundColor: "white",
+                        borderRadius: "8px",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                        "& .MuiOutlinedInput-root": {
+                          "&:hover fieldset": {
+                            borderColor: primaryColor,
+                          },
+                          "&.Mui-focused fieldset": {
+                            borderColor: primaryColor,
+                          },
+                        },
+                      }}
+                    >
+                      <InputLabel sx={{ color: secondaryColor }}>Batch</InputLabel>
+                      <Select
+                        value={classId}
+                        label="Batch"
+                        onChange={handleBatchChange}
+                        disabled={loading || !selectedCenterId}
+                        sx={{
+                          color: secondaryColor,
+                          "& .MuiSelect-select": {
+                            color: secondaryColor,
+                          },
+                          "& .MuiSvgIcon-root": {
+                            color: secondaryColor,
+                          },
+                        }}
+                      >
+                        {batchesData.map((batch) => (
+                          <MenuItem key={batch.batchId} value={batch.batchId} sx={{ color: secondaryColor }}>
+                            {batch.batchName}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Box>
+                )}
+
+                {/* Date Display */}
+                <Box
+                  display={"flex"}
+                  sx={{
+                    cursor: "pointer",
+                    gap: { xs: "4px", sm: "6px", md: "8px" },
+                    alignItems: "center",
+                    backgroundColor: "white",
+                    padding: { xs: "6px 12px", sm: "7px 14px", md: "8px 16px" },
+                    borderRadius: { xs: "6px", md: "8px" },
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                    border: "1px solid rgba(0,0,0,0.05)",
+                    transition: "all 0.2s",
+                    width: { xs: "100%", sm: "auto" },
+                    justifyContent: { xs: "space-between", sm: "flex-start" },
+                    "&:hover": {
+                      boxShadow: "0 4px 8px rgba(0,0,0,0.15)",
+                      transform: { xs: "none", md: "translateY(-1px)" },
+                    },
+                  }}
+                  onClick={() => router.push(`/attendance-history?classId=${classId}`)}
+                >
+                  <Typography
+                    sx={{
+                      fontWeight: "600",
+                      minWidth: { xs: "auto", sm: "120px", md: "140px" },
+                      textAlign: "center",
+                      fontSize: { xs: "13px", sm: "14px", md: "15px" },
+                      color: secondaryColor,
+                      flex: { xs: 1, sm: "none" },
+                    }}
+                  >
+                    {currentMonth} {currentYear}
+                  </Typography>
+                  <CalendarMonthIcon
+                    sx={{
+                      fontSize: { xs: "14px", sm: "15px", md: "16px" },
+                      ml: { xs: 0, sm: 0.5 },
+                      cursor: "pointer",
+                      color: secondaryColor,
+                      display: { xs: "none", sm: "block" },
+                    }}
+                  />
                 </Box>
-              )}
-            </>
-          )}
+              </Box>
+            </Box>
+          </Box>
+          
+          <Box
+            sx={{
+              backgroundColor: alpha("#FFFFFF", 0.9),
+              borderRadius: "0 0 12px 12px",
+              p: 3,
+              boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+              mt: 0,
+            }}
+          >
+            <Typography
+              variant="h4"
+              gutterBottom
+              sx={{ fontWeight: 600, color: secondaryColor, mb: 3 }}
+            >
+              Attendance Overview
+            </Typography>
+
+            {/* Date Range Filter */}
+            <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap", alignItems: "flex-start" }}>
+              <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 auto", md: "0 0 auto" }, minWidth: { xs: "100%", sm: "200px", md: "250px" } }}>
+                <DateRangePopup
+                  selectedValue={selectedDateRange}
+                  setSelectedValue={setSelectedDateRange}
+                  onDateRangeSelected={handleDateRangeSelected}
+                  dateRange={dateRange}
+                  primaryColor={primaryColor}
+                  secondaryColor={secondaryColor}
+                />
+              </Box>
+            </Box>
+
+            {loading ? (
+              <Box display="flex" justifyContent="center" p={3}>
+                <CircularProgress sx={{ color: primaryColor }} />
+              </Box>
+            ) : (
+              <>
+                {/* Overview Cards */}
+                <Grid container spacing={2} sx={{ mb: 3 }}>
+                  <Grid item xs={12} md={4}>
+                    <Card
+                      sx={{
+                        backgroundColor: alpha("#FFFFFF", 0.9),
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                      }}
+                    >
+                      <CardContent>
+                        <Typography
+                          variant="body2"
+                          component="div"
+                          sx={{ color: alpha(secondaryColor, 0.6), mb: 1 }}
+                        >
+                          Center Attendance
+                        </Typography>
+                        <Typography
+                          variant="h4"
+                          component="div"
+                          fontWeight="bold"
+                          sx={{ color: primaryColor }}
+                        >
+                          {typeof presentPercentage === "number"
+                            ? `${presentPercentage}%`
+                            : presentPercentage}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} md={8}>
+                    <Card
+                      sx={{
+                        backgroundColor: alpha("#FFFFFF", 0.9),
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                      }}
+                    >
+                      <CardContent>
+                        <Typography
+                          variant="body2"
+                          component="div"
+                          sx={{ color: alpha(secondaryColor, 0.6), mb: 1 }}
+                        >
+                          Low Attendance Learners
+                        </Typography>
+                        <Typography variant="body1" component="div" sx={{ color: secondaryColor }}>
+                          {lowAttendanceLearnerList.length > 0
+                            ? lowAttendanceLearnerList.slice(0, 3).join(", ") +
+                              (lowAttendanceLearnerList.length > 3
+                                ? ` and ${lowAttendanceLearnerList.length - 3} more`
+                                : "")
+                            : "No learners with low attendance"}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
+
+                {/* Learner List */}
+                {learnerData.length > 0 && (
+                  <Box>
+                    <Typography
+                      variant="h6"
+                      component="div"
+                      sx={{ color: secondaryColor, mb: 2 }}
+                    >
+                      Learner Attendance Details
+                    </Typography>
+                    <Box sx={{ maxHeight: "500px", overflowY: "auto" }}>
+                      {learnerData.map((learner) => (
+                        <Card
+                          key={learner.userId}
+                          sx={{
+                            mb: 1,
+                            backgroundColor: alpha("#FFFFFF", 0.9),
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                          }}
+                        >
+                          <CardContent>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                              }}
+                            >
+                              <Typography
+                                variant="body1"
+                                component="div"
+                                fontWeight="500"
+                                sx={{ color: secondaryColor }}
+                              >
+                                {learner.name}
+                              </Typography>
+                              <Box sx={{ textAlign: "right" }}>
+                                <Typography
+                                  variant="body2"
+                                  component="div"
+                                  sx={{ color: alpha(secondaryColor, 0.6) }}
+                                >
+                                  Present: {learner.present} | Absent:{" "}
+                                  {learner.absent}
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  component="div"
+                                  fontWeight="bold"
+                                  sx={{ color: primaryColor }}
+                                >
+                                  {Math.floor(parseFloat(learner.present_percent))}%
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+              </>
+            )}
+          </Box>
         </Box>
       </Box>
+
+      {/* Profile Menu */}
+      <ProfileMenu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={() => setAnchorEl(null)}
+        onLogout={handleLogout}
+      />
+
+      {/* Logout Confirmation Modal */}
+      <ConfirmationModal
+        modalOpen={logoutModalOpen}
+        handleCloseModal={() => setLogoutModalOpen(false)}
+        handleAction={handleConfirmLogout}
+        message="Are you sure you want to logout?"
+        buttonNames={{
+          primary: "Logout",
+          secondary: "Cancel",
+        }}
+      />
     </Layout>
+  );
+};
+const AttendanceOverviewPage = () => {
+  return (
+    <Suspense
+      fallback={
+        <Box
+          sx={{
+            minHeight: "100vh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "18px",
+            fontWeight: 500,
+          }}
+        >
+          Loading attendance overview...
+        </Box>
+      }
+    >
+      <AttendanceOverviewContent />
+    </Suspense>
   );
 };
 

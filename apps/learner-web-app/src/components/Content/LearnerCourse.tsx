@@ -12,6 +12,7 @@ import SearchComponent from "./SearchComponent";
 import FilterComponent from "./FilterComponent";
 import { gredientStyle } from "@learner/utils/style";
 import { logEvent } from "@learner/utils/googleAnalytics";
+import { useTenant } from "@learner/context/TenantContext";
 
 interface LearnerCourseProps {
   title?: string;
@@ -45,6 +46,13 @@ export default memo(function LearnerCourse({
   isLoading,
   _content,
 }: LearnerCourseProps) {
+  const { contentFilter } = useTenant();
+  
+  // Get tenant colors
+  const primaryColor = contentFilter?.theme?.primaryColor || "#E6873C";
+  const secondaryColor = contentFilter?.theme?.secondaryColor || "#1A1A1A";
+  const backgroundColor = contentFilter?.theme?.backgroundColor || "#F5F5F5";
+  
   const [filterState, setFilterState] = useState<any>({ limit: 10 });
   const [isOpen, setIsOpen] = useState(false);
   const { t } = useTranslation();
@@ -114,13 +122,13 @@ export default memo(function LearnerCourse({
   };
 
   return (
-    <Stack sx={{ gap: { xs: 0, sm: 0, md: 2 }, pb: 4 }}>
+    <Stack sx={{ gap: { xs: 0, sm: 0, md: 2 }, pb: 4, backgroundColor: backgroundColor }}>
       {title && (
         <Box
           sx={{
             position: "sticky",
             top: 0,
-            bgcolor: "",
+            bgcolor: backgroundColor,
             px: { xs: 1, md: 4 },
             py: { xs: 1, md: 2 },
             zIndex: 1,
