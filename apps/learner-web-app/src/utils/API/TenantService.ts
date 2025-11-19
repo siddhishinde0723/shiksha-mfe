@@ -91,8 +91,8 @@ export const findTenantByDomain = (
   tenants: Tenant[],
   currentDomain?: string
 ): Tenant | null => {
-   let domain = currentDomain;
-  // let domain = 'www.oblf.sunbirdsaas.com';
+  //  let domain = currentDomain;
+  let domain = 'www.oblf.sunbirdsaas.com';
 
   if (!domain) {
     if (typeof window !== "undefined") {

@@ -42,6 +42,7 @@ import {
   getTenantInfo,
 } from "@learner/utils/API/ProgramService";
 import { useTenant } from "@learner/context/TenantContext";
+import LanguageDropdown from "@learner/components/LanguageDropdown/LanguageDropdown";
 
 // Helper function to get cookie value
 const getCookieValue = (name: string): string | null => {
@@ -1743,7 +1744,23 @@ const LoginPage = () => {
               {tenantName}
             </Typography>
           </Box>
+          
+          {/* Language Dropdown */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+            }}
+          >
+            <LanguageDropdown
+              primaryColor={primaryColor}
+              secondaryColor={secondaryColor}
+              size="small"
+              minWidth={150}
+            />
           </Box>
+        </Box>
 
         {/* Main Content: Two Column Layout */}
         <Box

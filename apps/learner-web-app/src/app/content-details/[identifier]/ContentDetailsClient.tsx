@@ -11,6 +11,7 @@ import ConfirmationModal from "../../../components/ConfirmationModal/Confirmatio
 import { useTenant } from "@learner/context/TenantContext";
 import { useTranslation } from "@shared-lib";
 import { useRouter } from "next/navigation";
+import LanguageDropdown from "@learner/components/LanguageDropdown/LanguageDropdown";
 
 const ContentEnrollDetails = dynamic(() => import("@ContentEnrollDetails"), {
   ssr: false,
@@ -119,36 +120,12 @@ const ContentDetailsClient = () => {
                 alignItems: "center",
               }}
             >
-              <Button
-                onClick={() => setLanguage("en")}
-                disabled={language === "en"}
-                sx={{
-                  minWidth: 110,
-                  borderRadius: "999px",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  textTransform: "none",
-                  px: 2.5,
-                  py: 0.75,
-                  backgroundColor:
-                    language === "en"
-                      ? primaryColor
-                      : alpha(secondaryColor, 0.12),
-                  color: language === "en" ? "#FFFFFF" : secondaryColor,
-                  "&:hover": {
-                    backgroundColor:
-                      language === "en"
-                        ? primaryColor
-                        : alpha(secondaryColor, 0.2),
-                  },
-                  "&:disabled": {
-                    backgroundColor: primaryColor,
-                    color: "#FFFFFF",
-                  },
-                }}
-              >
-                ENGLISH
-              </Button>
+              <LanguageDropdown
+                primaryColor={primaryColor}
+                secondaryColor={secondaryColor}
+                size="small"
+                minWidth={150}
+              />
               <IconButton
                 onClick={(e) => setAnchorEl(e.currentTarget)}
                 sx={{

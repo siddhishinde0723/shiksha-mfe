@@ -279,7 +279,6 @@ const SunbirdPlayers = ({
         />
       );
     case "application/vnd.sunbird.questionset":
-      console.log("Routing to QuML Player siddhi");
       return (
         <SunbirdQuMLPlayer
           playerConfig={playerConfig}

@@ -52,3 +52,48 @@ export function deepClone<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj));
 }
 
+const getLocalStorageValue = (key: string) => {
+  if (typeof window === "undefined") return "";
+  try {
+    return localStorage.getItem(key) || "";
+  } catch (error) {
+    console.warn(`[attendance.helper] Unable to read localStorage key ${key}`, error);
+    return "";
+  }
+};
+
+export const getCurrentUserIdentifiers = () => {
+  const userId = getLocalStorageValue("userId");
+  const userName =
+    getLocalStorageValue("userName") ||
+    getLocalStorageValue("username") ||
+    "";
+  return {
+    userId,
+    userName: userName.toLowerCase(),
+  };
+};
+
+type MemberWithUserIdentifiers = {
+  userId?: string;
+  username?: string;
+  userName?: string;
+};
+
+export const filterMembersExcludingCurrentUser = <T extends MemberWithUserIdentifiers>(
+  members: T[] = []
+): T[] => {
+  const { userId: currentUserId, userName: currentUserName } = getCurrentUserIdentifiers();
+
+  if (!currentUserId && !currentUserName) {
+    return members;
+  }
+
+  return members.filter((member) => {
+    const matchesUserId = currentUserId && member.userId === currentUserId;
+    const memberUserName = (member.username || member.userName || "").toLowerCase();
+    const matchesUserName = currentUserName && memberUserName === currentUserName;
+    return !matchesUserId && !matchesUserName;
+  });
+};
+

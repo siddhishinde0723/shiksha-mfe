@@ -43,8 +43,9 @@ import { getCohortList } from "../../utils/API/services/CohortServices";
 import { getMyCohortMemberList } from "../../utils/API/services/MyClassDetailsService";
 import { getUserDetails } from "../../utils/API/services/ProfileService";
 import { ICohort } from "@learner/utils/attendance/interfaces";
-import { getTodayDate, shortDateFormat } from "@learner/utils/attendance/helper";
+import { getTodayDate, shortDateFormat, filterMembersExcludingCurrentUser } from "@learner/utils/attendance/helper";
 import { ATTENDANCE_ENUM } from "@learner/utils/attendance/constants";
+import { getContrastTextColor } from "@learner/utils/colorUtils";
 import ModalComponent from "./components/ModalComponent";
 import MarkBulkAttendance from "./components/MarkBulkAttendance";
 import { showToastMessage } from "./toast";
@@ -60,6 +61,7 @@ import { usePathname } from "next/navigation";
 import { gredientStyle } from "@learner/utils/style";
 import { useTenant } from "@learner/context/TenantContext";
 import { useTranslation } from "@shared-lib";
+import LanguageDropdown from "@learner/components/LanguageDropdown/LanguageDropdown";
 
 const DashboardContainer = styled(Box)<{ backgroundColor?: string }>(({ theme, backgroundColor }) => ({
   minHeight: "100vh",
@@ -228,9 +230,9 @@ const SimpleTeacherDashboard = () => {
   const [open, setOpen] = useState(false);
   const [isRemoteCohort, setIsRemoteCohort] = useState(false);
   const [cohortPresentPercentage, setCohortPresentPercentage] =
-    useState("No Attendance");
+    useState("");
   const [lowAttendanceLearnerList, setLowAttendanceLearnerList] = useState<any>(
-    "No Learners with Low Attendance"
+    ""
   );
   const [allCenterAttendanceData, setAllCenterAttendanceData] = useState<any>(
     []
@@ -366,11 +368,12 @@ const SimpleTeacherDashboard = () => {
             });
 
             const resp = response?.result?.userDetails || response?.data?.result?.userDetails || [];
+            const filteredResp = filterMembersExcludingCurrentUser(resp);
             
-            if (resp && resp.length > 0) {
-              console.log("[handleRemoteSession] Processing members:", resp.length);
+            if (filteredResp && filteredResp.length > 0) {
+              console.log("[handleRemoteSession] Processing members:", filteredResp.length);
               
-              const nameUserIdArray = resp
+              const nameUserIdArray = filteredResp
                 ?.map((entry: any) => ({
                   userId: entry.userId,
                   name: entry.firstName,
@@ -893,7 +896,8 @@ const SimpleTeacherDashboard = () => {
         includeArchived: true,
       });
       const members = memberResponse?.result?.userDetails || [];
-      const totalMembers = members.length;
+      const filteredMembers = filterMembersExcludingCurrentUser(members);
+      const totalMembers = filteredMembers.length;
 
       Object.keys(attendanceDateData).forEach((dateStr) => {
         const dateData = attendanceDateData[dateStr];
@@ -956,9 +960,10 @@ const SimpleTeacherDashboard = () => {
         includeArchived: true,
       });
 
-      const resp = response?.result?.userDetails;
-      if (resp) {
-        const nameUserIdArray = resp
+      const resp = response?.result?.userDetails || [];
+      const filteredResp = filterMembersExcludingCurrentUser(resp);
+      if (filteredResp.length > 0) {
+        const nameUserIdArray = filteredResp
           ?.map((entry: any) => ({
             userId: entry.userId,
             name: entry.firstName,
@@ -968,20 +973,17 @@ const SimpleTeacherDashboard = () => {
             userName: entry.username,
           }))
           .filter((member: any) => {
-            const createdAt = new Date(member.createdAt);
-            createdAt.setHours(0, 0, 0, 0);
             const updatedAt = new Date(member.updatedAt);
             updatedAt.setHours(0, 0, 0, 0);
             const currentDate = new Date(selectedDate);
             currentDate.setHours(0, 0, 0, 0);
 
             if (
-              member.memberStatus === "ARCHIVED" &&
-              updatedAt <= currentDate
+              member.memberStatus === "ARCHIVED" 
             ) {
-              return false;
+             return updatedAt > currentDate
             }
-            return createdAt <= new Date(selectedDate);
+            return true;
           });
 
         if (nameUserIdArray && selectedDate && classId) {
@@ -1071,7 +1073,7 @@ const SimpleTeacherDashboard = () => {
         } else if (contextData?.absent_percentage) {
           setCohortPresentPercentage("0");
         } else {
-          setCohortPresentPercentage("No Attendance");
+          setCohortPresentPercentage(t("LEARNER_APP.ATTENDANCE.NO_ATTENDANCE"));
         }
       }
     } catch (error) {
@@ -1262,12 +1264,6 @@ const SimpleTeacherDashboard = () => {
     }
   };
 
-  const handleLanguageSwitch = (lang: string) => {
-    setLanguage(lang);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("lang", lang);
-    }
-  };
   return (
     <Layout onlyHideElements={["footer", "topBar"]}>
       <Box sx={{ backgroundColor, minHeight: "100vh" }}>
@@ -1331,66 +1327,12 @@ const SimpleTeacherDashboard = () => {
                 alignItems: "center",
               }}
             >
-              <Button
-                onClick={() => handleLanguageSwitch("en")}
-                disabled={language === "en"}
-                sx={{
-                  minWidth: 110,
-                  borderRadius: "999px",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  textTransform: "none",
-                  px: 2.5,
-                  py: 0.75,
-                  backgroundColor:
-                    language === "en"
-                      ? primaryColor
-                      : alpha(secondaryColor, 0.12),
-                  color: language === "en" ? "#FFFFFF" : secondaryColor,
-                  "&:hover": {
-                    backgroundColor:
-                      language === "en"
-                        ? primaryColor
-                        : alpha(secondaryColor, 0.2),
-                  },
-                  "&:disabled": {
-                    backgroundColor: primaryColor,
-                    color: "#FFFFFF",
-                  },
-                }}
-              >
-                ENGLISH
-              </Button>
-              {/* <Button
-                onClick={() => handleLanguageSwitch("hi")}
-                disabled={language === "hi"}
-                sx={{
-                  minWidth: 110,
-                  borderRadius: "999px",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  textTransform: "none",
-                  px: 2.5,
-                  py: 0.75,
-                  backgroundColor:
-                    language === "hi"
-                      ? primaryColor
-                      : alpha(secondaryColor, 0.12),
-                  color: language === "hi" ? "#FFFFFF" : secondaryColor,
-                  "&:hover": {
-                    backgroundColor:
-                      language === "hi"
-                        ? primaryColor
-                        : alpha(secondaryColor, 0.2),
-                  },
-                  "&:disabled": {
-                    backgroundColor: primaryColor,
-                    color: "#FFFFFF",
-                  },
-                }}
-              >
-                हिन्दी
-              </Button> */}
+              <LanguageDropdown
+                primaryColor={primaryColor}
+                secondaryColor={secondaryColor}
+                size="small"
+                minWidth={150}
+              />
               <IconButton
                 onClick={(e) => setAnchorEl(e.currentTarget)}
                 sx={{
@@ -1495,10 +1437,10 @@ const SimpleTeacherDashboard = () => {
               },
             }}
           >
-            <Tab label="Courses" value="Course" />
-            <Tab label="Content" value="content" />
-            <Tab label="Groups" value="groups" />
-            <Tab label="Attendance" value="attendance" />
+            <Tab label={t("LEARNER_APP.COMMON.COURSES")} value="Course" />
+            <Tab label={t("LEARNER_APP.COMMON.CONTENT")} value="content" />
+            <Tab label={t("LEARNER_APP.COMMON.GROUPS")} value="groups" />
+            <Tab label={t("LEARNER_APP.COMMON.ATTENDANCE")} value="attendance" />
           </Tabs>
           <Grid container style={gredientStyle}>
           <Grid item xs={12}>
@@ -1534,7 +1476,7 @@ const SimpleTeacherDashboard = () => {
                     letterSpacing: "0.3px",
                   }}
                 >
-                  Day-Wise Attendance
+                  {t("LEARNER_APP.ATTENDANCE.DAY_WISE_ATTENDANCE")}
                 </Typography>
                 <Box
                   sx={{
@@ -1567,10 +1509,10 @@ const SimpleTeacherDashboard = () => {
                           },
                         }}
                       >
-                        <InputLabel sx={{ color: secondaryColor }}>Center</InputLabel>
+                        <InputLabel sx={{ color: secondaryColor }}>{t("LEARNER_APP.COMMON.CENTER")}</InputLabel>
                         <Select
                           value={selectedCenterId}
-                          label="Center"
+                          label={t("LEARNER_APP.COMMON.CENTER")}
                           onChange={handleCenterChange}
                           disabled={loading}
                           sx={{
@@ -1619,10 +1561,10 @@ const SimpleTeacherDashboard = () => {
                           },
                         }}
                       >
-                        <InputLabel sx={{ color: secondaryColor }}>Batch</InputLabel>
+                        <InputLabel sx={{ color: secondaryColor }}>{t("LEARNER_APP.COMMON.BATCH")}</InputLabel>
                         <Select
                           value={classId}
-                          label="Batch"
+                          label={t("LEARNER_APP.COMMON.BATCH")}
                           onChange={handleBatchChange}
                           disabled={loading || !selectedCenterId}
                           sx={{
@@ -1739,7 +1681,7 @@ const SimpleTeacherDashboard = () => {
                             letterSpacing: { xs: "0.3px", md: "0.5px" },
                           }}
                         >
-                          {isToday ? "Today" : dayData.day}
+                          {isToday ? t("LEARNER_APP.ATTENDANCE.TODAY") : dayData.day}
                         </Typography>
                         <CalendarCell
                           onClick={() => handleDateClick(dayData.dateString)}
@@ -1878,7 +1820,7 @@ const SimpleTeacherDashboard = () => {
                                 100
                               ).toFixed(2)
                             : "0"}
-                          % Attendance
+                          {t("LEARNER_APP.ATTENDANCE.ATTENDANCE_PERCENTAGE")}
                         </Typography>
                         <Typography
                           sx={{
@@ -1890,7 +1832,7 @@ const SimpleTeacherDashboard = () => {
                           variant="body2"
                         >
                           ({attendanceData.presentCount}/
-                          {attendanceData.numberOfCohortMembers} present)
+                          {attendanceData.numberOfCohortMembers} {t("LEARNER_APP.ATTENDANCE.PRESENT_LABEL")})
                         </Typography>
                       </Box>
                     </>
@@ -1903,7 +1845,7 @@ const SimpleTeacherDashboard = () => {
                     }}
                     fontSize={"0.9rem"}
                   >
-                    Not started
+                    {t("LEARNER_APP.ATTENDANCE.NOT_STARTED")}
                   </Typography>
                 )}
                 {currentAttendance === "futureDate" && (
@@ -1915,7 +1857,7 @@ const SimpleTeacherDashboard = () => {
                     fontStyle={"italic"}
                     fontWeight={"500"}
                   >
-                    Future date - can't mark
+                    {t("LEARNER_APP.ATTENDANCE.FUTURE_DATE_CANT_MARK")}
                   </Typography>
                 )}
               </Box>
@@ -1930,7 +1872,7 @@ const SimpleTeacherDashboard = () => {
                   fontSize: { xs: "12px", sm: "13px", md: "14px" },
                   borderRadius: { xs: "6px", md: "8px" },
                   backgroundColor: primaryColor,
-                  color: "#FFFFFF",
+                  color: getContrastTextColor(primaryColor),
                   boxShadow: `0 4px 12px ${alpha(primaryColor, 0.4)}`,
                   "&:hover": {
                     backgroundColor: primaryColor,
@@ -1942,7 +1884,7 @@ const SimpleTeacherDashboard = () => {
                 disabled={classId === "all"}
                 onClick={handleRemoteSession}
               >
-                {currentAttendance === "notMarked" ? "Mark" : "Modify"}
+                {currentAttendance === "notMarked" ? t("LEARNER_APP.ATTENDANCE.MARK") : t("LEARNER_APP.ATTENDANCE.MODIFY")}
               </Button>
             </Box>
 
@@ -1983,10 +1925,10 @@ const SimpleTeacherDashboard = () => {
                     >
                       {selfAttendanceData[0]?.attendance?.toLowerCase() ===
                       ATTENDANCE_ENUM.PRESENT
-                        ? "Present"
+                        ? t("LEARNER_APP.COMMON.PRESENT")
                         : selfAttendanceData[0]?.attendance?.toLowerCase() ===
                           ATTENDANCE_ENUM.ABSENT
-                        ? "Absent"
+                        ? t("LEARNER_APP.COMMON.ABSENT")
                         : selfAttendanceData[0]?.attendance}
                     </Typography>
                     {selfAttendanceData[0]?.attendance?.toLowerCase() ===
@@ -2017,7 +1959,7 @@ const SimpleTeacherDashboard = () => {
                     }}
                     fontSize={"0.9rem"}
                   >
-                    Not Marked For Self
+                    {t("LEARNER_APP.ATTENDANCE.NOT_MARKED_FOR_SELF")}
                   </Typography>
                 )}
               </Box>
@@ -2032,7 +1974,7 @@ const SimpleTeacherDashboard = () => {
                   fontSize: { xs: "12px", sm: "12px", md: "13px" },
                   borderRadius: { xs: "6px", md: "8px" },
                   backgroundColor: primaryColor,
-                  color: "#FFFFFF",
+                  color: getContrastTextColor(primaryColor),
                   boxShadow: `0 4px 12px ${alpha(primaryColor, 0.4)}`,
                   "&:hover": {
                     backgroundColor: primaryColor,
@@ -2051,8 +1993,8 @@ const SimpleTeacherDashboard = () => {
                   ATTENDANCE_ENUM.PRESENT ||
                   selfAttendanceData[0]?.attendance?.toLowerCase() ===
                     ATTENDANCE_ENUM.ABSENT)
-                  ? "Modify For Self"
-                  : "Mark For Self"}
+                  ? t("LEARNER_APP.ATTENDANCE.MODIFY_FOR_SELF")
+                  : t("LEARNER_APP.ATTENDANCE.MARK_FOR_SELF")}
               </Button>
             </Box>
           )}
@@ -2083,10 +2025,10 @@ const SimpleTeacherDashboard = () => {
                   color={secondaryColor}
                   sx={{ fontSize: "18px", mb: 0.5 }}
                 >
-                  Overview
+                  {t("LEARNER_APP.ATTENDANCE.OVERVIEW")}
                 </Typography>
                 <Typography variant="body2" color={alpha(secondaryColor, 0.6)} sx={{ fontSize: "13px" }}>
-                  Last 7 Days {dateRange}
+                  {t("LEARNER_APP.ATTENDANCE.LAST_7_DAYS")} {dateRange}
                 </Typography>
               </Box>
 
@@ -2113,7 +2055,7 @@ const SimpleTeacherDashboard = () => {
                     e.currentTarget.style.color = primaryColor;
                   }}
                 >
-                  More Details →
+                  {t("LEARNER_APP.ATTENDANCE.MORE_DETAILS")}
                 </a>
               </Link>
             </Box>
@@ -2133,7 +2075,7 @@ const SimpleTeacherDashboard = () => {
                               color={secondaryColor}
                               sx={{ mb: 1.5, textTransform: "uppercase", letterSpacing: "0.5px" }}
                             >
-                              Center Attendance
+                              {t("LEARNER_APP.ATTENDANCE.CENTER_ATTENDANCE")}
                             </Typography>
                             {allCenterAttendanceData.length > 0 ? (
                               allCenterAttendanceData.map((item: any, index: number) => (
@@ -2160,18 +2102,18 @@ const SimpleTeacherDashboard = () => {
                                 color={primaryColor}
                                 sx={{ fontSize: "28px", lineHeight: 1.2, mb: 0.5 }}
                               >
-                                {cohortPresentPercentage === "No Attendance"
+                                {cohortPresentPercentage === t("LEARNER_APP.ATTENDANCE.NO_ATTENDANCE")
                                   ? cohortPresentPercentage
                                   : `${cohortPresentPercentage}%`}
                               </Typography>
                             )}
-                            {allCenterAttendanceData.length === 0 && cohortPresentPercentage !== "No Attendance" && (
+                            {allCenterAttendanceData.length === 0 && cohortPresentPercentage !== t("LEARNER_APP.ATTENDANCE.NO_ATTENDANCE") && (
                               <Typography
                                 variant="caption"
                                 color={alpha(secondaryColor, 0.6)}
                                 sx={{ fontSize: "11px" }}
                               >
-                                Overall attendance
+                                {t("LEARNER_APP.ATTENDANCE.OVERALL_ATTENDANCE")}
                               </Typography>
                             )}
                           </Box>
@@ -2189,7 +2131,7 @@ const SimpleTeacherDashboard = () => {
                               color={secondaryColor}
                               sx={{ mb: 1.5, textTransform: "uppercase", letterSpacing: "0.5px" }}
                             >
-                              Low Attendance Learners
+                              {t("LEARNER_APP.ATTENDANCE.LOW_ATTENDANCE_LEARNERS")}
                             </Typography>
                             <Typography
                               fontWeight="500"
@@ -2236,7 +2178,7 @@ const SimpleTeacherDashboard = () => {
                                     fontStyle: "italic",
                                   }}
                                 >
-                                  No Learners with Low Attendance
+                                  {t("LEARNER_APP.ATTENDANCE.NO_LEARNERS_LOW_ATTENDANCE")}
                                 </Typography>
                               )}
                             </Typography>

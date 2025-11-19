@@ -20,6 +20,7 @@ import ProfileMenu from "../../components/ProfileMenu/ProfileMenu";
 import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal";
 import { useTenant } from "@learner/context/TenantContext";
 import { useTranslation } from "@shared-lib";
+import LanguageDropdown from "@learner/components/LanguageDropdown/LanguageDropdown";
 
 const DashboardPage = () => {
   const pathname = usePathname();
@@ -374,68 +375,12 @@ const DashboardPage = () => {
                 alignItems: "center",
               }}
             >
-              <Button
-                onClick={() => setLanguage("en")}
-                disabled={language === "en"}
-                sx={{
-                  minWidth: 110,
-                  borderRadius: "999px",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  textTransform: "none",
-                  px: 2.5,
-                  py: 0.75,
-                  backgroundColor:
-                    language === "en"
-                      ? primaryColor
-                      : alpha(secondaryColor, 0.12),
-                  color: language === "en" ? "#FFFFFF" : secondaryColor,
-                  "&:hover": {
-                    backgroundColor:
-                      language === "en"
-                        ? primaryColor
-                        : alpha(secondaryColor, 0.2),
-                  },
-                  "&:disabled": {
-                    backgroundColor: primaryColor,
-                    color: "#FFFFFF",
-                  },
-                }}
-              >
-                ENGLISH
-              </Button>
-              {/* 
-              <Button
-                onClick={() => setLanguage("hi")}
-                disabled={language === "hi"}
-                sx={{
-                  minWidth: 110,
-                  borderRadius: "999px",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  textTransform: "none",
-                  px: 2.5,
-                  py: 0.75,
-                  backgroundColor:
-                    language === "hi"
-                      ? primaryColor
-                      : alpha(secondaryColor, 0.12),
-                  color: language === "hi" ? "#FFFFFF" : secondaryColor,
-                  "&:hover": {
-                    backgroundColor:
-                      language === "hi"
-                        ? primaryColor
-                        : alpha(secondaryColor, 0.2),
-                  },
-                  "&:disabled": {
-                    backgroundColor: primaryColor,
-                    color: "#FFFFFF",
-                  },
-                }}
-              >
-                हिन्दी
-              </Button>
-              */}
+              <LanguageDropdown
+                primaryColor={primaryColor}
+                secondaryColor={secondaryColor}
+                size="small"
+                minWidth={150}
+              />
               <IconButton
                 onClick={(e) => setAnchorEl(e.currentTarget)}
                 sx={{
@@ -488,10 +433,10 @@ const DashboardPage = () => {
             },
           }}
         >
-          <Tab label="Courses" value="Course" />
-          <Tab label="Content" value="content" />
-          {showGroups && <Tab label="Groups" value="groups" />}
-          {showAttendance && <Tab label="Attendance" value="attendance" />}
+          <Tab label={t("LEARNER_APP.COMMON.COURSES")} value="Course" />
+          <Tab label={t("LEARNER_APP.COMMON.CONTENT")} value="content" />
+          {showGroups && <Tab label={t("LEARNER_APP.COMMON.GROUPS")} value="groups" />}
+          {showAttendance && <Tab label={t("LEARNER_APP.COMMON.ATTENDANCE")} value="attendance" />}
         </Tabs>
         <Grid container style={gredientStyle}>
           <Grid item xs={12}>

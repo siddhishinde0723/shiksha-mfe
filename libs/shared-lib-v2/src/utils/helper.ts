@@ -77,15 +77,15 @@ export function calculateCourseStatus({
     percentage = Math.min(100, percentage);
   }
 
-  console.log("[calculateCourseStatus] Output:", {
-    status,
-    completed: completedCount,
-    in_progress: inProgressCount,
-    total,
-    percentage,
-    completed_list: completed_list.slice(0, 5),
-    in_progress_list: in_progress_list.slice(0, 5),
-  });
+  // console.log("[calculateCourseStatus] Output:", {
+  //   status,
+  //   completed: completedCount,
+  //   in_progress: inProgressCount,
+  //   total,
+  //   percentage,
+  //   completed_list: completed_list.slice(0, 5),
+  //   in_progress_list: in_progress_list.slice(0, 5),
+  // });
 
   return {
     completed_list,
@@ -105,24 +105,24 @@ export const calculateTrackData = (newTrack: any, children: any) => {
 };
 
 export const calculateTrackDataItem = (newTrack: any, item: any) => {
-  console.log("[calculateTrackDataItem] Input:", {
-    newTrack: {
-      courseId: newTrack?.courseId,
-      hasCompletedList: !!newTrack?.completed_list,
-      hasInProgressList: !!newTrack?.in_progress_list,
-      completedListLength: newTrack?.completed_list?.length || 0,
-      inProgressListLength: newTrack?.in_progress_list?.length || 0,
-      completedListSample: newTrack?.completed_list?.slice(0, 3),
-      inProgressListSample: newTrack?.in_progress_list?.slice(0, 3),
-    },
-    item: {
-      identifier: item?.identifier,
-      mimeType: item?.mimeType,
-      hasLeafNodes: !!item?.leafNodes,
-      leafNodesLength: item?.leafNodes?.length || 0,
-      leafNodesSample: item?.leafNodes?.slice(0, 3),
-    },
-  });
+  // console.log("[calculateTrackDataItem] Input:", {
+  //   newTrack: {
+  //     courseId: newTrack?.courseId,
+  //     hasCompletedList: !!newTrack?.completed_list,
+  //     hasInProgressList: !!newTrack?.in_progress_list,
+  //     completedListLength: newTrack?.completed_list?.length || 0,
+  //     inProgressListLength: newTrack?.in_progress_list?.length || 0,
+  //     completedListSample: newTrack?.completed_list?.slice(0, 3),
+  //     inProgressListSample: newTrack?.in_progress_list?.slice(0, 3),
+  //   },
+  //   item: {
+  //     identifier: item?.identifier,
+  //     mimeType: item?.mimeType,
+  //     hasLeafNodes: !!item?.leafNodes,
+  //     leafNodesLength: item?.leafNodes?.length || 0,
+  //     leafNodesSample: item?.leafNodes?.slice(0, 3),
+  //   },
+  // });
 
   // Ensure newTrack has the expected structure
   const statusData = {
@@ -137,11 +137,11 @@ export const calculateTrackDataItem = (newTrack: any, item: any) => {
       allCourseIds,
       courseId: item.identifier,
     });
-    console.log("[calculateTrackDataItem] Course result:", {
-      courseId: item.identifier,
-      percentage: result.percentage,
-      status: result.status,
-    });
+    // console.log("[calculateTrackDataItem] Course result:", {
+    //   courseId: item.identifier,
+    //   percentage: result.percentage,
+    //   status: result.status,
+    // });
     return result;
   } else {
     const allCourseIds = item.identifier ? [item.identifier] : [item.id];
@@ -150,11 +150,11 @@ export const calculateTrackDataItem = (newTrack: any, item: any) => {
       allCourseIds,
       courseId: item.identifier ? item.identifier : item.id,
     });
-    console.log("[calculateTrackDataItem] Content result:", {
-      courseId: item.identifier || item.id,
-      percentage: result.percentage,
-      status: result.status,
-    });
+    // console.log("[calculateTrackDataItem] Content result:", {
+    //   courseId: item.identifier || item.id,
+    //   percentage: result.percentage,
+    //   status: result.status,
+    // });
     return result;
   }
 };

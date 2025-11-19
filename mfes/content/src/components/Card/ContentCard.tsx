@@ -116,11 +116,11 @@ const ContentCard = ({
     ) {
       const pct = (trackItem as any).percentage;
       progress = Math.min(100, Math.max(0, typeof pct === "string" ? parseFloat(pct) : pct));
-      console.log(`[ContentCard] Using percentage from trackItem for ${item.identifier}:`, {
-        percentage: pct,
-        calculatedProgress: progress,
-        trackItem: { courseId: (trackItem as any).courseId, percentage: (trackItem as any).percentage, status: (trackItem as any).status }
-      });
+      // console.log(`[ContentCard] Using percentage from trackItem for ${item.identifier}:`, {
+      //   percentage: pct,
+      //   calculatedProgress: progress,
+      //   trackItem: { courseId: (trackItem as any).courseId, percentage: (trackItem as any).percentage, status: (trackItem as any).status }
+      // });
     } else if (
       type === "Course" &&
       trackItem &&

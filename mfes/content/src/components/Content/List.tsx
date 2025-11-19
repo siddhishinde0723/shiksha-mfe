@@ -477,7 +477,7 @@ export default function Content(props: Readonly<ContentProps>) {
 
       try {
         const response = await fetchAllContent(localFilters);
-        console.log("siddhi:response",response)
+    
 
         if (!response || !isMounted) return;
         const newContentData = [
@@ -805,7 +805,7 @@ export default function Content(props: Readonly<ContentProps>) {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, [hasMoreData, isLoading, handleLoadMore]);
-console.log("contentData siddhi",contentData)
+
   return (
     <LayoutPage
       isLoadingChildren={isInitialLoad}

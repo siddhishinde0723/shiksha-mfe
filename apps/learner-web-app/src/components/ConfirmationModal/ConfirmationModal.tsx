@@ -5,6 +5,8 @@ import Button from "@mui/material/Button";
 import { Divider } from "@mui/material";
 import Modal from "@mui/material/Modal";
 import { useTheme } from "@mui/material/styles";
+import { useTranslation } from "@shared-lib";
+import { getContrastTextColor } from "@learner/utils/colorUtils";
 
 interface ConfirmationModalProps {
   message: string;
@@ -27,6 +29,15 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   handleCloseModal,
 }) => {
   const theme = useTheme<any>();
+  const { t } = useTranslation();
+  
+  // Get primary color from CSS variable or theme
+  const primaryColor = typeof window !== 'undefined' 
+    ? getComputedStyle(document.documentElement).getPropertyValue('--tenant-primary-color').trim() || theme.palette.primary.main
+    : theme.palette.primary.main;
+  
+  // Get appropriate text color based on background color
+  const buttonTextColor = getContrastTextColor(primaryColor);
 
   const style = {
     position: "absolute",
@@ -85,7 +96,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             variant="outlined"
             onClick={handleCloseModal}
           >
-            {/* {buttonNames.primary} */}
+            {buttonNames.secondary || t("LEARNER_APP.COMMON.CANCEL") || "Cancel"}
           </Button>
           <Button
             sx={{
@@ -93,10 +104,15 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
               height: "40px",
               fontSize: "14px",
               fontWeight: "500",
+              color: buttonTextColor,
+              backgroundColor: primaryColor,
+              "&:hover": {
+                backgroundColor: primaryColor,
+                opacity: 0.9,
+              },
             }}
             className="one-line-text"
             variant="contained"
-            color="primary"
             onClick={() => {
               if (handleAction !== undefined) {
                 handleAction();
@@ -106,8 +122,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
               }
             }}
           >
-            Okay
-            {/* {buttonNames.primary} */}
+            {buttonNames.primary || t("LEARNER_APP.COMMON.OK") || "OK"}
           </Button>
         </Box>
       </Box>

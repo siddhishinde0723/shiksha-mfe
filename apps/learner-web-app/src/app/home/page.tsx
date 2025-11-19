@@ -17,6 +17,7 @@ import { Suspense, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Layout, useTranslation } from "@shared-lib";
 import { useTenant } from "@learner/context/TenantContext";
+import LanguageDropdown from "@learner/components/LanguageDropdown/LanguageDropdown";
 
 export default function Index() {
   const router = useRouter();
@@ -134,47 +135,13 @@ export default function Index() {
   }
 
   const SwadhaarLanguageButtons = ({ variant }: { variant: "header" | "body" }) => (
-    <Box
-      sx={{
-        display: "flex",
-        gap: variant === "header" ? 1 : { xs: 1.5, sm: 2 },
-        flexWrap: variant === "header" ? "wrap" : "nowrap",
-        flexDirection: variant === "header" ? "row" : { xs: "column", sm: "row" },
-      }}
-    >
-      {["en", "hi"].map((langOption) => (
-        <Button
-          key={`${variant}-${langOption}`}
-          onClick={() => handleLanguageSelect(langOption)}
-          disabled={language === langOption}
-          sx={{
-            minWidth: variant === "header" ? 110 : { xs: "100%", sm: "140px" },
-            borderRadius: "999px",
-            fontSize: 14,
-            fontWeight: 500,
-            textTransform: "none",
-            px: 2.5,
-            py: 0.75,
-            backgroundColor:
-              language === langOption
-                ? uiPrimaryColor
-                : alpha(uiSecondaryColor, 0.12),
-            color: language === langOption ? "#FFFFFF" : uiSecondaryColor,
-            "&:hover": {
-              backgroundColor:
-                language === langOption
-                  ? uiPrimaryColor
-                  : alpha(uiSecondaryColor, 0.2),
-            },
-            "&:disabled": {
-              backgroundColor: uiPrimaryColor,
-              color: "#FFFFFF",
-            },
-          }}
-        >
-          {langOption === "en" ? "ENGLISH" : "हिन्दी"}
-        </Button>
-      ))}
+    <Box sx={{ width: variant === "body" ? { xs: "100%", sm: "auto" } : "auto" }}>
+      <LanguageDropdown
+        primaryColor={uiPrimaryColor}
+        secondaryColor={uiSecondaryColor}
+        size="small"
+        minWidth={150}
+      />
     </Box>
   );
 
@@ -518,6 +485,22 @@ export default function Index() {
               >
                 {tenantName}
               </Typography>
+            </Box>
+            
+            {/* Language Dropdown */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+              }}
+            >
+              <LanguageDropdown
+                primaryColor={uiPrimaryColor}
+                secondaryColor={uiSecondaryColor}
+                size="small"
+                minWidth={150}
+              />
             </Box>
           </Box>
           <Box

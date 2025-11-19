@@ -29,6 +29,7 @@ import { showToastMessage } from "@learner/components/ToastComponent/Toastify";
 import { transformImageUrl } from "@learner/utils/imageUtils";
 import { useTenant } from "@learner/context/TenantContext";
 import { alpha } from "@mui/material/styles";
+import LanguageDropdown from "@learner/components/LanguageDropdown/LanguageDropdown";
 import ProfileMenu from "../../components/ProfileMenu/ProfileMenu";
 import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal";
 
@@ -276,11 +277,11 @@ const ProfilePage = () => {
     localStorage.getItem("userProgram") === "YouthNet";
 
   // Debug logging
-  console.log("Profile page state:", {
-    courseDataLength: courseData.length,
-    isYouthNet,
-    courseData: courseData,
-  });
+  // console.log("Profile page state:", {
+  //   courseDataLength: courseData.length,
+  //   isYouthNet,
+  //   courseData: courseData,
+  // });
 
   const handleProfileClick = () => {
     setAnchorEl(null);
@@ -366,62 +367,12 @@ const ProfilePage = () => {
             </Box>
 
             <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-              <Button
-                onClick={() => setLanguage("en")}
-                disabled={language === "en"}
-                sx={{
-                  minWidth: 100,
-                  borderRadius: "999px",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  textTransform: "none",
-                  px: 2.5,
-                  py: 0.75,
-                  backgroundColor:
-                    language === "en" ? primaryColor : alpha(secondaryColor, 0.12),
-                  color: language === "en" ? "#FFFFFF" : secondaryColor,
-                  "&:hover": {
-                    backgroundColor:
-                      language === "en"
-                        ? primaryColor
-                        : alpha(secondaryColor, 0.2),
-                  },
-                  "&:disabled": {
-                    backgroundColor: primaryColor,
-                    color: "#FFFFFF",
-                  },
-                }}
-              >
-                ENGLISH
-              </Button>
-              {/* <Button
-                onClick={() => setLanguage("hi")}
-                disabled={language === "hi"}
-                sx={{
-                  minWidth: 100,
-                  borderRadius: "999px",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  textTransform: "none",
-                  px: 2.5,
-                  py: 0.75,
-                  backgroundColor:
-                    language === "hi" ? primaryColor : alpha(secondaryColor, 0.12),
-                  color: language === "hi" ? "#FFFFFF" : secondaryColor,
-                  "&:hover": {
-                    backgroundColor:
-                      language === "hi"
-                        ? primaryColor
-                        : alpha(secondaryColor, 0.2),
-                  },
-                  "&:disabled": {
-                    backgroundColor: primaryColor,
-                    color: "#FFFFFF",
-                  },
-                }}
-              >
-                हिन्दी
-              </Button> */}
+              <LanguageDropdown
+                primaryColor={primaryColor}
+                secondaryColor={secondaryColor}
+                size="small"
+                minWidth={150}
+              />
               <IconButton
                 onClick={(e) => setAnchorEl(e.currentTarget)}
                 sx={{

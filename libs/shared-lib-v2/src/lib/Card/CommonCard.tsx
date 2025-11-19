@@ -156,8 +156,7 @@ export const CommonCard: React.FC<CommonCardProps> = ({
   onClick,
   _card,
 }) => {
-  console.log("content:siddhi", content);
-  console.log("image:siddhi", title);
+
   const [statusBar, setStatusBar] = React.useState<StatuPorps>();
   const [showDetails, setShowDetails] = React.useState(false);
   const { t } = useTranslation();

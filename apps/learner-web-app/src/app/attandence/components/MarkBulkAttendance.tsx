@@ -27,6 +27,9 @@ import {
 } from "@learner/utils/API/services/AttendanceService";
 import { shortDateFormat } from "@learner/utils/attendance/helper";
 import { showToastMessage } from "../toast";
+import { useTranslation } from "@shared-lib";
+import { useTenant } from "@learner/context/TenantContext";
+import { getContrastTextColor } from "@learner/utils/colorUtils";
 
 interface MarkBulkAttendanceProps {
   open: boolean;
@@ -58,6 +61,9 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
   dropoutMemberList,
   dropoutCount,
 }) => {
+  const { t } = useTranslation();
+  const { contentFilter } = useTenant();
+  const primaryColor = contentFilter?.theme?.primaryColor || "#E6873C";
   const [rows, setRows] = React.useState<Array<any>>([]);
   const [loading, setLoading] = React.useState(false);
 
@@ -180,7 +186,7 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
           component="span"
           sx={{ fontWeight: 700, fontSize: "20px", color: "#1F1B13" }}
         >
-          Mark Attendance
+          {t("LEARNER_APP.ATTENDANCE.MARK_ATTENDANCE")}
         </Typography>
         <IconButton
           size="small"
@@ -211,7 +217,7 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
             }}
           >
             <Chip
-              label={`Total: ${rows.length}`}
+              label={`${t("LEARNER_APP.ATTENDANCE.TOTAL_LABEL")} ${rows.length}`}
               sx={{
                 backgroundColor: "#f5f5f5",
                 fontWeight: 600,
@@ -219,7 +225,7 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
               }}
             />
             <Chip
-              label={`Present: ${totalPresent}`}
+              label={`${t("LEARNER_APP.ATTENDANCE.PRESENT_LABEL_WITH_COLON")} ${totalPresent}`}
               sx={{
                 backgroundColor: "rgba(76, 175, 80, 0.1)",
                 color: "#4caf50",
@@ -228,7 +234,7 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
               }}
             />
             <Chip
-              label={`Absent: ${totalAbsent}`}
+              label={`${t("LEARNER_APP.ATTENDANCE.ABSENT_LABEL_WITH_COLON")} ${totalAbsent}`}
               sx={{
                 backgroundColor: "rgba(244, 67, 54, 0.1)",
                 color: "#f44336",
@@ -238,7 +244,7 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
             />
             {dropoutCount > 0 && (
               <Chip
-                label={`Dropouts: ${dropoutCount}`}
+                label={`${t("LEARNER_APP.ATTENDANCE.DROPOUTS")} ${dropoutCount}`}
                 sx={{
                   backgroundColor: "rgba(158, 158, 158, 0.1)",
                   color: "#9e9e9e",
@@ -259,7 +265,7 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
                 fontWeight: 500,
               }}
             >
-              Clear All
+              {t("LEARNER_APP.ATTENDANCE.CLEAR_ALL")}
             </Button>
             <Button
               variant="outlined"
@@ -277,7 +283,7 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
                 },
               }}
             >
-              Mark All Present
+              {t("LEARNER_APP.ATTENDANCE.MARK_ALL_PRESENT")}
             </Button>
             <Button
               variant="outlined"
@@ -295,7 +301,7 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
                 },
               }}
             >
-              Mark All Absent
+              {t("LEARNER_APP.ATTENDANCE.MARK_ALL_ABSENT")}
             </Button>
           </Stack>
         </Stack>
@@ -321,8 +327,8 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
                   },
                 }}
               >
-                <TableCell>Name</TableCell>
-                <TableCell align="center">Attendance</TableCell>
+                <TableCell>{t("LEARNER_APP.ATTENDANCE.NAME")}</TableCell>
+                <TableCell align="center">{t("LEARNER_APP.ATTENDANCE.ATTENDANCE_LABEL")}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -482,7 +488,7 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
             },
           }}
         >
-          Cancel
+          {t("LEARNER_APP.COMMON.CANCEL")}
         </Button>
         <Button
           variant="contained"
@@ -493,15 +499,24 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
             textTransform: "none",
             fontWeight: 600,
             padding: "10px 32px",
-            boxShadow: "0 4px 12px rgba(251, 188, 19, 0.4)",
+            backgroundColor: primaryColor,
+            color: getContrastTextColor(primaryColor),
+            boxShadow: `0 4px 12px ${primaryColor}40`,
             "&:hover": {
-              boxShadow: "0 6px 16px rgba(251, 188, 19, 0.5)",
+              backgroundColor: primaryColor,
+              opacity: 0.9,
+              boxShadow: `0 6px 16px ${primaryColor}50`,
               transform: "translateY(-1px)",
+            },
+            "&:disabled": {
+              backgroundColor: primaryColor,
+              opacity: 0.6,
+              color: getContrastTextColor(primaryColor),
             },
             transition: "all 0.2s",
           }}
         >
-          {loading ? <CircularProgress size={20} color="inherit" /> : "Save"}
+          {loading ? <CircularProgress size={20} sx={{ color: getContrastTextColor(primaryColor) }} /> : t("LEARNER_APP.COMMON.SAVE")}
         </Button>
       </DialogActions>
     </Dialog>

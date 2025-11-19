@@ -93,10 +93,9 @@ const LanguageSelect = ({
   const handleChange = (event: any) => {
     const newLanguage = event.target.value;
     setSelectedLanguage(newLanguage);
+    localStorage.setItem('lang', newLanguage);
     if (onLanguageChange) {
       onLanguageChange(newLanguage);
-    } else {
-      localStorage.setItem('lang', newLanguage);
     }
   };
 
@@ -106,13 +105,25 @@ const LanguageSelect = ({
       size="small"
       onChange={handleChange}
       sx={{
-        minWidth: 80,
+        minWidth: 120,
         height: 40,
+        backgroundColor: 'white',
+        borderRadius: '8px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
         color: theme.palette.text.primary,
+        '& .MuiOutlinedInput-notchedOutline': {
+          borderColor: 'rgba(0, 0, 0, 0.1)',
+        },
+        '&:hover .MuiOutlinedInput-notchedOutline': {
+          borderColor: 'rgba(0, 0, 0, 0.2)',
+        },
+        '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+          borderColor: theme.palette.primary.main,
+        },
       }}
     >
-      <MuiMenuItem value="en">EN</MuiMenuItem>
-      <MuiMenuItem value="hi">HI</MuiMenuItem>
+      <MuiMenuItem value="en">English</MuiMenuItem>
+      <MuiMenuItem value="hi">हिन्दी</MuiMenuItem>
     </Select>
   );
 };

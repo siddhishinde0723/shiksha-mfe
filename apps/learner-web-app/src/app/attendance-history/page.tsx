@@ -38,8 +38,9 @@ import {
 } from "@learner/utils/API/services/AttendanceService";
 import { getMyCohortMemberList } from "@learner/utils/API/services/MyClassDetailsService";
 import { ICohort } from "@learner/utils/attendance/interfaces";
-import { getTodayDate, shortDateFormat } from "@learner/utils/attendance/helper";
+import { shortDateFormat, filterMembersExcludingCurrentUser } from "@learner/utils/attendance/helper";
 import { fetchAttendanceDetails } from "@learner/app/attandence/fetchAttendanceDetails";
+import { getContrastTextColor } from "@learner/utils/colorUtils";
 import { useTheme } from "@mui/material/styles";
 import { alpha } from "@mui/material/styles";
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
@@ -52,10 +53,11 @@ import "../global.css";
 import { useTranslation } from "@shared-lib";
 import { useTenant } from "@learner/context/TenantContext";
 import Image from "next/image";
+import LanguageDropdown from "@learner/components/LanguageDropdown/LanguageDropdown";
 
 const AttendanceHistoryPageContent = () => {
   const router = useRouter();
-  const { t, language, setLanguage } = useTranslation();
+  const { t } = useTranslation();
   const { tenant, contentFilter } = useTenant();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -84,9 +86,11 @@ const AttendanceHistoryPageContent = () => {
   const [percentageAttendance, setPercentageAttendance] = useState<any>({});
   const [attendanceProgressBarData, setAttendanceProgressBarData] = useState<any>({});
   const [openMarkAttendance, setOpenMarkAttendance] = useState(false);
+  const [loadingModalData, setLoadingModalData] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [firstName, setFirstName] = useState("");
+  const [nameUserIdArrayForModal, setNameUserIdArrayForModal] = useState<Array<any>>([]);
   const [attendanceData, setAttendanceData] = useState({
     cohortMemberList: [] as any[],
     presentCount: 0,
@@ -224,8 +228,11 @@ const AttendanceHistoryPageContent = () => {
 
   useEffect(() => {
     if (classId && selectedDate) {
+      console.log("[useEffect] Triggering fetchAttendanceForDate", { classId, selectedDate: shortDateFormat(selectedDate) });
       fetchAttendanceForDate();
       fetchAttendanceStats();
+    } else {
+      console.log("[useEffect] Skipping fetch - missing classId or selectedDate", { classId, selectedDate });
     }
   }, [classId, selectedDate]);
 
@@ -254,7 +261,9 @@ const AttendanceHistoryPageContent = () => {
         filters: { cohortId: classId },
         includeArchived: true,
       });
-      const totalMembers = memberResponse?.result?.userDetails?.length || 0;
+      const rawMembers = memberResponse?.result?.userDetails || [];
+      const filteredMembers = filterMembersExcludingCurrentUser(rawMembers);
+      const totalMembers = filteredMembers.length;
 
       // Get attendance data for the month
       const attendanceRequest = {
@@ -295,11 +304,17 @@ const AttendanceHistoryPageContent = () => {
   };
 
   const fetchAttendanceForDate = async () => {
-    if (!classId || !selectedDate) return;
+    if (!classId || !selectedDate) {
+      console.log("[fetchAttendanceForDate] Skipping - missing classId or selectedDate", { classId, selectedDate });
+      return;
+    }
 
     try {
       setLoading(true);
       const selectedDateStr = shortDateFormat(selectedDate);
+      const selectedDateObj = new Date(selectedDateStr);
+      selectedDateObj.setHours(0, 0, 0, 0);
+      console.log("[fetchAttendanceForDate] Fetching attendance for date:", selectedDateStr);
       
       // Get cohort members
       const memberResponse = await getMyCohortMemberList({
@@ -308,9 +323,9 @@ const AttendanceHistoryPageContent = () => {
         filters: { cohortId: classId },
         includeArchived: true,
       });
-
       const members = memberResponse?.result?.userDetails || [];
-      const nameUserIdArray = members
+      const filteredMembers = filterMembersExcludingCurrentUser(members);
+      const nameUserIdArray = filteredMembers
         .map((entry: any) => ({
           userId: entry.userId,
           name: `${entry.firstName || ""} ${entry.lastName || ""}`.trim() || entry.firstName,
@@ -320,20 +335,41 @@ const AttendanceHistoryPageContent = () => {
           userName: entry.username,
         }))
         .filter((member: any) => {
-          const createdAt = new Date(member.createdAt);
-          createdAt.setHours(0, 0, 0, 0);
-          const updatedAt = new Date(member.updatedAt);
-          updatedAt.setHours(0, 0, 0, 0);
-          const currentDate = new Date(selectedDateStr);
-          currentDate.setHours(0, 0, 0, 0);
+          try {
+            if (member.memberStatus === "ACTIVE") {
+              return true;
+            }
 
-          if (
-            member.memberStatus === "ARCHIVED" &&
-            updatedAt <= currentDate
-          ) {
-            return false;
+            if (member.memberStatus === "ARCHIVED" || member.memberStatus === "DROPOUT") {
+              if (!member.updatedAt) {
+                console.warn("[fetchAttendanceForDate] Member missing updatedAt. Including by default:", {
+                  userId: member.userId,
+                  name: member.name,
+                  status: member.memberStatus,
+                });
+                return true;
+              }
+
+              const updatedAt = new Date(member.updatedAt);
+              if (isNaN(updatedAt.getTime())) {
+                console.warn("[fetchAttendanceForDate] Invalid updatedAt date. Including member:", {
+                  userId: member.userId,
+                  name: member.name,
+                  status: member.memberStatus,
+                  updatedAt: member.updatedAt,
+                });
+                return true;
+              }
+
+              updatedAt.setHours(0, 0, 0, 0);
+              return updatedAt > selectedDateObj;
+            }
+
+            return true;
+          } catch (error) {
+            console.error("[fetchAttendanceForDate] Error filtering member. Including by default:", error, member);
+            return true;
           }
-          return createdAt <= new Date(selectedDateStr);
         });
 
       // Get attendance status list
@@ -350,20 +386,48 @@ const AttendanceHistoryPageContent = () => {
 
       const attendanceResponse = await attendanceStatusList(attendanceStatusData);
       const attendanceList = attendanceResponse?.data?.attendanceList || [];
+      
+      console.log("[fetchAttendanceForDate] Attendance API response:", {
+        attendanceListLength: attendanceList.length,
+        selectedDateStr,
+        sampleAttendance: attendanceList.slice(0, 3),
+      });
 
-      // Merge member data with attendance
+      // Merge member data with attendance - ensure empty string if not marked
       const mergedList = nameUserIdArray.map((member: any) => {
         const attendance = attendanceList.find(
           (a: any) => a.userId === member.userId
         );
+        // Explicitly set to empty string if attendance is not found
         return {
           ...member,
           attendance: attendance?.attendance || "",
         };
       });
 
-      setCohortMemberList(mergedList);
-      setDisplayStudentList(mergedList);
+      // Ensure all members have attendance field (empty string if not marked)
+      const cleanedMergedList = mergedList.map((member: any) => ({
+        ...member,
+        // Force empty string if attendance is falsy (null, undefined, empty string)
+        attendance: (member.attendance && member.attendance.trim() !== "") ? member.attendance : "",
+      }));
+      
+      console.log("[fetchAttendanceForDate] Setting lists:", {
+        cleanedMergedListLength: cleanedMergedList.length,
+        nameUserIdArrayLength: nameUserIdArray.length,
+        attendanceListLength: attendanceList.length,
+        sampleMembers: cleanedMergedList.slice(0, 5).map((m: any) => ({
+          userId: m.userId,
+          name: m.name,
+          attendance: m.attendance || "EMPTY",
+        })),
+      });
+      
+      // Always set the lists, even if empty, so the UI can render appropriately
+      setCohortMemberList(cleanedMergedList);
+      setDisplayStudentList(cleanedMergedList);
+      // Store nameUserIdArray without attendance for modal use
+      setNameUserIdArrayForModal(nameUserIdArray);
 
       // Fetch attendance details for progress bar
       if (nameUserIdArray.length > 0) {
@@ -389,6 +453,9 @@ const AttendanceHistoryPageContent = () => {
       }
     } catch (error) {
       console.error("Error fetching attendance data:", error);
+      // Even on error, ensure lists are set (might be empty but should still render)
+      setCohortMemberList([]);
+      setDisplayStudentList([]);
     } finally {
       setLoading(false);
     }
@@ -416,6 +483,18 @@ const AttendanceHistoryPageContent = () => {
     const date = value as Date | Date[] | null;
     if (date && !Array.isArray(date)) {
       setSelectedDate(date);
+      // Reset attendance data when date changes to ensure fresh data
+      setAttendanceData({
+        cohortMemberList: [] as any[],
+        presentCount: 0,
+        absentCount: 0,
+        numberOfCohortMembers: 0,
+        dropoutMemberList: [] as any[],
+        dropoutCount: 0,
+        bulkAttendanceStatus: "",
+      });
+      // Don't clear the lists here - let fetchAttendanceForDate handle it
+      // This ensures the list remains visible while new data is being fetched
     }
   };
 
@@ -423,7 +502,67 @@ const AttendanceHistoryPageContent = () => {
     // Handle month change
   };
 
-  const handleOpen = () => {
+  const handleOpen = async () => {
+    // Ensure attendanceData is up-to-date before opening modal
+    // Use nameUserIdArrayForModal (without attendance) to fetch fresh attendance data
+    if (nameUserIdArrayForModal.length > 0) {
+      setLoadingModalData(true);
+      const selectedDateStr = shortDateFormat(selectedDate);
+      
+      // Reset attendance data first to ensure clean state
+      setAttendanceData({
+        cohortMemberList: [] as any[],
+        presentCount: 0,
+        absentCount: 0,
+        numberOfCohortMembers: 0,
+        dropoutMemberList: [] as any[],
+        dropoutCount: 0,
+        bulkAttendanceStatus: "",
+      });
+      
+      // Fetch fresh attendance data using nameUserIdArray without attendance merged
+      // Wait for the data to be set before opening the modal
+      await new Promise<void>((resolve) => {
+        fetchAttendanceDetails(
+          nameUserIdArrayForModal,
+          selectedDateStr,
+          classId,
+          (data: any) => {
+            console.log("[handleOpen] Attendance data received:", {
+              cohortMemberListLength: data.cohortMemberList?.length,
+              presentCount: data.presentCount,
+              absentCount: data.absentCount,
+              sampleMembers: data.cohortMemberList?.slice(0, 5).map((m: any) => ({
+                userId: m.userId,
+                name: m.name,
+                attendance: m.attendance || "empty",
+              })),
+            });
+            // Ensure all members have attendance field, defaulting to empty string if not marked
+            const cleanedData = {
+              ...data,
+              cohortMemberList: data.cohortMemberList?.map((member: any) => ({
+                ...member,
+                attendance: member.attendance || "",
+              })) || [],
+            };
+            setAttendanceData(cleanedData);
+            // Use multiple frames to ensure state is fully updated
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                setTimeout(() => {
+                  setLoadingModalData(false);
+                  resolve();
+                }, 100);
+              });
+            });
+          }
+        );
+      });
+    } else {
+      console.warn("[handleOpen] nameUserIdArrayForModal is empty");
+      setLoadingModalData(false);
+    }
     setOpenMarkAttendance(true);
   };
 
@@ -446,6 +585,13 @@ const AttendanceHistoryPageContent = () => {
 
   const pathColor = determinePathColor(presentPercentage);
   const backgroundGradient = `linear-gradient(180deg, ${backgroundColor} 0%, ${alpha(backgroundColor, 0.25)} 100%)`;
+  const attendanceColumnStyles = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: "32px",
+    minWidth: { xs: "auto", sm: "220px" },
+  } as const;
 
   return (
     <Layout onlyHideElements={["footer", "topBar"]}>
@@ -509,36 +655,12 @@ const AttendanceHistoryPageContent = () => {
                 alignItems: "center",
               }}
             >
-              <Button
-                onClick={() => setLanguage("en")}
-                disabled={language === "en"}
-                sx={{
-                  minWidth: 110,
-                  borderRadius: "999px",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  textTransform: "none",
-                  px: 2.5,
-                  py: 0.75,
-                  backgroundColor:
-                    language === "en"
-                      ? primaryColor
-                      : alpha(secondaryColor, 0.12),
-                  color: language === "en" ? "#FFFFFF" : secondaryColor,
-                  "&:hover": {
-                    backgroundColor:
-                      language === "en"
-                        ? primaryColor
-                        : alpha(secondaryColor, 0.2),
-                  },
-                  "&:disabled": {
-                    backgroundColor: primaryColor,
-                    color: "#FFFFFF",
-                  },
-                }}
-              >
-                ENGLISH
-              </Button>
+              <LanguageDropdown
+                primaryColor={primaryColor}
+                secondaryColor={secondaryColor}
+                size="small"
+                minWidth={150}
+              />
               <IconButton
                 onClick={(e) => setAnchorEl(e.currentTarget)}
                 sx={{
@@ -655,7 +777,7 @@ const AttendanceHistoryPageContent = () => {
                       letterSpacing: "0.3px",
                     }}
                   >
-                    Day-Wise Attendance
+                    {t("LEARNER_APP.ATTENDANCE.DAY_WISE_ATTENDANCE")}
                   </Typography>
                 </Box>
                 <Box
@@ -689,10 +811,10 @@ const AttendanceHistoryPageContent = () => {
                           },
                         }}
                       >
-                        <InputLabel sx={{ color: secondaryColor }}>Center</InputLabel>
+                        <InputLabel sx={{ color: secondaryColor }}>{t("LEARNER_APP.COMMON.CENTER")}</InputLabel>
                         <Select
                           value={selectedCenterId}
-                          label="Center"
+                          label={t("LEARNER_APP.COMMON.CENTER")}
                           onChange={handleCenterChange}
                           disabled={loading}
                           sx={{
@@ -741,10 +863,10 @@ const AttendanceHistoryPageContent = () => {
                           },
                         }}
                       >
-                        <InputLabel sx={{ color: secondaryColor }}>Batch</InputLabel>
+                        <InputLabel sx={{ color: secondaryColor }}>{t("LEARNER_APP.COMMON.BATCH")}</InputLabel>
                         <Select
                           value={classId}
-                          label="Batch"
+                          label={t("LEARNER_APP.COMMON.BATCH")}
                           onChange={handleBatchChange}
                           disabled={loading || !selectedCenterId}
                           sx={{
@@ -911,17 +1033,18 @@ const AttendanceHistoryPageContent = () => {
                     fontSize: "14px",
                     borderRadius: "8px",
                     backgroundColor: primaryColor,
-                    color: "#FFFFFF",
+                    color: getContrastTextColor(primaryColor),
                     boxShadow: `0 4px 12px ${alpha(primaryColor, 0.4)}`,
                     "&:hover": {
                       backgroundColor: primaryColor,
+                      opacity: 0.9,
                       boxShadow: `0 6px 16px ${alpha(primaryColor, 0.5)}`,
                       transform: "translateY(-1px)",
                     },
                     transition: "all 0.2s",
                   }}
                 >
-                  Mark Attendance
+                  {t("LEARNER_APP.ATTENDANCE.MARK_ATTENDANCE")}
                 </Button>
               </Grid>
             </Grid>
@@ -1044,7 +1167,7 @@ const AttendanceHistoryPageContent = () => {
                           color: secondaryColor,
                           px: "16px",
                         }}
-                        placeholder="Search student.."
+                        placeholder={t("LEARNER_APP.ATTENDANCE.SEARCH_STUDENT")}
                         inputProps={{ "aria-label": "search student" }}
                         onChange={handleSearch}
                       />
@@ -1079,7 +1202,7 @@ const AttendanceHistoryPageContent = () => {
                   display: "flex",
                   justifyContent: "space-between",
                   padding: "18px 24px",
-                  borderBottom: `3px solid ${primaryColor}`,
+                  borderBottom: `1px solid ${primaryColor}`,
                   bgcolor: "white",
                   borderRadius: "12px 12px 0 0",
                   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
@@ -1095,9 +1218,9 @@ const AttendanceHistoryPageContent = () => {
                     letterSpacing: "1px",
                   }}
                 >
-                  Learner Name
+                  {t("LEARNER_APP.ATTENDANCE.LEARNER_NAME")}
                 </Typography>
-                <Box sx={{ display: "flex", gap: "32px" }}>
+                <Box sx={attendanceColumnStyles}>
                   <Typography
                     sx={{
                       color: secondaryColor,
@@ -1107,20 +1230,9 @@ const AttendanceHistoryPageContent = () => {
                       letterSpacing: "1px",
                     }}
                   >
-                    Present
+                    {t("LEARNER_APP.ATTENDANCE.ATTENDANCE_LABEL")}
                   </Typography>
-                  <Typography
-                    sx={{
-                      color: secondaryColor,
-                      fontSize: "14px",
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      letterSpacing: "1px",
-                      paddingRight: "10px",
-                    }}
-                  >
-                    Absent
-                  </Typography>
+                  <Box width="40px" />
                 </Box>
               </Box>
 
@@ -1164,7 +1276,7 @@ const AttendanceHistoryPageContent = () => {
                       >
                         {user.name}
                       </Typography>
-                      <Box sx={{ display: "flex", gap: "32px", alignItems: "center" }}>
+                      <Box sx={attendanceColumnStyles}>
                         {user.attendance?.toLowerCase() === "present" ? (
                           <Box
                             sx={{
@@ -1243,7 +1355,7 @@ const AttendanceHistoryPageContent = () => {
                             </Typography>
                           </Box>
                         )}
-                        <Box width="40px" />
+                        <Box sx={{ width: "40px" }} />
                       </Box>
                     </Box>
                   ))}

@@ -18,6 +18,10 @@ import {
   CardContent,
   CircularProgress,
   IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import Image from "next/image";
@@ -33,12 +37,13 @@ import {
 } from "@learner/utils/API/services/AttendanceService";
 import { getMyCohortMemberList } from "@learner/utils/API/services/MyClassDetailsService";
 import { AttendanceAPILimit } from "../../../app.config";
-import { getTodayDate, shortDateFormat } from "@learner/utils/attendance/helper";
+import { getTodayDate, shortDateFormat, filterMembersExcludingCurrentUser } from "@learner/utils/attendance/helper";
 import ProfileMenu from "../../components/ProfileMenu/ProfileMenu";
 import ConfirmationModal from "../../components/ConfirmationModal/ConfirmationModal";
 import DateRangePopup from "../../components/DateRangePopup/DateRangePopup";
 import { useTenant } from "@learner/context/TenantContext";
 import { useTranslation } from "@shared-lib";
+import LanguageDropdown from "@learner/components/LanguageDropdown/LanguageDropdown";
 
 const AttendanceOverviewContent = () => {
   const router = useRouter();
@@ -70,6 +75,9 @@ const AttendanceOverviewContent = () => {
   const [toDate, setToDate] = useState("");
   const [selectedDateRange, setSelectedDateRange] = useState("");
   const [dateRange, setDateRange] = useState("");
+  const [userDetailsModalOpen, setUserDetailsModalOpen] = useState(false);
+  const [selectedUserDetails, setSelectedUserDetails] = useState<any>(null);
+  const [loadingUserDetails, setLoadingUserDetails] = useState(false);
   
   const today = new Date();
   const currentMonth = today.toLocaleString("default", {
@@ -207,7 +215,8 @@ const AttendanceOverviewContent = () => {
       });
 
       const members = memberResponse?.result?.userDetails || [];
-      const nameUserIdArray = members.map((entry: any) => ({
+      const filteredMembers = filterMembersExcludingCurrentUser(members);
+      const nameUserIdArray = filteredMembers.map((entry: any) => ({
         userId: entry.userId,
         name: `${entry.firstName || ""} ${entry.lastName || ""}`.trim(),
         memberStatus: entry.status,
@@ -238,7 +247,7 @@ const AttendanceOverviewContent = () => {
       } else if (contextData?.absent_percentage) {
         setPresentPercentage(0);
       } else {
-        setPresentPercentage("No Attendance");
+        setPresentPercentage(t("LEARNER_APP.ATTENDANCE.NO_ATTENDANCE"));
       }
 
       // Get low attendance learners
@@ -324,6 +333,30 @@ const AttendanceOverviewContent = () => {
     }
   };
 
+  const handleLearnerClick = async (userId: string) => {
+    try {
+      setLoadingUserDetails(true);
+      setUserDetailsModalOpen(true);
+      
+      // Fetch user details
+      const response = await getUserDetails(userId, true);
+      // API response structure: response.result.userData
+      const userData = response?.result?.userData || response?.result || response?.data?.result?.userData || response?.data?.result || response;
+      
+      setSelectedUserDetails(userData);
+    } catch (error) {
+      console.error("Error fetching user details:", error);
+      setSelectedUserDetails(null);
+    } finally {
+      setLoadingUserDetails(false);
+    }
+  };
+
+  const handleCloseUserDetailsModal = () => {
+    setUserDetailsModalOpen(false);
+    setSelectedUserDetails(null);
+  };
+
   return (
     <Layout onlyHideElements={["footer", "topBar"]}>
       <Box sx={{ backgroundColor: backgroundColor, minHeight: "100vh" }}>
@@ -383,66 +416,12 @@ const AttendanceOverviewContent = () => {
             </Box>
 
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-              <Button
-                onClick={() => setLanguage("en")}
-                disabled={language === "en"}
-                sx={{
-                  minWidth: 110,
-                  borderRadius: "999px",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  textTransform: "none",
-                  px: 2.5,
-                  py: 0.75,
-                  backgroundColor:
-                    language === "en"
-                      ? primaryColor
-                      : alpha(secondaryColor, 0.12),
-                  color: language === "en" ? "#FFFFFF" : secondaryColor,
-                  "&:hover": {
-                    backgroundColor:
-                      language === "en"
-                        ? primaryColor
-                        : alpha(secondaryColor, 0.2),
-                  },
-                  "&:disabled": {
-                    backgroundColor: primaryColor,
-                    color: "#FFFFFF",
-                  },
-                }}
-              >
-                English
-              </Button>
-              {/* <Button
-                onClick={() => setLanguage("hi")}
-                disabled={language === "hi"}
-                sx={{
-                  minWidth: 110,
-                  borderRadius: "999px",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  textTransform: "none",
-                  px: 2.5,
-                  py: 0.75,
-                  backgroundColor:
-                    language === "hi"
-                      ? primaryColor
-                      : alpha(secondaryColor, 0.12),
-                  color: language === "hi" ? "#FFFFFF" : secondaryColor,
-                  "&:hover": {
-                    backgroundColor:
-                      language === "hi"
-                        ? primaryColor
-                        : alpha(secondaryColor, 0.2),
-                  },
-                  "&:disabled": {
-                    backgroundColor: primaryColor,
-                    color: "#FFFFFF",
-                  },
-                }}
-              >
-                हिन्दी
-              </Button> */}
+              <LanguageDropdown
+                primaryColor={primaryColor}
+                secondaryColor={secondaryColor}
+                size="small"
+                minWidth={150}
+              />
               <IconButton
                 onClick={(e) => setAnchorEl(e.currentTarget)}
                 sx={{
@@ -486,7 +465,7 @@ const AttendanceOverviewContent = () => {
               },
             }}
           >
-            Back to Attendance
+            {t("LEARNER_APP.ATTENDANCE.BACK_TO_ATTENDANCE")}
           </Button>
         </Box>
 
@@ -518,7 +497,7 @@ const AttendanceOverviewContent = () => {
                   letterSpacing: "0.3px",
                 }}
               >
-                Day-Wise Attendance
+                {t("LEARNER_APP.ATTENDANCE.DAY_WISE_ATTENDANCE")}
               </Typography>
               <Box
                 sx={{
@@ -551,10 +530,10 @@ const AttendanceOverviewContent = () => {
                         },
                       }}
                     >
-                      <InputLabel sx={{ color: secondaryColor }}>Center</InputLabel>
+                      <InputLabel sx={{ color: secondaryColor }}>{t("LEARNER_APP.COMMON.CENTER")}</InputLabel>
                       <Select
                         value={selectedCenterId}
-                        label="Center"
+                        label={t("LEARNER_APP.COMMON.CENTER")}
                         onChange={handleCenterChange}
                         disabled={loading}
                         sx={{
@@ -603,10 +582,10 @@ const AttendanceOverviewContent = () => {
                         },
                       }}
                     >
-                      <InputLabel sx={{ color: secondaryColor }}>Batch</InputLabel>
+                      <InputLabel sx={{ color: secondaryColor }}>{t("LEARNER_APP.COMMON.BATCH")}</InputLabel>
                       <Select
                         value={classId}
-                        label="Batch"
+                        label={t("LEARNER_APP.COMMON.BATCH")}
                         onChange={handleBatchChange}
                         disabled={loading || !selectedCenterId}
                         sx={{
@@ -691,7 +670,7 @@ const AttendanceOverviewContent = () => {
               gutterBottom
               sx={{ fontWeight: 600, color: secondaryColor, mb: 3 }}
             >
-              Attendance Overview
+              {t("LEARNER_APP.ATTENDANCE.ATTENDANCE_OVERVIEW")}
             </Typography>
 
             {/* Date Range Filter */}
@@ -729,7 +708,7 @@ const AttendanceOverviewContent = () => {
                           component="div"
                           sx={{ color: alpha(secondaryColor, 0.6), mb: 1 }}
                         >
-                          Center Attendance
+                          {t("LEARNER_APP.ATTENDANCE.CENTER_ATTENDANCE")}
                         </Typography>
                         <Typography
                           variant="h4"
@@ -757,7 +736,7 @@ const AttendanceOverviewContent = () => {
                           component="div"
                           sx={{ color: alpha(secondaryColor, 0.6), mb: 1 }}
                         >
-                          Low Attendance Learners
+                          {t("LEARNER_APP.ATTENDANCE.LOW_ATTENDANCE_LEARNERS")}
                         </Typography>
                         <Typography variant="body1" component="div" sx={{ color: secondaryColor }}>
                           {lowAttendanceLearnerList.length > 0
@@ -765,7 +744,7 @@ const AttendanceOverviewContent = () => {
                               (lowAttendanceLearnerList.length > 3
                                 ? ` and ${lowAttendanceLearnerList.length - 3} more`
                                 : "")
-                            : "No learners with low attendance"}
+                            : t("LEARNER_APP.ATTENDANCE.NO_LEARNERS_LOW_ATTENDANCE")}
                         </Typography>
                       </CardContent>
                     </Card>
@@ -778,9 +757,9 @@ const AttendanceOverviewContent = () => {
                     <Typography
                       variant="h6"
                       component="div"
-                      sx={{ color: secondaryColor, mb: 2 }}
+                      sx={{ color: secondaryColor, mb: 2,fontSize: '16px' }}
                     >
-                      Learner Attendance Details
+                      {t("LEARNER_APP.ATTENDANCE.LEARNER_ATTENDANCE_DETAILS")}
                     </Typography>
                     <Box sx={{ maxHeight: "500px", overflowY: "auto" }}>
                       {learnerData.map((learner) => (
@@ -804,7 +783,15 @@ const AttendanceOverviewContent = () => {
                                 variant="body1"
                                 component="div"
                                 fontWeight="500"
-                                sx={{ color: secondaryColor }}
+                                onClick={() => handleLearnerClick(learner.userId)}
+                                sx={{ 
+                                  color: primaryColor,
+                                  cursor: "pointer",
+                                  textDecoration: "underline",
+                                  "&:hover": {
+                                    color: secondaryColor,
+                                  },
+                                }}
                               >
                                 {learner.name}
                               </Typography>
@@ -814,7 +801,7 @@ const AttendanceOverviewContent = () => {
                                   component="div"
                                   sx={{ color: alpha(secondaryColor, 0.6) }}
                                 >
-                                  Present: {learner.present} | Absent:{" "}
+                                  {t("LEARNER_APP.COMMON.PRESENT")}: {learner.present} | {t("LEARNER_APP.COMMON.ABSENT")}:{" "}
                                   {learner.absent}
                                 </Typography>
                                 <Typography
@@ -852,16 +839,152 @@ const AttendanceOverviewContent = () => {
         modalOpen={logoutModalOpen}
         handleCloseModal={() => setLogoutModalOpen(false)}
         handleAction={handleConfirmLogout}
-        message="Are you sure you want to logout?"
+        message={t("LEARNER_APP.COMMON.SURE_LOGOUT") || "Are you sure you want to logout?"}
         buttonNames={{
-          primary: "Logout",
-          secondary: "Cancel",
+          primary: t("LEARNER_APP.COMMON.LOGOUT") || "Logout",
+          secondary: t("LEARNER_APP.COMMON.CANCEL") || "Cancel",
         }}
       />
+
+      {/* User Details Modal */}
+      <Dialog
+        open={userDetailsModalOpen}
+        onClose={handleCloseUserDetailsModal}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: "12px",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            backgroundColor: alpha(primaryColor, 0.1),
+            color: secondaryColor,
+            fontWeight: 600,
+            fontSize: "20px",
+            pb: 2,
+          }}
+        >
+          {t("LEARNER_APP.ATTENDANCE.LEARNER_ATTENDANCE_DETAILS")}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          {loadingUserDetails ? (
+            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+              <CircularProgress sx={{ color: primaryColor }} />
+            </Box>
+          ) : selectedUserDetails ? (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {/* Full Name */}
+              <Box>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: alpha(secondaryColor, 0.6),
+                    mb: 0.5,
+                    fontWeight: 500,
+                  }}
+                >
+                  {t("LEARNER_APP.COMMON.FULL_NAME")}
+                </Typography>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    color: secondaryColor,
+                    fontWeight: 500,
+                  }}
+                >
+                  {(() => {
+                    const firstName = selectedUserDetails.firstName || "";
+                    const lastName = selectedUserDetails.lastName || "";
+                    const fullName = `${firstName} ${lastName}`.trim();
+                    return fullName || "-";
+                  })()}
+                </Typography>
+              </Box>
+
+              {/* Email */}
+              <Box>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: alpha(secondaryColor, 0.6),
+                    mb: 0.5,
+                    fontWeight: 500,
+                  }}
+                >
+                  {t("LEARNER_APP.COMMON.EMAIL")}
+                </Typography>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    color: secondaryColor,
+                  }}
+                >
+                  {selectedUserDetails.email || selectedUserDetails.emailId || "-"}
+                </Typography>
+              </Box>
+
+              {/* Mobile Number */}
+              <Box>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: alpha(secondaryColor, 0.6),
+                    mb: 0.5,
+                    fontWeight: 500,
+                  }}
+                >
+                  {t("LEARNER_APP.COMMON.MOBILE_NUMBER")}
+                </Typography>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    color: secondaryColor,
+                  }}
+                >
+                  {selectedUserDetails.phoneNumber || 
+                   selectedUserDetails.phone || 
+                   selectedUserDetails.mobileNumber ||
+                   selectedUserDetails.mobile || 
+                   "-"}
+                </Typography>
+              </Box>
+            </Box>
+          ) : (
+            <Typography
+              variant="body2"
+              sx={{
+                color: alpha(secondaryColor, 0.6),
+                textAlign: "center",
+                py: 4,
+              }}
+            >
+              Unable to load user details
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 1 }}>
+          <Button
+            onClick={handleCloseUserDetailsModal}
+            sx={{
+              color: secondaryColor,
+              "&:hover": {
+                backgroundColor: alpha(primaryColor, 0.08),
+              },
+            }}
+          >
+            {t("LEARNER_APP.COMMON.CLOSE")}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Layout>
   );
 };
 const AttendanceOverviewPage = () => {
+  const { t } = useTranslation();
   return (
     <Suspense
       fallback={
@@ -875,7 +998,7 @@ const AttendanceOverviewPage = () => {
             fontWeight: 500,
           }}
         >
-          Loading attendance overview...
+          {t("LEARNER_APP.ATTENDANCE.LOADING_ATTENDANCE_OVERVIEW")}
         </Box>
       }
     >
