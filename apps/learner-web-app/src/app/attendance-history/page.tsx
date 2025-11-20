@@ -23,6 +23,8 @@ import {
 import KeyboardBackspaceOutlinedIcon from "@mui/icons-material/KeyboardBackspaceOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import { AccountCircleOutlined } from "@mui/icons-material";
@@ -81,6 +83,7 @@ const AttendanceHistoryPageContent = () => {
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [searchWord, setSearchWord] = useState("");
+  const [sortBy, setSortBy] = useState<string>("name-asc");
   const [displayStudentList, setDisplayStudentList] = useState<Array<any>>([]);
   const [cohortMemberList, setCohortMemberList] = useState<Array<any>>([]);
   const [percentageAttendance, setPercentageAttendance] = useState<any>({});
@@ -425,7 +428,8 @@ const AttendanceHistoryPageContent = () => {
       
       // Always set the lists, even if empty, so the UI can render appropriately
       setCohortMemberList(cleanedMergedList);
-      setDisplayStudentList(cleanedMergedList);
+      const sorted = applySortAndFilter(cleanedMergedList, searchWord, sortBy);
+      setDisplayStudentList(sorted);
       // Store nameUserIdArray without attendance for modal use
       setNameUserIdArrayForModal(nameUserIdArray);
 
@@ -461,22 +465,75 @@ const AttendanceHistoryPageContent = () => {
     }
   };
 
+  const applySortAndFilter = (list: Array<any>, searchTerm: string, sortOption: string) => {
+    // First apply search filter
+    let filtered = list;
+    if (searchTerm.trim() !== "") {
+      filtered = list.filter((user: any) =>
+        user.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Then apply sort
+    const sorted = [...filtered].sort((a: any, b: any) => {
+      if (sortOption === "name-asc") {
+        return a.name.localeCompare(b.name);
+      } else if (sortOption === "name-desc") {
+        return b.name.localeCompare(a.name);
+      } else if (sortOption.startsWith("attendance")) {
+        const attendanceOrderAsc: { [key: string]: number } = {
+          present: 1,
+          absent: 2,
+          "": 3,
+        };
+        const attendanceOrderDesc: { [key: string]: number } = {
+          present: 1,
+          absent: 2,
+          "": 3,
+        };
+        const orderMap =
+          sortOption === "attendance-asc"
+            ? attendanceOrderAsc
+            : attendanceOrderDesc;
+        const aOrder = orderMap[a.attendance?.toLowerCase() || ""] || 3;
+        const bOrder = orderMap[b.attendance?.toLowerCase() || ""] || 3;
+        return sortOption === "attendance-asc" ? aOrder - bOrder : bOrder - aOrder;
+      }
+      return 0;
+    });
+
+    return sorted;
+  };
+
+  const getSortDirection = (column: "name" | "attendance") => {
+    if (!sortBy.startsWith(column)) return null;
+    return sortBy.endsWith("asc") ? "asc" : "desc";
+  };
+
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
     setSearchWord(value);
-    if (value.trim() === "") {
-      setDisplayStudentList(cohortMemberList);
-    } else {
-      const filtered = cohortMemberList.filter((user: any) =>
-        user.name.toLowerCase().includes(value.toLowerCase())
-      );
-      setDisplayStudentList(filtered);
-    }
+    const sorted = applySortAndFilter(cohortMemberList, value, sortBy);
+    setDisplayStudentList(sorted);
   };
 
   const handleSearchClear = () => {
     setSearchWord("");
-    setDisplayStudentList(cohortMemberList);
+    const sorted = applySortAndFilter(cohortMemberList, "", sortBy);
+    setDisplayStudentList(sorted);
+  };
+
+  const handleSortToggle = (column: "name" | "attendance") => {
+    setSortBy((prev) => {
+      const isSameColumn = prev.startsWith(column);
+      const nextSort =
+        !isSameColumn || prev.endsWith("desc")
+          ? `${column}-asc`
+          : `${column}-desc`;
+      const sorted = applySortAndFilter(cohortMemberList, searchWord, nextSort);
+      setDisplayStudentList(sorted);
+      return nextSort;
+    });
   };
 
   const handleDateChange = (value: any) => {
@@ -1065,6 +1122,7 @@ const AttendanceHistoryPageContent = () => {
               <Calendar
                 onChange={handleDateChange}
                 value={selectedDate}
+                maxDate={new Date()}
                 calendarType="gregory"
                 className="calender-body"
                 formatShortWeekday={(locale, date) => {
@@ -1131,69 +1189,62 @@ const AttendanceHistoryPageContent = () => {
                 sx={{ padding: "0 10px" }}
                 boxShadow="none"
               >
-                <Grid
-                  container
-                  alignItems="center"
-                  display="flex"
-                  justifyContent="space-between"
+                <Paper
+                  component="form"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                  }}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    borderRadius: "100px",
+                    background: "white",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                    border: `2px solid ${alpha(primaryColor, 0.2)}`,
+                    transition: "all 0.2s",
+                    "&:hover": {
+                      boxShadow: "0 6px 16px rgba(0,0,0,0.15)",
+                      borderColor: alpha(primaryColor, 0.4),
+                    },
+                  }}
                 >
-                  <Grid item xs={12} md={8}>
-                    <Paper
-                      component="form"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                      }}
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        borderRadius: "100px",
-                        background: "white",
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                        border: `2px solid ${alpha(primaryColor, 0.2)}`,
-                        transition: "all 0.2s",
-                        "&:hover": {
-                          boxShadow: "0 6px 16px rgba(0,0,0,0.15)",
-                          borderColor: alpha(primaryColor, 0.4),
-                        },
-                      }}
-                    >
-                      <InputBase
-                        ref={inputRef}
-                        value={searchWord}
-                        sx={{
-                          flex: 1,
-                          mb: "0",
-                          fontSize: "14px",
-                          color: secondaryColor,
-                          px: "16px",
-                        }}
-                        placeholder={t("LEARNER_APP.ATTENDANCE.SEARCH_STUDENT")}
-                        inputProps={{ "aria-label": "search student" }}
-                        onChange={handleSearch}
-                      />
-                      <IconButton
-                        type="button"
-                        sx={{ p: "10px", color: secondaryColor }}
-                        aria-label="search"
-                      >
-                        <SearchIcon />
-                      </IconButton>
-                      {searchWord?.length > 0 && (
-                        <IconButton
-                          type="button"
-                          aria-label="Clear"
-                          onClick={handleSearchClear}
-                        >
-                          <ClearIcon
-                            sx={{
-                              color: secondaryColor,
-                            }}
-                          />
-                        </IconButton>
-                      )}
-                    </Paper>
-                  </Grid>
-                </Grid>
+                  <InputBase
+                    ref={inputRef}
+                    value={searchWord}
+                    sx={{
+                      flex: 1,
+                      mb: "0",
+                      fontSize: "14px",
+                      color: secondaryColor,
+                      px: "16px",
+                    }}
+                    placeholder={t("LEARNER_APP.ATTENDANCE.SEARCH_STUDENT")}
+                    inputProps={{ "aria-label": "search student" }}
+                    onChange={handleSearch}
+                    autoFocus={false}
+                  />
+                  <IconButton
+                    type="button"
+                    sx={{ p: "10px", color: secondaryColor }}
+                    aria-label="search"
+                  >
+                    <SearchIcon />
+                  </IconButton>
+                  <IconButton
+                    type="button"
+                    aria-label="Clear"
+                    onClick={handleSearchClear}
+                    sx={{
+                      p: "10px",
+                      color: secondaryColor,
+                      opacity: searchWord?.length > 0 ? 1 : 0,
+                      visibility: searchWord?.length > 0 ? "visible" : "hidden",
+                      transition: "opacity 0.2s",
+                    }}
+                  >
+                    <ClearIcon />
+                  </IconButton>
+                </Paper>
               </Box>
 
               {/* Student List Header */}
@@ -1209,18 +1260,7 @@ const AttendanceHistoryPageContent = () => {
                   background: `linear-gradient(180deg, ${alpha(backgroundColor, 0.95)} 0%, #ffffff 100%)`,
                 }}
               >
-                <Typography
-                  sx={{
-                    color: secondaryColor,
-                    fontSize: "14px",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "1px",
-                  }}
-                >
-                  {t("LEARNER_APP.ATTENDANCE.LEARNER_NAME")}
-                </Typography>
-                <Box sx={attendanceColumnStyles}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                   <Typography
                     sx={{
                       color: secondaryColor,
@@ -1230,8 +1270,55 @@ const AttendanceHistoryPageContent = () => {
                       letterSpacing: "1px",
                     }}
                   >
-                    {t("LEARNER_APP.ATTENDANCE.ATTENDANCE_LABEL")}
+                    {t("LEARNER_APP.ATTENDANCE.LEARNER_NAME")}
                   </Typography>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleSortToggle("name")}
+                    sx={{
+                      color:
+                        getSortDirection("name") === "desc"
+                          ? secondaryColor
+                          : alpha(secondaryColor, 0.6),
+                    }}
+                  >
+                    {getSortDirection("name") === "desc" ? (
+                      <ArrowDownwardIcon fontSize="small" />
+                    ) : (
+                      <ArrowUpwardIcon fontSize="small" />
+                    )}
+                  </IconButton>
+                </Box>
+                <Box sx={attendanceColumnStyles}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    <Typography
+                      sx={{
+                        color: secondaryColor,
+                        fontSize: "14px",
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "1px",
+                      }}
+                    >
+                      {t("LEARNER_APP.ATTENDANCE.ATTENDANCE_LABEL")}
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleSortToggle("attendance")}
+                      sx={{
+                        color:
+                          getSortDirection("attendance") === "desc"
+                            ? secondaryColor
+                            : alpha(secondaryColor, 0.6),
+                      }}
+                    >
+                      {getSortDirection("attendance") === "desc" ? (
+                        <ArrowDownwardIcon fontSize="small" />
+                      ) : (
+                        <ArrowUpwardIcon fontSize="small" />
+                      )}
+                    </IconButton>
+                  </Box>
                   <Box width="40px" />
                 </Box>
               </Box>

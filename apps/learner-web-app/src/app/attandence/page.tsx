@@ -376,7 +376,11 @@ const SimpleTeacherDashboard = () => {
               const nameUserIdArray = filteredResp
                 ?.map((entry: any) => ({
                   userId: entry.userId,
-                  name: entry.firstName,
+                  name:
+                    `${entry.firstName || ""} ${entry.lastName || ""}`.trim() ||
+                    entry.firstName ||
+                    entry.lastName ||
+                    "",
                   memberStatus: entry.status,
                   createdAt: entry.createdAt,
                   updatedAt: entry.updatedAt,
@@ -445,9 +449,10 @@ const SimpleTeacherDashboard = () => {
               if (nameUserIdArray && nameUserIdArray.length > 0 && selectedDate && classId) {
                 console.log("[handleRemoteSession] Calling fetchAttendanceDetails");
                 // Convert Date to string format for fetchAttendanceDetails
-                const selectedDateStr = selectedDate instanceof Date 
-                  ? shortDateFormat(selectedDate) 
-                  : selectedDate;
+                const selectedDateStr =
+                  typeof selectedDate === "string"
+                    ? selectedDate
+                    : shortDateFormat(selectedDate);
                 await fetchAttendanceDetails(
                   nameUserIdArray,
                   selectedDateStr,
@@ -966,7 +971,11 @@ const SimpleTeacherDashboard = () => {
         const nameUserIdArray = filteredResp
           ?.map((entry: any) => ({
             userId: entry.userId,
-            name: entry.firstName,
+            name:
+              `${entry.firstName || ""} ${entry.lastName || ""}`.trim() ||
+              entry.firstName ||
+              entry.lastName ||
+              "",
             memberStatus: entry.status,
             createdAt: entry.createdAt,
             updatedAt: entry.updatedAt,
@@ -1699,7 +1708,14 @@ const SimpleTeacherDashboard = () => {
                             borderWidth: isSelected || isToday ? "2px" : "1px",
                           }}
                         >
-                          <DateNumber variant="body2">
+                          <DateNumber
+                            variant="body2"
+                            sx={{
+                              color: isSelected
+                                ? getContrastTextColor(primaryColor)
+                                : secondaryColor,
+                            }}
+                          >
                             {dayData.date}
                           </DateNumber>
                           {isMarked ? (
@@ -2291,6 +2307,7 @@ const SimpleTeacherDashboard = () => {
           isOpen={isLocationModalOpen}
           onClose={() => setIsLocationModalOpen(false)}
           onConfirm={requestLocationPermission}
+          primaryColor={primaryColor}
         />
       )}
       {isSelfAttendanceModalOpen && (

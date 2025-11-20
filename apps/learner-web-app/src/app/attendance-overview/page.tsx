@@ -22,12 +22,18 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  InputBase,
+  Paper,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import Image from "next/image";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { AccountCircleOutlined } from "@mui/icons-material";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import SearchIcon from "@mui/icons-material/Search";
+import ClearIcon from "@mui/icons-material/Clear";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import Layout from "@learner/components/Layout";
 import { getCohortList } from "@learner/utils/API/services/CohortServices";
 import { getUserDetails } from "@learner/utils/API/services/ProfileService";
@@ -50,7 +56,7 @@ const AttendanceOverviewContent = () => {
   const searchParams = useSearchParams();
   const initialClassId = searchParams.get("classId");
   const { tenant, contentFilter } = useTenant();
-  const { t, language, setLanguage } = useTranslation();
+  const { t } = useTranslation();
   
   // Get tenant colors
   const primaryColor = contentFilter?.theme?.primaryColor || "#E6873C";
@@ -68,6 +74,9 @@ const AttendanceOverviewContent = () => {
   const [presentPercentage, setPresentPercentage] = useState<string | number>("");
   const [lowAttendanceLearnerList, setLowAttendanceLearnerList] = useState<any[]>([]);
   const [learnerData, setLearnerData] = useState<Array<any>>([]);
+  const [displayLearnerData, setDisplayLearnerData] = useState<Array<any>>([]);
+  const [searchWord, setSearchWord] = useState("");
+  const [sortBy, setSortBy] = useState<string>("name-asc");
   const [firstName, setFirstName] = useState("");
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
@@ -200,6 +209,34 @@ const AttendanceOverviewContent = () => {
     setClassId(batchId);
   };
 
+  const applySortAndFilter = (list: Array<any>, searchTerm: string, sortOption: string) => {
+    // First apply search filter
+    let filtered = list;
+    if (searchTerm.trim() !== "") {
+      filtered = list.filter((learner: any) =>
+        learner.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Then apply sort
+    const sorted = [...filtered].sort((a: any, b: any) => {
+      if (sortOption === "name-asc") {
+        return a.name.localeCompare(b.name);
+      } else if (sortOption === "name-desc") {
+        return b.name.localeCompare(a.name);
+      } else if (sortOption === "attendance-asc") {
+        // Sort by attendance percentage ascending
+        return parseFloat(a.present_percent || "0") - parseFloat(b.present_percent || "0");
+      } else if (sortOption === "attendance-desc") {
+        // Sort by attendance percentage descending
+        return parseFloat(b.present_percent || "0") - parseFloat(a.present_percent || "0");
+      }
+      return 0;
+    });
+
+    return sorted;
+  };
+
   const fetchAttendanceData = useCallback(async () => {
     if (!classId) return;
 
@@ -291,7 +328,36 @@ const AttendanceOverviewContent = () => {
     } finally {
       setLoading(false);
     }
-  }, [classId, fromDate, toDate]);
+  }, [classId, fromDate, toDate, t]);
+
+  const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchWord(event.target.value);
+  };
+
+  const handleSearchClear = () => {
+    setSearchWord("");
+  };
+
+  const handleSortToggle = (column: "name" | "attendance") => {
+    setSortBy((prev) => {
+      const isSameColumn = prev.startsWith(column);
+      const nextSort =
+        !isSameColumn || prev.endsWith("desc")
+          ? `${column}-asc`
+          : `${column}-desc`;
+      return nextSort;
+    });
+  };
+
+  const getSortDirection = (column: "name" | "attendance") => {
+    if (!sortBy.startsWith(column)) return null;
+    return sortBy.endsWith("asc") ? "asc" : "desc";
+  };
+
+  useEffect(() => {
+    const sorted = applySortAndFilter(learnerData, searchWord, sortBy);
+    setDisplayLearnerData(sorted);
+  }, [learnerData, searchWord, sortBy]);
 
   useEffect(() => {
     if (classId && fromDate && toDate) {
@@ -761,8 +827,139 @@ const AttendanceOverviewContent = () => {
                     >
                       {t("LEARNER_APP.ATTENDANCE.LEARNER_ATTENDANCE_DETAILS")}
                     </Typography>
+                    
+                    {/* Search and Sort */}
+                    <Box sx={{ mb: 2 }}>
+                      <Grid container spacing={2} alignItems="center">
+                        <Grid item xs={12} md={8}>
+                          <Paper
+                            component="form"
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                            }}
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              borderRadius: "100px",
+                              background: "white",
+                              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                              border: `2px solid ${alpha(primaryColor, 0.2)}`,
+                              transition: "all 0.2s",
+                              "&:hover": {
+                                boxShadow: "0 6px 16px rgba(0,0,0,0.15)",
+                                borderColor: alpha(primaryColor, 0.4),
+                              },
+                            }}
+                          >
+                            <InputBase
+                              value={searchWord}
+                              sx={{
+                                flex: 1,
+                                mb: "0",
+                                fontSize: "14px",
+                                color: secondaryColor,
+                                px: "16px",
+                              }}
+                              placeholder={t("LEARNER_APP.ATTENDANCE.SEARCH_STUDENT") || "Search student..."}
+                              inputProps={{ "aria-label": "search student" }}
+                              onChange={handleSearch}
+                              autoFocus={false}
+                            />
+                            <IconButton
+                              type="button"
+                              sx={{ p: "10px", color: secondaryColor }}
+                              aria-label="search"
+                            >
+                              <SearchIcon />
+                            </IconButton>
+                            <IconButton
+                              type="button"
+                              aria-label="Clear"
+                              onClick={handleSearchClear}
+                              sx={{
+                                p: "10px",
+                                color: secondaryColor,
+                                opacity: searchWord?.length > 0 ? 1 : 0,
+                                visibility: searchWord?.length > 0 ? "visible" : "hidden",
+                                transition: "opacity 0.2s",
+                              }}
+                            >
+                              <ClearIcon />
+                            </IconButton>
+                          </Paper>
+                        </Grid>
+                      </Grid>
+                    </Box>
+                    
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        px: 1,
+                        pb: 1,
+                      }}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                        <Typography
+                          sx={{
+                            color: secondaryColor,
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          {t("LEARNER_APP.ATTENDANCE.LEARNER_NAME")}
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleSortToggle("name")}
+                          sx={{
+                            color:
+                              getSortDirection("name") === "desc"
+                                ? secondaryColor
+                                : alpha(secondaryColor, 0.6),
+                          }}
+                        >
+                          {getSortDirection("name") === "desc" ? (
+                            <ArrowDownwardIcon fontSize="small" />
+                          ) : (
+                            <ArrowUpwardIcon fontSize="small" />
+                          )}
+                        </IconButton>
+                      </Box>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                        <Typography
+                          sx={{
+                            color: secondaryColor,
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          {t("LEARNER_APP.ATTENDANCE.ATTENDANCE_PERCENTAGE")}
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleSortToggle("attendance")}
+                          sx={{
+                            color:
+                              getSortDirection("attendance") === "desc"
+                                ? secondaryColor
+                                : alpha(secondaryColor, 0.6),
+                          }}
+                        >
+                          {getSortDirection("attendance") === "desc" ? (
+                            <ArrowDownwardIcon fontSize="small" />
+                          ) : (
+                            <ArrowUpwardIcon fontSize="small" />
+                          )}
+                        </IconButton>
+                      </Box>
+                    </Box>
+                    
                     <Box sx={{ maxHeight: "500px", overflowY: "auto" }}>
-                      {learnerData.map((learner) => (
+                      {displayLearnerData.map((learner) => (
                         <Card
                           key={learner.userId}
                           sx={{
@@ -870,15 +1067,15 @@ const AttendanceOverviewContent = () => {
         >
           {t("LEARNER_APP.ATTENDANCE.LEARNER_ATTENDANCE_DETAILS")}
         </DialogTitle>
-        <DialogContent sx={{ pt: 3 }}>
+        <DialogContent sx={{ pt: 2.5 }}>
           {loadingUserDetails ? (
             <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
               <CircularProgress sx={{ color: primaryColor }} />
             </Box>
           ) : selectedUserDetails ? (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              {/* Full Name */}
-              <Box>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {/* Full Name - Full Width */}
+                <Box sx={{ mt: 2 }}>
                 <Typography
                   variant="body2"
                   sx={{
@@ -905,52 +1102,88 @@ const AttendanceOverviewContent = () => {
                 </Typography>
               </Box>
 
-              {/* Email */}
-              <Box>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: alpha(secondaryColor, 0.6),
-                    mb: 0.5,
-                    fontWeight: 500,
-                  }}
-                >
-                  {t("LEARNER_APP.COMMON.EMAIL")}
-                </Typography>
-                <Typography
-                  variant="body1"
-                  sx={{
-                    color: secondaryColor,
-                  }}
-                >
-                  {selectedUserDetails.email || selectedUserDetails.emailId || "-"}
-                </Typography>
-              </Box>
+              {/* Email and Mobile Number - Side by Side */}
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "repeat(2, 1fr)",
+                  },
+                  gap: 2,
+                  columnGap: 3,
+                }}
+              >
+                {/* Email */}
+                <Box>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: alpha(secondaryColor, 0.6),
+                      mb: 0.5,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {t("LEARNER_APP.COMMON.EMAIL")}
+                  </Typography>
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      color: secondaryColor,
+                    }}
+                  >
+                    {selectedUserDetails.email || selectedUserDetails.emailId || "-"}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: alpha(secondaryColor, 0.6),
+                      mt: 1,
+                      mb: 0.5,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {t("ENROLLMENT_NUMBER") || t("LEARNER_APP.COMMON.ENROLLMENT_NUMBER") || "Enrollment ID"}
+                  </Typography>
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      color: secondaryColor,
+                    }}
+                  >
+                    {selectedUserDetails.enrollmentId ||
+                      selectedUserDetails.enrollmentID ||
+                      selectedUserDetails.enrollmentNumber ||
+                      selectedUserDetails.enrollment_no ||
+                      "-"}
+                  </Typography>
+                </Box>
 
-              {/* Mobile Number */}
-              <Box>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: alpha(secondaryColor, 0.6),
-                    mb: 0.5,
-                    fontWeight: 500,
-                  }}
-                >
-                  {t("LEARNER_APP.COMMON.MOBILE_NUMBER")}
-                </Typography>
-                <Typography
-                  variant="body1"
-                  sx={{
-                    color: secondaryColor,
-                  }}
-                >
-                  {selectedUserDetails.phoneNumber || 
-                   selectedUserDetails.phone || 
-                   selectedUserDetails.mobileNumber ||
-                   selectedUserDetails.mobile || 
-                   "-"}
-                </Typography>
+                {/* Mobile Number */}
+                <Box>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: alpha(secondaryColor, 0.6),
+                      mb: 0.5,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {t("LEARNER_APP.COMMON.MOBILE_NUMBER")}
+                  </Typography>
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      color: secondaryColor,
+                    }}
+                  >
+                    {selectedUserDetails.phoneNumber ||
+                      selectedUserDetails.phone ||
+                      selectedUserDetails.mobileNumber ||
+                      selectedUserDetails.mobile ||
+                      "-"}
+                  </Typography>
+                </Box>
               </Box>
             </Box>
           ) : (

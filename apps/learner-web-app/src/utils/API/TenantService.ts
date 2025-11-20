@@ -91,8 +91,8 @@ export const findTenantByDomain = (
   tenants: Tenant[],
   currentDomain?: string
 ): Tenant | null => {
-   let domain = currentDomain;
-
+  let domain = currentDomain;
+     
   if (!domain) {
     if (typeof window !== "undefined") {
       domain = window.location.hostname;

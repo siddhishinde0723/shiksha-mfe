@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Box,
   Button,
@@ -18,6 +18,8 @@ import { getTodayDate, shortDateFormat } from "@learner/utils/attendance/helper"
 import { format } from "date-fns";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
+import { useTranslation } from "@shared-lib";
+import { getContrastTextColor } from "@learner/utils/colorUtils";
 
 interface DateRangePopupProps {
   selectedValue: string;
@@ -36,6 +38,7 @@ const DateRangePopup: React.FC<DateRangePopupProps> = ({
   primaryColor = "#E6873C",
   secondaryColor = "#1A1A1A",
 }) => {
+  const { t, language } = useTranslation();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(0);
@@ -52,18 +55,18 @@ const DateRangePopup: React.FC<DateRangePopupProps> = ({
     return `${year}-${month}-${day}`;
   };
 
-  const getMenuItems = () => {
+  const menuItems = useMemo(() => {
     const dateRangeStr = dateRange || formatDate(last7Days) + " to " + formatDate(today);
+    const lastSevenDaysLabel = `${t("LEARNER_APP.ATTENDANCE.LAST_7_DAYS") || "Last 7 Days"} (${dateRangeStr})`;
+    const asOfTodayLabel = `${t("COMMON.AS_OF_TODAY") || "As of today"} (${formatDate(today)})`;
     return [
-      `Last 7 Days (${dateRangeStr})`,
-      `As of Today (${formatDate(today)})`,
-      "Last Month",
-      "Last 6 Months",
-      "Custom Range",
+      lastSevenDaysLabel,
+      asOfTodayLabel,
+      t("COMMON.LAST_MONTH") || "Last Month",
+      t("COMMON.LAST_6_MONTHS") || "Last 6 Months",
+      t("COMMON.CUSTOM_RANGE") || "Custom Range",
     ];
-  };
-
-  const menuItems = getMenuItems();
+  }, [t, language, dateRange]);
 
   const getDateRange = (index: number | null) => {
     let fromDate: Date;
@@ -146,6 +149,10 @@ const DateRangePopup: React.FC<DateRangePopupProps> = ({
     setCalendarDate(null);
   };
 
+  const handleCalendarClear = () => {
+    setCalendarDate(null);
+  };
+
   const modalStyle = {
     position: "absolute" as const,
     top: "50%",
@@ -209,7 +216,7 @@ const DateRangePopup: React.FC<DateRangePopupProps> = ({
             }}
           >
             <Typography sx={{ color: secondaryColor, fontWeight: 600 }}>
-              Date Range
+              {t("COMMON.DATE_RANGE") || "Date Range"}
             </Typography>
             <CloseIcon
               onClick={() => setIsModalOpen(false)}
@@ -254,14 +261,14 @@ const DateRangePopup: React.FC<DateRangePopupProps> = ({
               onClick={handleApply}
               sx={{
                 backgroundColor: primaryColor,
-                color: "#FFFFFF",
+                color: getContrastTextColor(primaryColor),
                 "&:hover": {
                   backgroundColor: primaryColor,
                   opacity: 0.9,
                 },
               }}
             >
-              Apply
+              {t("COMMON.APPLY") || "Apply"}
             </Button>
           </Box>
         </Box>
@@ -284,7 +291,7 @@ const DateRangePopup: React.FC<DateRangePopupProps> = ({
               }}
             >
               <Typography sx={{ color: secondaryColor, fontWeight: 600 }}>
-                Custom Range
+                {t("COMMON.CUSTOM_RANGE") || "Custom Range"}
               </Typography>
               <CloseIcon
                 onClick={handleCalendarCancel}
@@ -300,7 +307,7 @@ const DateRangePopup: React.FC<DateRangePopupProps> = ({
                   mb: 1,
                 }}
               >
-                Select Date Range
+                {t("COMMON.SELECT_DATE_RANGE") || "Select Date Range"}
               </Typography>
               {Array.isArray(calendarDate) && calendarDate.length === 2 && (
                 <Typography
@@ -330,10 +337,27 @@ const DateRangePopup: React.FC<DateRangePopupProps> = ({
             sx={{
               padding: "20px 18px 10px",
               display: "flex",
-              gap: "30px",
+              gap: "15px",
               justifyContent: "flex-end",
             }}
           >
+            <Button
+              onClick={handleCalendarClear}
+              disabled={!calendarDate}
+              sx={{
+                color: secondaryColor,
+                fontSize: "14px",
+                fontWeight: 500,
+                "&:hover": {
+                  backgroundColor: alpha(secondaryColor, 0.08),
+                },
+                "&:disabled": {
+                  color: alpha(secondaryColor, 0.4),
+                },
+              }}
+            >
+              {t("COMMON.CLEAR") || "Clear"}
+            </Button>
             <Button
               onClick={handleCalendarCancel}
               sx={{
@@ -345,7 +369,7 @@ const DateRangePopup: React.FC<DateRangePopupProps> = ({
                 },
               }}
             >
-              Cancel
+              {t("COMMON.CANCEL") || "Cancel"}
             </Button>
             <Button
               onClick={handleCalendarApply}
@@ -362,7 +386,7 @@ const DateRangePopup: React.FC<DateRangePopupProps> = ({
                 },
               }}
             >
-              OK
+              {t("COMMON.OK") || "OK"}
             </Button>
           </Box>
         </Box>
