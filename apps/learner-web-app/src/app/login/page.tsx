@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 /* eslint-disable @nx/enforce-module-boundaries */
 "use client";
 
