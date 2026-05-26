@@ -1,9 +1,9 @@
 import { ContentCreate, ContentType } from "../utils/Interface";
 import {
- createAssessmentTracking,
- createContentTracking,
- fetchBulkContents,
- updateCOurseAndIssueCertificate,
+  createAssessmentTracking,
+  createContentTracking,
+  fetchBulkContents,
+  updateCOurseAndIssueCertificate,
 } from "./PlayerService";
 
 
@@ -59,22 +59,20 @@ export const handlePlayerEvent = (event: any) => {
  }
 };
 
-
 export const handleTelemetryEventPDF = async (event: any) => {
- return await getTelemetryEvents(event.detail, "pdf");
+  return await getTelemetryEvents(event.detail, "pdf");
 };
 
-
 export const handleTelemetryEventQuml = async (
- event: any,
- { courseId, unitId, userId, configFunctionality }: any = {}
+  event: any,
+  { courseId, unitId, userId, configFunctionality }: any = {}
 ) => {
- return await getTelemetryEvents(event.data, "quml", {
-   courseId,
-   unitId,
-   userId,
-   configFunctionality,
- });
+  return await getTelemetryEvents(event.data, "quml", {
+    courseId,
+    unitId,
+    userId,
+    configFunctionality,
+  });
 };
 
 
@@ -83,225 +81,204 @@ export const getTelemetryEvents = async (
  contentType: string,
  { courseId, unitId, userId, configFunctionality }: any = {}
 ) => {
- console.log("🎯 getTelemetryEvents called with:", {
-   eventData,
-   contentType,
-   courseId,
-   unitId,
-   userId,
-   configFunctionality,
- });
+  console.log("🎯 getTelemetryEvents called with:", {
+    eventData,
+    contentType,
+    courseId,
+    unitId,
+    userId,
+    configFunctionality,
+  });
 
+  if (!eventData || (!eventData.object?.id && !eventData.gdata?.id)) {
+    console.error("❌ Invalid event data - missing object.id or gdata.id");
+    return;
+  }
 
- if (!eventData || (!eventData.object?.id && !eventData.gdata?.id)) {
-   console.error("❌ Invalid event data - missing object.id or gdata.id");
-   return;
- }
+  const identifier = eventData.object?.id || eventData.gdata?.id;
+  const { eid, edata } = eventData;
+  const telemetryKey = `${contentType}_${identifier}_${eid}`;
+  console.log("telemetryKey", telemetryKey);
+  console.log("eventData", eventData);
+  const telemetryData = {
+    eid,
+    edata,
+    identifier,
+    contentType,
+  };
 
+  console.log(`${eid}Telemetry`, telemetryData);
 
- const identifier = eventData.object?.id || eventData.gdata?.id;
- const { eid, edata } = eventData;
- const telemetryKey = `${contentType}_${identifier}_${eid}`;
- console.log("telemetryKey", telemetryKey);
- console.log("eventData", eventData);
- const telemetryData = {
-   eid,
-   edata,
-   identifier,
-   contentType,
- };
+  localStorage.setItem(telemetryKey, JSON.stringify(telemetryData));
 
+  if (eid === "START") {
+    console.log(
+      "🎯 START event detected, calling contentWithTelemetryData with:",
+      {
+        identifier,
+        detailsObject: [telemetryData],
+        courseId,
+        unitId,
+        userId,
+        configFunctionality,
+      }
+    );
 
- console.log(`${eid}Telemetry`, telemetryData);
+    await contentWithTelemetryData({
+      identifier,
+      detailsObject: [telemetryData],
+      courseId,
+      unitId,
+      userId,
+      configFunctionality,
+    });
+  }
 
+  if (eid === "END" || (contentType === "quml" && eid === "SUMMARY")) {
+    try {
+      const detailsObject: any[] = [];
 
- localStorage.setItem(telemetryKey, JSON.stringify(telemetryData));
+      if (typeof window !== "undefined" && window.localStorage) {
+        const keys = Object.keys(localStorage);
 
+        // Filter keys for relevant telemetry events based on identifier
+        const relevantKeys = keys.filter((key) => key.includes(identifier));
 
- if (eid === "START") {
-   console.log(
-     "🎯 START event detected, calling contentWithTelemetryData with:",
-     {
-       identifier,
-       detailsObject: [telemetryData],
-       courseId,
-       unitId,
-       userId,
-       configFunctionality,
-     }
-   );
+        relevantKeys.forEach((key) => {
+          const telemetryEvent = localStorage.getItem(key);
+          if (telemetryEvent) {
+            const parsedTelemetryEvent = JSON.parse(telemetryEvent);
+            let progressFromSummary = null;
+            let progressFromExtra = null;
 
+            // Check `summary` for progress
+            if (parsedTelemetryEvent?.edata?.summary?.length > 0) {
+              progressFromSummary =
+                parsedTelemetryEvent.edata.summary[0]?.progress;
+            }
 
-   await contentWithTelemetryData({
-     identifier,
-     detailsObject: [telemetryData],
-     courseId,
-     unitId,
-     userId,
-     configFunctionality,
-   });
- }
+            // Check `extra` for progress
+            if (parsedTelemetryEvent?.edata?.extra?.length > 0) {
+              const progressEntry = parsedTelemetryEvent.edata.extra.find(
+                (entry: any) => entry.id === "progress"
+              );
+              if (progressEntry) {
+                progressFromExtra = parseInt(progressEntry.value, 10);
+              }
+            }
 
+            // Skip event if `eid === 'END'` and progress is not 100 in either `summary` or `extra`
+            // if (
+            //   parsedTelemetryEvent?.eid === 'END' &&
+            //   ((progressFromSummary !== 100 && progressFromSummary !== null) ||
+            //     (progressFromExtra !== 100 && progressFromExtra !== null))
+            // ) {
+            //   return;
+            // }
 
- if (eid === "END" || (contentType === "quml" && eid === "SUMMARY")) {
-   try {
-     const detailsObject: any[] = [];
+            // Push parsed telemetry event
+            detailsObject.push(parsedTelemetryEvent);
+          }
+        });
 
+        // After processing all keys, check if an END event exists in detailsObject for html or h5p
+        let hasEndEvent = true;
 
-     if (typeof window !== "undefined" && window.localStorage) {
-       const keys = Object.keys(localStorage);
+        if (
+          localStorage.getItem("mimeType") === ContentType.H5P ||
+          localStorage.getItem("mimeType") === ContentType.HTML
+        ) {
+          detailsObject.forEach((event) => {
+            if (event.eid === "END") {
+              hasEndEvent = false;
+            }
+          });
+          if (!hasEndEvent) {
+            detailsObject.push({
+              eid: "END",
+              edata: {
+                duration: 0,
+                mode: "play",
+                pageid: "sunbird-player-Endpage",
+                summary: [
+                  {
+                    progress: 100,
+                  },
+                  {
+                    totallength: "",
+                  },
+                  {
+                    visitedlength: "",
+                  },
+                  {
+                    visitedcontentend: "",
+                  },
+                  {
+                    totalseekedlength: "",
+                  },
+                  {
+                    endpageseen: false,
+                  },
+                ],
+                type: "content",
+              },
+            });
+          }
+          // });
+        }
+      }
 
+      try {
+        // For QuML/Assessments, aggregate question data for the assessment tracking API
+        if (contentType === "quml") {
+          const assessEvents = detailsObject
+            .filter((e: any) => e.eid === "ASSESS")
+            .map((e: any) => ({
+              ...e.edata,
+              sectionName: e.edata?.item?.sectionName || "Section",
+            }));
 
-       // Filter keys for relevant telemetry events based on identifier
-       const relevantKeys = keys.filter((key) => key.includes(identifier));
+          if (assessEvents.length > 0) {
+            const assessmentSummary = [
+              {
+                sectionId: identifier,
+                sectionName: "Section",
+                data: assessEvents,
+              },
+            ];
 
+            const endEvent = detailsObject.find((e: any) => e.eid === "END");
+            const timeSpent = endEvent?.edata?.duration || 0;
 
-       relevantKeys.forEach((key) => {
-         const telemetryEvent = localStorage.getItem(key);
-         if (telemetryEvent) {
-           const parsedTelemetryEvent = JSON.parse(telemetryEvent);
-           let progressFromSummary = null;
-           let progressFromExtra = null;
+            console.log("🎯 Triggering Assessment Tracking from TelemetryService");
+            await createAssessmentTracking({
+              contentId: identifier,
+              assessmentSummary,
+              courseId,
+              unitId,
+              userId,
+              timeSpent,
+              mid: eventData?.mid
+            });
+          }
+        }
 
-
-           // Check `summary` for progress
-           if (parsedTelemetryEvent?.edata?.summary?.length > 0) {
-             progressFromSummary =
-               parsedTelemetryEvent.edata.summary[0]?.progress;
-           }
-
-
-           // Check `extra` for progress
-           if (parsedTelemetryEvent?.edata?.extra?.length > 0) {
-             const progressEntry = parsedTelemetryEvent.edata.extra.find(
-               (entry: any) => entry.id === "progress"
-             );
-             if (progressEntry) {
-               progressFromExtra = parseInt(progressEntry.value, 10);
-             }
-           }
-
-
-           // Skip event if `eid === 'END'` and progress is not 100 in either `summary` or `extra`
-           // if (
-           //   parsedTelemetryEvent?.eid === 'END' &&
-           //   ((progressFromSummary !== 100 && progressFromSummary !== null) ||
-           //     (progressFromExtra !== 100 && progressFromExtra !== null))
-           // ) {
-           //   return;
-           // }
-
-
-           // Push parsed telemetry event
-           detailsObject.push(parsedTelemetryEvent);
-         }
-       });
-
-
-       // After processing all keys, check if an END event exists in detailsObject for html or h5p
-       let hasEndEvent = true;
-
-
-       if (
-         localStorage.getItem("mimeType") === ContentType.H5P ||
-         localStorage.getItem("mimeType") === ContentType.HTML
-       ) {
-         detailsObject.forEach((event) => {
-           if (event.eid === "END") {
-             hasEndEvent = false;
-           }
-         });
-         if (!hasEndEvent) {
-           detailsObject.push({
-             eid: "END",
-             edata: {
-               duration: 0,
-               mode: "play",
-               pageid: "sunbird-player-Endpage",
-               summary: [
-                 {
-                   progress: 100,
-                 },
-                 {
-                   totallength: "",
-                 },
-                 {
-                   visitedlength: "",
-                 },
-                 {
-                   visitedcontentend: "",
-                 },
-                 {
-                   totalseekedlength: "",
-                 },
-                 {
-                   endpageseen: false,
-                 },
-               ],
-               type: "content",
-             },
-           });
-         }
-         // });
-       }
-     }
-
-
-     try {
-       // For QuML/Assessments, aggregate question data for the assessment tracking API
-       if (contentType === "quml") {
-         const assessEvents = detailsObject
-           .filter((e: any) => e.eid === "ASSESS")
-           .map((e: any) => ({
-             ...e.edata,
-             sectionName: e.edata?.item?.sectionName || "Section",
-           }));
-
-
-         if (assessEvents.length > 0) {
-           const assessmentSummary = [
-             {
-               sectionId: identifier,
-               sectionName: "Section",
-               data: assessEvents,
-             },
-           ];
-
-
-           const endEvent = detailsObject.find((e: any) => e.eid === "END");
-           const timeSpent = endEvent?.edata?.duration || 0;
-
-
-           console.log("🎯 Triggering Assessment Tracking from TelemetryService");
-           await createAssessmentTracking({
-             contentId: identifier,
-             assessmentSummary,
-             courseId,
-             unitId,
-             userId,
-             timeSpent,
-             mid: eventData?.mid
-           });
-         }
-       }
-
-
-       await contentWithTelemetryData({
-         identifier,
-         detailsObject,
-         courseId,
-         unitId,
-         userId,
-         configFunctionality,
-       });
-     } catch (error) {
-       console.log(error);
-     }
-     console.log("Telemetry END event successfully logged:");
-   } catch (error) {
-     console.error("Error logging telemetry END event:", error);
-   }
- }
+        await contentWithTelemetryData({
+          identifier,
+          detailsObject,
+          courseId,
+          unitId,
+          userId,
+          configFunctionality,
+        });
+      } catch (error) {
+        console.log(error);
+      }
+      console.log("Telemetry END event successfully logged:");
+    } catch (error) {
+      console.error("Error logging telemetry END event:", error);
+    }
+  }
 };
 
 

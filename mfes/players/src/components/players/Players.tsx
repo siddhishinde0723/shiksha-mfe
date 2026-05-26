@@ -1,6 +1,6 @@
 import dynamic from "next/dynamic";
-import React from "react";
-import { useRouter } from "next/router";
+import { MIME_TYPE } from "../../utils/url.config";
+import React, { useEffect, useState } from "react";
 const SunbirdPdfPlayer = dynamic(() => import("./SunbirdPdfPlayer"), {
   ssr: false,
 });
@@ -12,10 +12,10 @@ const SunbirdEpubPlayer = dynamic(() => import("./SunbirdEpubPlayer"), {
   ssr: false,
 });
 
-const SunbirdQuMLPlayer = dynamic(() => import("./SunbirdQuMLPlayer"), {
-  ssr: false,
-});
-const TekdiQuMLPlayer = dynamic(() => import("./TekdiQuMLPlayer"), {
+// const SunbirdQuMLPlayer = dynamic(() => import("./SunbirdQuMLPlayer"), {
+//   ssr: false,
+// });
+const SunbirdQuMLPlayer = dynamic(() => import("./TekdiQuMLPlayer"), {
   ssr: false,
 });
 
@@ -35,6 +35,7 @@ interface PlayerProps {
   unitId?: string;
   userId?: string;
   configFunctionality?: any;
+  onDownload?: () => void;
 }
 
 const SunbirdPlayers = ({
@@ -43,8 +44,27 @@ const SunbirdPlayers = ({
   unitId,
   userId,
   configFunctionality,
+  onDownload,
 }: PlayerProps) => {
-  const router = useRouter();
+  const [processedConfig, setProcessedConfig] = useState(playerConfig);
+
+  useEffect(() => {
+    const processConfig = async () => {
+      if (!playerConfig) {
+        setProcessedConfig(playerConfig);
+        return;
+      }
+
+      console.log("[SunbirdPlayers] Offline: Resolving assets...");
+      const config = JSON.parse(JSON.stringify(playerConfig)); // Deep clone
+      const metadata = config.metadata || {};
+
+     
+      setProcessedConfig(config);
+    };
+
+    processConfig();
+  }, [playerConfig]);
 
   console.log("🎯 SunbirdPlayers: Received parameters:", {
     courseId,
@@ -205,63 +225,17 @@ const SunbirdPlayers = ({
     }
   }
 
-  const mimeType = playerConfig?.metadata?.mimeType;
+  const mimeType = processedConfig?.metadata?.mimeType;
 
   console.log("Player routing decision:");
   console.log("- Final mimeType:", mimeType);
-  console.log("- Content ID:", playerConfig?.context?.contentId);
-  console.log("- About to switch on mimeType:", mimeType);
-  console.log("- Switch statement mimeType type:", typeof mimeType);
-  console.log("- Switch statement mimeType length:", mimeType?.length);
-  console.log(
-    "- MimeType charCodes:",
-    mimeType
-      ? Array.from(mimeType).map((c: any) => (c as string).charCodeAt(0))
-      : "null"
-  );
-  console.log(
-    "- Exact comparison video/x-youtube:",
-    mimeType === "video/x-youtube"
-  );
-  console.log(
-    "- Exact comparison video/youtube:",
-    mimeType === "video/youtube"
-  );
-  console.log("- Trimmed comparison:", mimeType?.trim() === "video/x-youtube");
-  console.log(
-    "- Full playerConfig metadata:",
-    JSON.stringify(playerConfig?.metadata, null, 2)
-  );
-
-  // Check for YouTube content with multiple possible mimeType formats
-  // const isYouTubeContent =
-  //   mimeType === "video/x-youtube" ||
-  //   mimeType === "video/youtube" ||
-  //   (typeof mimeType === "string" && mimeType.includes("youtube"));
-
-  // if (isYouTubeContent) {
-  //   console.log("🎯 YouTube Player: Routing to YouTube Player with data:", {
-  //     courseId,
-  //     unitId,
-  //     userId,
-  //     configFunctionality: !!configFunctionality,
-  //   });
-
-  //   return (
-  //     <YouTubePlayer
-  //       playerConfig={playerConfig}
-  //       relatedData={{ courseId, unitId, userId }}
-  //       configFunctionality={configFunctionality}
-  //     />
-  //   );
-  // }
+  console.log("- Content ID:", processedConfig?.context?.contentId);
 
   switch (mimeType) {
     case "application/pdf":
-     
       return (
         <SunbirdPdfPlayer
-          playerConfig={playerConfig}
+          playerConfig={processedConfig}
           relatedData={{ courseId, unitId, userId }}
           configFunctionality={configFunctionality}
         />
@@ -273,15 +247,17 @@ const SunbirdPlayers = ({
       console.log("Routing to Video Player");
       return (
         <SunbirdVideoPlayer
-          playerConfig={playerConfig}
+          playerConfig={processedConfig}
           relatedData={{ courseId, unitId, userId }}
           configFunctionality={configFunctionality}
+          onDownload={onDownload}
         />
       );
-    case "application/vnd.sunbird.questionset":
+    case MIME_TYPE.QUESTION_MIME_TYPE:
+    case MIME_TYPE.QUESTION_SET_MIME_TYPE:
       return (
         <SunbirdQuMLPlayer
-          playerConfig={playerConfig}
+          playerConfig={processedConfig}
           relatedData={{ courseId, unitId, userId }}
           configFunctionality={configFunctionality}
         />
@@ -290,7 +266,7 @@ const SunbirdPlayers = ({
       console.log("Routing to EPUB Player");
       return (
         <SunbirdEpubPlayer
-          playerConfig={playerConfig}
+          playerConfig={processedConfig}
           relatedData={{ courseId, unitId, userId }}
           configFunctionality={configFunctionality}
         />
@@ -299,12 +275,10 @@ const SunbirdPlayers = ({
     case "application/vnd.ekstep.html-archive":
     case "video/youtube":
     case "video/x-youtube":
-      // case "application/vnd.ekstep.ecml-archive":
       console.log("Routing to V1 Player");
-      console.log("V1 Player case matched! mimeType:", mimeType);
       return (
         <SunbirdV1Player
-          playerConfig={playerConfig}
+          playerConfig={processedConfig}
           relatedData={{ courseId, unitId, userId }}
           configFunctionality={configFunctionality}
         />
@@ -313,7 +287,7 @@ const SunbirdPlayers = ({
       console.log("Routing to V1 Player");
       return (
         <SunbirdEcmlPlayer
-          playerConfig={playerConfig}
+          playerConfig={processedConfig}
           relatedData={{ courseId, unitId, userId }}
           configFunctionality={configFunctionality}
         />

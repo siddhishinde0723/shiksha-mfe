@@ -27,6 +27,7 @@ import HelpDesk from "@content-mfes/components/HelpDesk";
 import {
   ContentSearch,
   ContentSearchResponse as ImportedContentSearchResponse,
+  fetchCourseLeafNodes,//remove content from course
 } from "@content-mfes/services/Search";
 import FilterDialog from "@content-mfes/components/FilterDialog";
 import { trackingData } from "@content-mfes/services/TrackingService";
@@ -34,6 +35,7 @@ import LayoutPage from "@content-mfes/components/LayoutPage";
 import { getUserCertificates } from "@content-mfes/services/Certificate";
 import { getUserId } from "@shared-lib-v2/utils/AuthService";
 import {telemetryFactory} from "../../utils/telemetry";
+import { likeService } from "@shiksha/plugin-like";
 // Constants
 const SUPPORTED_MIME_TYPES = [
   "application/vnd.ekstep.ecml-archive",
@@ -109,6 +111,7 @@ export default function Content(props: Readonly<ContentProps>) {
     }
   >(DEFAULT_FILTERS);
   const [trackData, setTrackData] = useState<TrackDataItem[]>([]);
+  const [bookmarks, setBookmarks] = useState<string[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [filterShow, setFilterShow] = useState(false);
   const [propData, setPropData] = useState<ContentProps>();
@@ -486,16 +489,35 @@ export default function Content(props: Readonly<ContentProps>) {
           ...(response.content ?? []),
           ...(response?.QuestionSet ?? []),
         ];
+//remove content from course
+        let finalContentData = newContentData;
+        const isQueryingCourse = 
+          props.activeTab === "Course" || 
+          (localFilters.type === "Course");
+        
+        if (!isQueryingCourse) {
+          try {
+            const leafNodesToExclude = await fetchCourseLeafNodes();
+            if (leafNodesToExclude && leafNodesToExclude.length > 0) {
+              const excludeSet = new Set(leafNodesToExclude);
+              finalContentData = newContentData.filter(
+                (item) => !item.identifier || !excludeSet.has(item.identifier)
+              );
+            }
+          } catch (err) {
+            console.error("Error applying client-side filtering in List.tsx:", err);
+          }
+        }//remove content from course
 
         // Set content data immediately
         if (localFilters.offset === 0) {
-          setContentData(newContentData);
+          setContentData(finalContentData);
         } else {
-          setContentData((prev) => [...(prev ?? []), ...newContentData]);
+          setContentData((prev) => [...(prev ?? []), ...finalContentData]);
         }
 
         // Fetch track data in parallel (non-blocking)
-        fetchDataTrack(newContentData)
+        fetchDataTrack(finalContentData)
           .then((userTrackData) => {
             if (!isMounted) return;
             if (localFilters.offset === 0) {
@@ -511,7 +533,7 @@ export default function Content(props: Readonly<ContentProps>) {
         setHasMoreData(
           propData?.hasMoreData === false
             ? false
-            : response.count > localFilters.offset + newContentData.length
+            : response.count > localFilters.offset + finalContentData.length
         );
 
         // Clear loading states
@@ -541,6 +563,37 @@ export default function Content(props: Readonly<ContentProps>) {
       abortControllerRef.current?.abort();
     };
   }, [localFilters, propData]);
+
+  // Fetch bookmarks
+  useEffect(() => {
+    let isMounted = true;
+    const fetchBookmarks = async () => {
+      const userId = getUserId(props?._config?.userIdLocalstorageName); // Define userId first
+      console.log("🔍 [List] fetchBookmarks effect triggered. userId property exists:", !!userId, "type:", localFilters.type);
+      
+      if (!userId || !localFilters.type) {
+        console.warn("⚠️ [List] Skipping fetchBookmarks - Missing userId or type");
+        return;
+      }
+
+      const entityType = localFilters.type.toLowerCase() === "course" ? "course" : "content";
+      try {
+        console.log("🚀 [List] Calling likeService.getBookmarks with:", userId, entityType);
+        const bookmarkedIds = await likeService.getBookmarks(userId, entityType);
+        console.log("✅ [List] Got bookmarkedIds:", bookmarkedIds);
+        if (isMounted) {
+          setBookmarks(bookmarkedIds);
+        }
+      } catch (error) {
+        console.error("❌ [List] Error fetching bookmarks:", error);
+      }
+    };
+
+    fetchBookmarks();
+    return () => {
+      isMounted = false;
+    };
+  }, [localFilters.type, props?._config?.userIdLocalstorageName]);
 
   // Scroll to saved card ID
   useEffect(() => {
@@ -840,6 +893,7 @@ export default function Content(props: Readonly<ContentProps>) {
         isSearching={isSearching}
         tabs={tabs}
         isHideEmptyDataMessage={propData?.hasMoreData !== false}
+        bookmarks={bookmarks}
       />
       {propData?.showHelpDesk && <HelpDesk />}
       {propData?.showBackToTop && <BackToTop />}

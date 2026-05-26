@@ -1,5 +1,6 @@
 import { post } from '@shared-lib';
 import axios, { AxiosRequestConfig } from 'axios';
+import { hierarchyAPI } from './Hierarchy';
 export interface ContentSearchResponse {
   ownershipType?: string[];
   publish_type?: string;
@@ -226,7 +227,91 @@ const cleanFilters = (filters: any): any => {
   
   return cleaned;
 };
+//Remove content from course
+// Cache of course leaf nodes to avoid querying it multiple times.
+let courseLeafNodesCache: string[] | null = null;
+let isFetchingCourseLeafNodes = false;
 
+const extractContentIdsFromHierarchy = (node: any, set: Set<string>) => {
+  if (!node) return;
+  if (node.mimeType && node.mimeType !== 'application/vnd.ekstep.content-collection') {
+    if (node.identifier) {
+      set.add(node.identifier);
+    }
+  }
+  if (node.children && Array.isArray(node.children)) {
+    node.children.forEach((child: any) => extractContentIdsFromHierarchy(child, set));
+  }
+};
+
+export const fetchCourseLeafNodes = async (): Promise<string[]> => {
+  if (courseLeafNodesCache !== null) {
+    return courseLeafNodesCache;
+  }
+  if (isFetchingCourseLeafNodes) {
+    return [];
+  }
+  isFetchingCourseLeafNodes = true;
+  try {
+    const searchApiUrl = process.env.NEXT_PUBLIC_MIDDLEWARE_URL;
+    if (!searchApiUrl) return [];
+
+    const filters: any = {
+      status: ['live'],
+      primaryCategory: ['Course'],
+    };
+
+    const channelId = typeof window !== 'undefined' ? localStorage.getItem('channelId') : null;
+    if (channelId) {
+      filters.channel = channelId;
+    }
+
+    const data = {
+      request: {
+        filters,
+        limit: 100,
+      },
+    };
+
+    const response = await post(
+      `${searchApiUrl}/action/composite/v3/search`,
+      data
+    );
+
+    const courses = response?.data?.result?.content || [];
+    const allLeafNodes = new Set<string>();
+
+    // For each course, fetch its hierarchy to get all nested contents
+    await Promise.all(
+      courses.map(async (course: any) => {
+        try {
+          const hierarchy = await hierarchyAPI(course.identifier);
+          if (hierarchy) {
+            // Traverse the hierarchy to extract all non-collection content IDs
+            extractContentIdsFromHierarchy(hierarchy, allLeafNodes);
+            
+            // Also add standard root leafNodes just in case
+            if (hierarchy.leafNodes && Array.isArray(hierarchy.leafNodes)) {
+              hierarchy.leafNodes.forEach((id: string) => allLeafNodes.add(id));
+            }
+          }
+        } catch (e) {
+          console.error(`Failed to fetch hierarchy for course ${course?.identifier}:`, e);
+        }
+      })
+    );
+
+    courseLeafNodesCache = Array.from(allLeafNodes);
+    console.log('🔍 fetchCourseLeafNodes - Cache initialized with', courseLeafNodesCache.length, 'leaf nodes:', courseLeafNodesCache);
+    return courseLeafNodesCache;
+  } catch (error) {
+    console.error('Error fetching course leaf nodes:', error);
+    return [];
+  } finally {
+    isFetchingCourseLeafNodes = false;
+  }
+};
+///Remove content from course and make it searchable 
 export const ContentSearch = async ({
   type,
   query,

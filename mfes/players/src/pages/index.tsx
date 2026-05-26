@@ -6,7 +6,9 @@ import {
   getHierarchy,
   getQumlData,
 } from "../services/PlayerService";
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, Button, CircularProgress } from "@mui/material";
+import DownloadIcon from "@mui/icons-material/Download";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { MIME_TYPE } from "../utils/url.config";
 import {
   PlayerConfig,
@@ -14,6 +16,7 @@ import {
   V2PlayerConfig,
 } from "../utils/url.config";
 import Loader from "../components/Loader";
+import { offlineService } from "@shared-lib-v2/utils/OfflineService";
 
 const SunbirdPlayers = dynamic(() => import("../components/players/Players"), {
   ssr: false,
@@ -38,6 +41,8 @@ const Players: React.FC<SunbirdPlayerProps> = ({
   const [isGenerateCertificate, setIsGenerateCertificate] = useState(true);
   const [trackable, setTrackable] = useState(true);
   const [userId, setUserId] = useState("");
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isDownloaded, setIsDownloaded] = useState(false);
 
   // Get all query params once router is ready
   useEffect(() => {
@@ -65,8 +70,52 @@ const Players: React.FC<SunbirdPlayerProps> = ({
           console.warn("❌ No tenantId found in URL parameters or localStorage!");
         }
       }
+
+      // Check if already downloaded
+      if (identifier) {
+        offlineService.getStoredMetadata(identifier.toString()).then(stored => {
+          if (stored) setIsDownloaded(true);
+        });
+      }
     }
-  }, [router.isReady, router.query.userId, router.query.tenantId]);
+  }, [router.isReady, router.query.userId, router.query.tenantId, identifier]);
+
+  const handleDownload = async () => {
+    if (!identifier || !playerConfig) return;
+    setIsDownloading(true);
+    try {
+      console.log("[Player] Starting download...");
+      
+      // 1. Save metadata and hierarchy
+      await offlineService.downloadContentMetadata(
+        identifier.toString(), 
+        playerConfig.metadata, 
+        playerConfig.metadata // In this player, hierarchy is often merged into metadata
+      );
+
+      // 2. Identify and download assets
+      const assetsToDownload: string[] = [];
+      const metadata: any = playerConfig.metadata || {};
+
+      // Add main content URL
+      if (metadata.artifactUrl) assetsToDownload.push(metadata.artifactUrl);
+      if (metadata.streamingUrl) assetsToDownload.push(metadata.streamingUrl);
+      if (metadata.appIcon) assetsToDownload.push(metadata.appIcon);
+      if (metadata.posterImage) assetsToDownload.push(metadata.posterImage);
+
+      console.log(`[Player] Downloading ${assetsToDownload.length} assets...`);
+      for (const url of assetsToDownload) {
+        await offlineService.downloadAsset(url);
+      }
+
+      setIsDownloaded(true);
+      console.log("[Player] Download complete!");
+    } catch (error) {
+      console.error("[Player] Download failed:", error);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
   useEffect(() => {
     if (playerConfig || !identifier) return;
 
@@ -132,20 +181,29 @@ const Players: React.FC<SunbirdPlayerProps> = ({
           <Loader showBackdrop={false} />
         </Box>
       ) : (
-        <Box sx={{ height: "calc(100vh - 16px)" }}>
-          {/* <Typography
-            color="#024f9d"
-            sx={{ padding: '0 0 4px 4px', fontWeight: 'bold' }}
-          >
-            {playerConfig?.metadata?.name || 'Loading...'}
-          </Typography> */}
-          <SunbirdPlayers
-            player-config={playerConfig}
-            courseId={courseId as string}
-            unitId={unitId as string}
-            userId={userId as string}
-            configFunctionality={{ isGenerateCertificate, trackable }}
-          />
+        <Box sx={{ height: "calc(100vh - 16px)", display: "flex", flexDirection: "column" }}>
+          <Box display="flex" justifyContent="flex-end" p={1} sx={{ backgroundColor: 'white' }}>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={isDownloaded ? <CheckCircleIcon /> : (isDownloading ? <CircularProgress size={20} /> : <DownloadIcon />)}
+              onClick={handleDownload}
+              disabled={isDownloading || isDownloaded}
+              color={isDownloaded ? "success" : "primary"}
+              sx={{ textTransform: 'none' }}
+            >
+              {isDownloaded ? "Downloaded" : (isDownloading ? "Downloading..." : "Download Offline")}
+            </Button>
+          </Box>
+          <Box flex={1}>
+            <SunbirdPlayers
+              player-config={playerConfig}
+              courseId={courseId as string}
+              unitId={unitId as string}
+              userId={userId as string}
+              configFunctionality={{ isGenerateCertificate, trackable }}
+            />
+          </Box>
         </Box>
       )}
     </Box>
